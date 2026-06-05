@@ -104,6 +104,8 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 
 ## API Surface
 
+> ⚠️ 契约文档：`CONTRACT.md` 为 Pi ExtensionAPI 真实契约的权威来源，提取自 `pi-coding-agent@0.78.1` 运行时源码。
+
 ### Registered Tools (LLM-visible)
 
 All tools follow the same pattern:
@@ -174,13 +176,33 @@ All tools follow the same pattern:
 
 ## Verification Matrix
 
-| Change Type | Focused Check | Broader Gate |
-|-------------|---------------|--------------|
-| Any TS file | `npm run typecheck` | `npm run build` |
-| Core logic | Manual test via Pi with symlinked extension | Full tool call in Pi session |
-| Tool addition | typecheck + tool visible in `pi /tools` | Tool returns valid output on sample repo |
-| Hook change | typecheck + manual write/edit trigger in Pi | Verify + fix results appear in LLM context |
-| LSP change | typecheck + `/shazam-doctor` | Spawn server, get diagnostics for sample file |
+### 每次修改后（强制）
+
+| Step | Command | What it checks |
+|------|---------|---------------|
+| 1 | `npm run typecheck` | Type safety |
+| 2 | `npm test` | 98 tests |
+| 3 | `npm run build` | Compile output |
+
+### 发布前契约检查（强制）
+
+参考 `CONTRACT.md` 完整契约文档。
+
+```
+□ grep "pi\.logger\." dist/          # 不能有无保护的直接调用
+□ grep "pi\.typebox" dist/           # 不能有引用
+□ grep "content:" dist/index.js      # sendMessage: string 格式
+□ grep "content:" dist/hooks/*.js    # sendMessage: string 格式
+□ grep "content:" dist/tools/*.js    # Tool 返回: [{type:"text", text:...}]
+□ grep "systemPrompt:" dist/hooks/   # 返回 string，非 Array
+```
+
+### 调试指南
+
+- **扩展加载失败** → 检查 `CONTRACT.md`，对比运行时 API 版本
+- **`text.replace is not a function`** → 检查 sendMessage content 是否 string
+- **`Cannot read properties of undefined`** → 检查是否直接访问 pi.logger/pi.typebox/ctx.ui
+- **工具不出现** → 检查 register* 是否在 index.ts 中调用
 
 ## First Places to Inspect
 

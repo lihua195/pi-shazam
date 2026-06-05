@@ -1225,8 +1225,8 @@ export interface UserPythonEventResult {
 /** Agent 启动前事件处理结果 */
 export interface BeforeAgentStartEventResult {
   message?: Pick<CustomMessage, "customType" | "content" | "display" | "details" | "attribution">;
-  /** 替换本轮的系统提示。多个扩展返回时会链式拼接。 */
-  systemPrompt?: string | string[];
+  /** 替换本轮的系统提示。多个扩展返回时，最后一个返回 systemPrompt 的扩展决定最终值。注意：运行时是 string，非 string[]。 */
+  systemPrompt?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -1357,7 +1357,10 @@ export interface ProviderConfig {
 // ---------------------------------------------------------------------------
 
 /**
- * ExtensionAPI —— 传递给扩展工厂函数的核心接口。
+ * ExtensionAPI —— 传递给扩展工厂函数的核心接口（扁平纯对象，无嵌套属性）。
+ *
+ * 提取自 @earendil-works/pi-coding-agent@0.78.1 运行时源码 (loader.js createExtensionAPI)。
+ * CONTRACT.md 为权威契约文档。
  *
  * 扩展通过此接口：
  * - 订阅 Agent 生命周期事件
@@ -1366,14 +1369,20 @@ export interface ProviderConfig {
  * - 通过 UI 原语与用户交互
  */
 export interface ExtensionAPI {
-  /** 文件日志记录器（error/warning/debug） */
-  logger: PiLogger;
-  /** 注入的 zod 兼容 typebox shim，用于 Type.Object(...) 参数定义 */
-  typebox: TypeBoxModule;
-  /** 注入的 zod 模块，用于 Zod 编写的扩展工具参数 */
-  zod: ZodModule;
-  /** 注入的 pi-coding-agent 导出，用于访问 SDK 工具 */
-  pi: PiCodingAgent;
+  // ⚠️ 以下属性在运行时不存在，类型定义保留仅为兼容历史代码
+  // 使用前必须加 ?. 可选链，或直接从对应包 import：
+  //   - logger → 无等效替代，用 ?. 防御
+  //   - typebox → import { Type } from "typebox"
+  //   - zod → 不使用
+  //   - pi → 不使用
+  /** @deprecated 运行时不存在，使用 ?. 防御 */
+  logger?: PiLogger;
+  /** @deprecated 运行时不存在，使用 import { Type } from "typebox" */
+  typebox?: TypeBoxModule;
+  /** @deprecated 运行时不存在 */
+  zod?: ZodModule;
+  /** @deprecated 运行时不存在 */
+  pi?: PiCodingAgent;
 
   // --- 事件订阅 ---
 
