@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.js
+*.d.ts
+*.map
+!index.ts
+.cache/
+.pi-gewu/
+*.tgz
