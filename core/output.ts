@@ -57,7 +57,7 @@ function buildToolCommand(item: NextRecommendation): string {
 
 /**
  * Get standardized Next recommendations for a given tool and context.
- * Follows the Next 分级系统 table from issue #18.
+ * Follows the Next recommendation system table from issue #18.
  * Pass available context (topFile, topSymbol, orphanCount, riskLevel, etc.)
  * to generate context-aware recommendations.
  */
