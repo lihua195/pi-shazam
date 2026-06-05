@@ -6,8 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "files": [
-    "dist/**/*",
-    "SKILL.md"
+    "dist/**/*"
   ],
   "scripts": {
     "build": "tsc",
@@ -30,7 +29,6 @@
     "url": "https://github.com/gjczone/pi-shazam.git"
   },
   "dependencies": {
-    "2": "^3.0.0",
     "iconv-lite": "^0.6.3",
     "tree-sitter": "^0.22.4",
     "tree-sitter-c": "0.23.4",

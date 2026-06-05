@@ -11,7 +11,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 - **Primary user flow**: LLM calls analysis tools (`overview`, `impact`, `codequery`, etc.) to understand code structure, change impact, and call chains before making edits
 - **Architecture**: 4 layers — `core/` (parsing, graph, ranking), `lsp/` (language server management), `tools/` (Pi tool wrappers), `hooks/` (automatic verification)
 - **External dependency**: Language servers (pyright, tsserver, rust-analyzer, gopls) are user-installed; pi-shazam manages process lifecycle
-- **Release artifact**: npm package with `dist/` compiled output and `SKILL.md`
+- **Release artifact**: npm package with `dist/` compiled output
 
 ## Commands
 
@@ -48,7 +48,7 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 │   ├── manager.ts          ← Server lifecycle (spawn, stdio, health, shutdown)
 │   ├── client.ts           ← LSP protocol communication (JSON-RPC over stdio)
 │   ├── servers.ts          ← Language→server config table (17 languages)
-│   └── setup.ts            ← /gewu-setup command: detect + install guidance
+│   └── setup.ts            ← /shazam-setup command: detect + install guidance
 ├── tools/                  ← One file per registerTool call
 │   ├── overview.ts         ← Project structure summary
 │   ├── impact.ts           ← File-level change impact
@@ -94,8 +94,8 @@ All tools follow the same pattern:
 
 ### Registered Commands
 
-- `/gewu-setup` — detect installed language servers, output install instructions for missing ones
-- `/gewu-doctor` — health check: verify tree-sitter grammars, LSP servers, cache integrity
+- `/shazam-setup` — detect installed language servers, output install instructions for missing ones
+- `/shazam-doctor` — health check: verify tree-sitter grammars, LSP servers, cache integrity
 
 ### Output Envelope (JSON mode)
 
@@ -115,7 +115,7 @@ All tools follow the same pattern:
 - **Adding a new language**: Add grammar to `core/treesitter.ts` EXT_TO_LANG map → add tree-sitter query in queries section → add LSP server config in `lsp/servers.ts`
 - **Changing graph algorithm**: Modify `core/pagerank.ts` or `core/graph.ts` → verify all tools that consume `RepoGraph` still produce correct output
 - **Changing LSP protocol**: Modify `lsp/client.ts` → verify `lsp/manager.ts` lifecycle still works → test with at least 2 different language servers
-- **Changing tool output format**: Update the specific `tools/*.ts` formatter → update `SKILL.md` usage examples → verify JSON envelope schema
+- **Changing tool output format**: Update the specific `tools/*.ts` formatter → verify JSON envelope schema
 
 ## Verification Matrix
 
@@ -125,7 +125,7 @@ All tools follow the same pattern:
 | Core logic | Manual test via Pi with symlinked extension | Full tool call in Pi session |
 | Tool addition | typecheck + tool visible in `pi /tools` | Tool returns valid output on sample repo |
 | Hook change | typecheck + manual write/edit trigger in Pi | Verify + fix results appear in LLM context |
-| LSP change | typecheck + `/gewu-doctor` | Spawn server, get diagnostics for sample file |
+| LSP change | typecheck + `/shazam-doctor` | Spawn server, get diagnostics for sample file |
 
 ## First Places to Inspect
 
@@ -149,7 +149,6 @@ All tools follow the same pattern:
 - `package.json` — npm manifest, dependencies, build scripts
 - `tsconfig.json` — TypeScript compiler configuration
 - `types/pi-extension.d.ts` — self-contained ExtensionAPI type stub (source of truth for Pi API types)
-- `SKILL.md` — LLM-facing tool usage guide (shipped with package)
 - `goal.md` — original design document (development reference, not shipped)
 
 <general-project-rules>
@@ -191,8 +190,7 @@ All tools follow the same pattern:
 ## Project-Specific Rules
 
 - Pi extension API: Import types from `./types/pi-extension.js` (local stub). Use `ExtensionAPI`, `ExtensionContext`, `AgentToolResult` — do not redefine these types.
-- Tool naming: Prefix query tools with `code*` or `gewu_*` to avoid conflicts with other Pi extensions (e.g., `codequery` not `query`).
-- SKILL.md: Only document LLM-visible query tools. Verification tools (verify/fix/check/ready) are hook-driven — document them as automatic, not callable.
+- Tool naming: Prefix query tools with `code*` or `shazam_*` to avoid conflicts with other Pi extensions (e.g., `codequery` not `query`).
 - Symbol IDs: Format as `{file}::{name}::{line}` to match the repomap convention. Keep this stable — other tools depend on it.
 
 </general-project-rules>
