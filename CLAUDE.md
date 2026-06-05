@@ -26,7 +26,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 ## Development Environment
 
 - Node.js ≥18, npm as package manager
-- `types/pi-extension.d.ts` provides self-contained `ExtensionAPI` type stub (extracted from `@oh-my-pi/pi-coding-agent@15.8.0`)
+- `types/pi-extension.d.ts` provides self-contained `ExtensionAPI` type stub (extracted from Pi coding agent runtime at `~/.pi/`, scope `@earendil-works/pi-*`)
 - `npm install --legacy-peer-deps` required due to tree-sitter grammar peer dependency conflicts
 - `tree-sitter@^0.22.4` pinned via `overrides` in package.json
 - `vscode-languageserver-protocol` for LSP type definitions
