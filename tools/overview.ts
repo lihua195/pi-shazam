@@ -5,6 +5,7 @@ import type { ExtensionAPI } from "../types/pi-extension.js";
 import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
+import { isNonSourceFile } from "../core/filter.js";
 
 export function registerOverview(pi: ExtensionAPI): void {
 	pi.registerTool({
@@ -14,27 +15,31 @@ export function registerOverview(pi: ExtensionAPI): void {
 MUST call before touching ANY code in an unfamiliar project or repo.
 Returns: module dependency map, top-10 highest-PageRank files (the
 "spine" of the codebase), entry points, and suggested reading order.
+Supports --filter to search/find files by keyword within the project.
 Skipping this = navigating blind — you WILL miss cross-module ripple
 effects and waste turns on dead-end reads.
 
 Scenario: first turn in a new repo. After git clone. After switching
-to an unfamiliar project directory.
+to an unfamiliar project directory. Use --filter <keyword> to locate
+specific files (replaces separate find_file tool).
 
 Output: plain text summary by default. Pass { json: true } for
 structured output with file lists and PageRank scores.`,
 		parameters: Type.Object({
 			json: Type.Optional(Type.Boolean()),
+			filter: Type.Optional(Type.String()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;
+			const filter = params.filter ?? "";
 			const graph = scanProject(".");
 			return {
 				content: [
 					{
 						type: "text",
 						text: json
-							? executeOverviewJson(graph, ".")
-							: executeOverview(graph, "."),
+							? executeOverviewJson(graph, ".", filter)
+							: executeOverview(graph, ".", filter),
 					},
 				],
 			};
@@ -42,14 +47,28 @@ structured output with file lists and PageRank scores.`,
 	});
 }
 
-export function executeOverview(graph: RepoGraph, _projectRoot: string): string {
+export function executeOverview(graph: RepoGraph, _projectRoot: string, filter?: string): string {
 	const lines: string[] = [];
+
+	// ── Apply file filtering ───────────────────────────────────────
+	const files = filter
+		? [...graph.fileSymbols.keys()].filter(
+				(f) => !isNonSourceFile(f) && f.includes(filter),
+			)
+		: [...graph.fileSymbols.keys()].filter((f) => !isNonSourceFile(f));
+
+	if (files.length === 0) {
+		lines.push("## Project Overview");
+		lines.push("");
+		lines.push("No matching source files found.");
+		return lines.join("\n");
+	}
 
 	// Summary stats
 	lines.push("## Project Overview");
 	lines.push("");
 	lines.push(
-		`${graph.symbols.size} symbols across ${graph.fileSymbols.size} files`,
+		`${graph.symbols.size} symbols across ${files.length} source files`,
 	);
 
 	// Calculate per-file symbol counts and aggregate PageRank
@@ -57,7 +76,9 @@ export function executeOverview(graph: RepoGraph, _projectRoot: string): string 
 		string,
 		{ count: number; pagerank: number; topSym: string }
 	>();
-	for (const [file, symIds] of graph.fileSymbols) {
+	for (const file of files) {
+		const symIds = graph.fileSymbols.get(file);
+		if (!symIds) continue;
 		let totalPR = 0;
 		let topPR = 0;
 		let topName = "";
@@ -111,14 +132,14 @@ export function executeOverview(graph: RepoGraph, _projectRoot: string): string 
 	lines.push("### Module Structure");
 	lines.push("");
 	const dirs = new Set<string>();
-	for (const file of graph.fileSymbols.keys()) {
+	for (const file of files) {
 		const dir = file.includes("/") ? file.split("/")[0]! : "(root)";
 		dirs.add(dir);
 	}
 	const sortedDirs = [...dirs].sort();
 	for (const dir of sortedDirs) {
-		const dirFiles = [...graph.fileSymbols.keys()].filter((f) =>
-			f.startsWith(dir + "/") || (dir === "(root)" && !f.includes("/")),
+		const dirFiles = files.filter(
+			(f) => f.startsWith(dir + "/") || (dir === "(root)" && !f.includes("/")),
 		);
 		lines.push(`- \`${dir}/\` — ${dirFiles.length} files`);
 	}
@@ -138,9 +159,18 @@ export function executeOverview(graph: RepoGraph, _projectRoot: string): string 
 export function executeOverviewJson(
 	graph: RepoGraph,
 	projectRoot: string,
+	filter?: string,
 ): string {
+	const files = filter
+		? [...graph.fileSymbols.keys()].filter(
+				(f) => !isNonSourceFile(f) && f.includes(filter),
+			)
+		: [...graph.fileSymbols.keys()].filter((f) => !isNonSourceFile(f));
+
 	const fileStats = new Map<string, { count: number; pagerank: number }>();
-	for (const [file, symIds] of graph.fileSymbols) {
+	for (const file of files) {
+		const symIds = graph.fileSymbols.get(file);
+		if (!symIds) continue;
 		let totalPR = 0;
 		for (const id of symIds) {
 			totalPR += graph.symbols.get(id)?.pagerank ?? 0;

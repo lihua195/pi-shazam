@@ -15,6 +15,7 @@ import type {
 } from "./types/pi-extension.js";
 import { LspManager } from "./lsp/manager.js";
 import { generateSetupReport } from "./lsp/setup.js";
+import { setLspManager } from "./core/lsp-global.js";
 
 // ── Hook registrations ───────────────────────────────────────────────────
 import { registerBeforeStartHook } from "./hooks/before-start.js";
@@ -23,20 +24,18 @@ import { registerAfterWriteHook } from "./hooks/after-write.js";
 // ── Tool registrations ────────────────────────────────────────────────────
 import { registerOverview } from "./tools/overview.js";
 import { registerImpact } from "./tools/impact.js";
-import { registerCodequery } from "./tools/codequery.js";
 import { registerCallChain } from "./tools/call_chain.js";
 import { registerVerify } from "./tools/verify.js";
 import { registerCheck } from "./tools/check.js";
 import { registerFix } from "./tools/fix.js";
 import { registerReady } from "./tools/ready.js";
-import { registerRefs } from "./tools/refs.js";
 import { registerRoutes } from "./tools/routes.js";
 import { registerStateMap } from "./tools/state_map.js";
-import { registerOrphan } from "./tools/orphan.js";
 import { registerHotspots } from "./tools/hotspots.js";
 import { registerCodesearch } from "./tools/codesearch.js";
 import { registerFileDetail } from "./tools/file_detail.js";
 import { registerSymbol } from "./tools/symbol.js";
+import { registerHover } from "./tools/hover.js";
 
 export default function (pi: ExtensionAPI): void {
 	const projectRoot = process.cwd();
@@ -47,6 +46,9 @@ export default function (pi: ExtensionAPI): void {
 	// ── LSP manager ─────────────────────────────────────────────────────────
 
 	const lspManager = new LspManager(projectRoot, log);
+
+	// Share LspManager with tools via global reference
+	setLspManager(lspManager);
 
 	// Auto-initialize LSP on agent start
 	pi.on("before_agent_start", async (_event, _ctx) => {
@@ -108,20 +110,18 @@ export default function (pi: ExtensionAPI): void {
 	// ── Tools (LLM-visible) ────────────────────────────────────────────────
 	registerOverview(pi);
 	registerImpact(pi);
-	registerCodequery(pi);
 	registerCallChain(pi);
 	registerVerify(pi);
 	registerCheck(pi);
 	registerFix(pi);
 	registerReady(pi);
-	registerRefs(pi);
 	registerRoutes(pi);
 	registerStateMap(pi);
-	registerOrphan(pi);
 	registerHotspots(pi);
 	registerCodesearch(pi);
 	registerFileDetail(pi);
 	registerSymbol(pi);
+	registerHover(pi);
 
 	log("pi-shazam loaded");
 }
