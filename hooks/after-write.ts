@@ -130,7 +130,7 @@ export function registerAfterWriteHook(pi: ExtensionAPI): void {
 				display: true,
 			});
 		} catch (err) {
-			pi.logger.warn(`[pi-shazam] Auto-verify hook error: ${err}`);
+			pi.logger?.warn(`[pi-shazam] Auto-verify hook error: ${err}`);
 		}
 	});
 }

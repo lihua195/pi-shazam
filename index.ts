@@ -40,7 +40,9 @@ import { registerSymbol } from "./tools/symbol.js";
 
 export default function (pi: ExtensionAPI): void {
 	const projectRoot = process.cwd();
-	const log = (msg: string) => pi.logger.info(`[pi-shazam] ${msg}`);
+	const log = (msg: string) => {
+		if (pi.logger?.info) pi.logger.info(`[pi-shazam] ${msg}`);
+	};
 
 	// ── LSP manager ─────────────────────────────────────────────────────────
 
@@ -76,7 +78,7 @@ export default function (pi: ExtensionAPI): void {
 			"Detect and report LSP server availability with install instructions",
 		async handler(_args: string, ctx: ExtensionCommandContext) {
 			const report = generateSetupReport(projectRoot);
-			ctx.ui.setStatus("shazam-setup", "LSP setup report generated");
+			ctx.ui?.setStatus?.("shazam-setup", "LSP setup report generated");
 			// Send as a custom message so the user sees the report
 			pi.sendMessage({
 				customType: "shazam-setup",
@@ -94,7 +96,7 @@ export default function (pi: ExtensionAPI): void {
 		async handler(_args: string, ctx: ExtensionCommandContext) {
 			const lspReport = generateSetupReport(projectRoot);
 			const msg = ["## Shazam Doctor — Health Check", "", lspReport].join("\n");
-			ctx.ui.setStatus("shazam-doctor", "Health check complete");
+			ctx.ui?.setStatus?.("shazam-doctor", "Health check complete");
 			pi.sendMessage({
 				customType: "shazam-doctor",
 				content: [{ type: "text", text: msg }],

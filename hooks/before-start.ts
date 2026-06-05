@@ -37,7 +37,7 @@ export function registerBeforeStartHook(pi: ExtensionAPI): void {
 				systemPrompt: [overviewText],
 			};
 		} catch (err) {
-			pi.logger.warn(`[pi-shazam] Failed to generate overview: ${err}`);
+			pi.logger?.warn(`[pi-shazam] Failed to generate overview: ${err}`);
 			// Don't block agent start on overview failure
 			return undefined;
 		}
