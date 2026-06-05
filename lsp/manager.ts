@@ -59,12 +59,38 @@ const SKIP_DIRS = new Set([
 	"node_modules",
 	"dist",
 	"build",
+	"out",
 	".venv",
 	"venv",
 	"target",
 	"__pycache__",
 	".cache",
+	".next",
+	".nuxt",
+	"coverage",
+	".nyc_output",
+	"vendor",
+	"bower_components",
+	"tmp",
+	"temp",
+	".idea",
+	".vscode",
+	".turbo",
+	".vercel",
+	".yarn",
 ]);
+
+/**
+ * Check if a path contains any skip directory segment.
+ * Used to avoid feeding vendored/generated files to LSP.
+ */
+export function shouldSkipPath(filePath: string): boolean {
+	const segments = filePath.split("/");
+	for (const seg of segments) {
+		if (SKIP_DIRS.has(seg)) return true;
+	}
+	return false;
+}
 
 /**
  * Walk project root and detect languages from file extensions.
@@ -327,6 +353,9 @@ export class LspManager {
 	 * Returns null if no LSP server is available for the file's language.
 	 */
 	getServerForFile(filePath: string): LspServerInfo | null {
+		// Skip vendored / generated / cache directories
+		if (shouldSkipPath(filePath)) return null;
+
 		const ext = filePath.substring(filePath.lastIndexOf(".")).toLowerCase();
 		const language = languageForSuffix(ext);
 		if (!language) return null;
@@ -370,9 +399,7 @@ export class LspManager {
 		try {
 			client.start();
 		} catch (err) {
-			this.log(
-				`Failed to start LSP for ${language}: ${err}`,
-			);
+			this.log(`Failed to start LSP for ${language}: ${err}`);
 			return null;
 		}
 
@@ -402,9 +429,7 @@ export class LspManager {
 					await info.client.initialize();
 					this.log(`LSP initialized: ${language} (${info.serverName})`);
 				} catch (err) {
-					this.log(
-						`LSP init failed for ${language}: ${err}`,
-					);
+					this.log(`LSP init failed for ${language}: ${err}`);
 				}
 			}
 		});
@@ -428,9 +453,7 @@ export class LspManager {
 				info.client.close();
 				this.log(`LSP shutdown: ${language}`);
 			} catch (err) {
-				this.log(
-					`LSP shutdown error for ${language}: ${err}`,
-				);
+				this.log(`LSP shutdown error for ${language}: ${err}`);
 			}
 		}
 		this.servers.clear();

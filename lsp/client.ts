@@ -94,7 +94,9 @@ function uriToPath(uri: string): string {
 	return uri;
 }
 
-function severityName(value: number | undefined | null): LspDiagnostic["severity"] {
+function severityName(
+	value: number | undefined | null,
+): LspDiagnostic["severity"] {
 	if (value === 1) return "error";
 	if (value === 2) return "warning";
 	if (value === 3) return "info";
@@ -177,9 +179,7 @@ export class LspClient {
 		});
 
 		this.process.on("exit", (code, signal) => {
-			this._log(
-				`LSP process exited: code=${code}, signal=${signal}`,
-			);
+			this._log(`LSP process exited: code=${code}, signal=${signal}`);
 			this._running = false;
 		});
 
@@ -193,12 +193,8 @@ export class LspClient {
 		}
 
 		// Create JSON-RPC connection over stdio
-		const reader = new rpc.StreamMessageReader(
-			this.process.stdout!,
-		);
-		const writer = new rpc.StreamMessageWriter(
-			this.process.stdin!,
-		);
+		const reader = new rpc.StreamMessageReader(this.process.stdout!);
+		const writer = new rpc.StreamMessageWriter(this.process.stdin!);
 		this.connection = rpc.createMessageConnection(reader, writer);
 
 		// Listen for notifications (diagnostics etc.)
@@ -242,7 +238,8 @@ export class LspClient {
 		);
 
 		this._serverCapabilities =
-			((result as InitializeResult).capabilities as Record<string, unknown>) ?? {};
+			((result as InitializeResult).capabilities as Record<string, unknown>) ??
+			{};
 
 		await this.connection.sendNotification("initialized", {});
 		this._log(`LSP initialized: ${this.command[0]}`);
@@ -267,19 +264,13 @@ export class LspClient {
 		const params: DidOpenTextDocumentParams = {
 			textDocument: {
 				uri,
-				languageId: lspLanguageId(
-					this._detectLanguage(filePath),
-					filePath,
-				),
+				languageId: lspLanguageId(this._detectLanguage(filePath), filePath),
 				version: 1,
 				text,
 			},
 		};
 
-		await this.connection.sendNotification(
-			"textDocument/didOpen",
-			params,
-		);
+		await this.connection.sendNotification("textDocument/didOpen", params);
 		this._openedFiles.add(path.resolve(filePath));
 	}
 
@@ -387,13 +378,9 @@ export class LspClient {
 	 * Collect diagnostics for a set of file paths.
 	 * Checks accumulated notifications first, then polls briefly for more.
 	 */
-	collectDiagnostics(
-		filePaths: string[],
-	): PublishDiagnosticsParams[] {
+	collectDiagnostics(filePaths: string[]): PublishDiagnosticsParams[] {
 		const expectedUris = new Set(
-			filePaths
-				.filter((f) => this.isFileOpened(f))
-				.map((f) => pathToUri(f)),
+			filePaths.filter((f) => this.isFileOpened(f)).map((f) => pathToUri(f)),
 		);
 
 		if (expectedUris.size === 0) return [];
@@ -458,12 +445,22 @@ export class LspClient {
 		const ext = path.extname(filePath).toLowerCase();
 		const map: Record<string, string> = {
 			".py": "python",
+			".pyi": "python",
+			".pyx": "python",
+			".pxd": "python",
 			".ts": "typescript",
-			".tsx": "typescript",
+			".tsx": "typescriptreact",
+			".mts": "typescript",
+			".cts": "typescript",
+			".js": "javascript",
+			".jsx": "javascriptreact",
+			".mjs": "javascript",
+			".cjs": "javascript",
 			".go": "go",
 			".rs": "rust",
 			".json": "json",
-			".jsonc": "json",
+			".jsonc": "jsonc",
+			".json5": "json5",
 			".yaml": "yaml",
 			".yml": "yaml",
 		};
@@ -494,10 +491,10 @@ export function convertDiagnostics(
 
 	return rawDiagnostics.map((d) => ({
 		file: relFile,
-		line: (d.range.start.line) + 1, // LSP 0-based → 1-based
-		col: (d.range.start.character) + 1,
-		endLine: (d.range.end.line) + 1,
-		endCol: (d.range.end.character) + 1,
+		line: d.range.start.line + 1, // LSP 0-based → 1-based
+		col: d.range.start.character + 1,
+		endLine: d.range.end.line + 1,
+		endCol: d.range.end.character + 1,
 		severity: severityName(d.severity),
 		code: String(d.code ?? ""),
 		message: d.message,

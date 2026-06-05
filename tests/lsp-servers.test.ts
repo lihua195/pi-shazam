@@ -32,6 +32,12 @@ describe("lsp/servers", () => {
 			expect(ts!.args).toContain("--stdio");
 			expect(ts!.fileSuffixes).toContain(".ts");
 			expect(ts!.fileSuffixes).toContain(".tsx");
+			expect(ts!.fileSuffixes).toContain(".js");
+			expect(ts!.fileSuffixes).toContain(".jsx");
+			expect(ts!.fileSuffixes).toContain(".mjs");
+			expect(ts!.fileSuffixes).toContain(".cjs");
+			expect(ts!.fileSuffixes).toContain(".mts");
+			expect(ts!.fileSuffixes).toContain(".cts");
 		});
 
 		it("should have go spec", () => {
@@ -124,10 +130,16 @@ describe("lsp/servers", () => {
 		});
 
 		it("should NOT contain suffixes for removed languages", () => {
-			expect(suffixToLanguage[".js"]).toBeUndefined();
+			// .js is now covered by TypeScript LSP -> expected to be present
 			expect(suffixToLanguage[".c"]).toBeUndefined();
 			expect(suffixToLanguage[".cpp"]).toBeUndefined();
 			expect(suffixToLanguage[".java"]).toBeUndefined();
+			expect(suffixToLanguage[".rb"]).toBeUndefined();
+			expect(suffixToLanguage[".php"]).toBeUndefined();
+			expect(suffixToLanguage[".swift"]).toBeUndefined();
+			expect(suffixToLanguage[".cs"]).toBeUndefined();
+			expect(suffixToLanguage[".html"]).toBeUndefined();
+			expect(suffixToLanguage[".css"]).toBeUndefined();
 		});
 	});
 });
