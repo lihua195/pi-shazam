@@ -3,7 +3,8 @@ dist/
 *.js
 *.d.ts
 *.map
-!index.ts
+!types/**/*.d.ts
 .cache/
 .pi-gewu/
+.qoder/
 *.tgz

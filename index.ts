@@ -1,5 +1,5 @@
-import type { ExtensionAPI } from "@oh-my-pi/pi-coding-agent";
+import type { ExtensionAPI } from "./types/pi-extension.js";
 
-export default function(pi: ExtensionAPI): void {
+export default function(_pi: ExtensionAPI): void {
   // placeholder - tools, hooks, commands will be registered here
 }
