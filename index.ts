@@ -82,7 +82,7 @@ export default function (pi: ExtensionAPI): void {
 			// Send as a custom message so the user sees the report
 			pi.sendMessage({
 				customType: "shazam-setup",
-				content: [{ type: "text", text: report }],
+				content: report,
 				display: true,
 			});
 		},
@@ -99,7 +99,7 @@ export default function (pi: ExtensionAPI): void {
 			ctx.ui?.setStatus?.("shazam-doctor", "Health check complete");
 			pi.sendMessage({
 				customType: "shazam-doctor",
-				content: [{ type: "text", text: msg }],
+				content: msg,
 				display: true,
 			});
 		},

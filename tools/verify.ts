@@ -241,20 +241,20 @@ function assessRisk(
 	if (orphans.length > 10 || totalChanges > 50) {
 		return {
 			level: "high",
-			reason: `\${orphans.length} orphan symbols and \${totalChanges} graph changes detected.`,
+			reason: `${orphans.length} orphan symbols and ${totalChanges} graph changes detected.`,
 		};
 	}
 
 	if (orphans.length > 0 || totalChanges > 20) {
 		return {
 			level: "medium",
-			reason: `\${orphans.length} orphans and \${totalChanges} changes — review recommended.`,
+			reason: `${orphans.length} orphans and ${totalChanges} changes — review recommended.`,
 		};
 	}
 
 	return {
 		level: "low",
-		reason: `\${orphans.length} orphans, \${totalChanges} changes — acceptable.`,
+		reason: `${orphans.length} orphans, ${totalChanges} changes — acceptable.`,
 	};
 }
 

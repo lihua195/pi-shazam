@@ -126,7 +126,7 @@ export function registerAfterWriteHook(pi: ExtensionAPI): void {
 			// Send findings as a message to the LLM
 			pi.sendMessage({
 				customType: "shazam-auto-verify",
-				content: [{ type: "text", text: findings }],
+				content: findings,
 				display: true,
 			});
 		} catch (err) {

@@ -1226,7 +1226,7 @@ export interface UserPythonEventResult {
 export interface BeforeAgentStartEventResult {
   message?: Pick<CustomMessage, "customType" | "content" | "display" | "details" | "attribution">;
   /** 替换本轮的系统提示。多个扩展返回时会链式拼接。 */
-  systemPrompt?: string[];
+  systemPrompt?: string | string[];
 }
 
 // ---------------------------------------------------------------------------

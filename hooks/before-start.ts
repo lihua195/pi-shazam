@@ -34,7 +34,7 @@ export function registerBeforeStartHook(pi: ExtensionAPI): void {
 			const overviewText = generateOverviewForPrompt(".");
 			// Append overview to the system prompt
 			return {
-				systemPrompt: [overviewText],
+				systemPrompt: overviewText,
 			};
 		} catch (err) {
 			pi.logger?.warn(`[pi-shazam] Failed to generate overview: ${err}`);
