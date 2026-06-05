@@ -43,7 +43,7 @@ jobs:
         run: npm run build
 
       - name: Publish to npm
-        run: npm publish --tag ${{ github.event.inputs.tag || 'latest' }} --provenance --access public
+        run: npm publish --tag ${{ github.event.inputs.tag || 'latest' }} --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
