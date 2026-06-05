@@ -1,19 +1,19 @@
 # pi-shazam
 
-> Pi 编程助手原生代码库感知扩展 —— "Shazam" 如同拥有多位神灵之力的超级英雄，统一多种分析引擎之力。
+> Native codebase awareness extension for the Pi coding agent — unified structural analysis and LSP diagnostics as first-class LLM tools.
 
 [![npm version](https://img.shields.io/npm/v/pi-shazam)](https://www.npmjs.com/package/pi-shazam)
 [![CI](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml/badge.svg)](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml)
 
-pi-shazam 将代码库结构分析（tree-sitter AST → 符号依赖图 → PageRank 评分）和 LSP 诊断整合为 Pi 的一等公民工具。LLM 看到它们就像看到 `read`/`write`/`bash` 一样自然。
+pi-shazam builds a full dependency graph of your codebase — parsing every source file with tree-sitter, extracting symbols and their call/import relationships, ranking them with PageRank, and exposing the results through LLM-callable Pi tools. The agent sees `shazam_overview` and `shazam_codequery` the same way it sees `read` and `bash`.
 
-## 安装
+## Installation
 
 ```bash
 pi install npm:pi-shazam
 ```
 
-或手动添加到 `~/.pi/agent/settings.json`：
+Or add to `~/.pi/agent/settings.json`:
 
 ```json
 {
@@ -21,74 +21,179 @@ pi install npm:pi-shazam
 }
 ```
 
-> 需要 Node.js ≥ 18。
+> Requires Node.js ≥ 18.
 
-## 功能
+## What It Gives the Agent
 
-### 16 个 LLM 工具
+### Before touching any code — `shazam_overview`
 
-#### 查询工具（12 个）—— 只读，永不修改文件
+The first thing the agent should call in an unfamiliar repo. One call returns:
 
-| 工具 | 用途 |
-|------|------|
-| `shazam_overview` | 项目结构总览：模块依赖图、Top-10 PageRank 文件、入口点 |
-| `shazam_codequery` | 统一符号/文件查询：`--symbol` 找定义、`--file` 列符号、`--query` 关键词搜索 |
-| `shazam_codesearch` | BM25 符号搜索，跨全库排名 |
-| `shazam_file_detail` | 单文件深度分析：所有符号、签名、可见性、进出引用数 |
-| `shazam_symbol` | 单符号查找：定义位置、类型、调用计数 |
-| `shazam_refs` | 引用查找：项目中所有使用位置（进出边） |
-| `shazam_impact` | 修改影响分析：改动文件的波及范围、受影响符号、建议测试 |
-| `shazam_call_chain` | 调用链追踪：上游调用者 → 下游被调者 |
-| `shazam_routes` | HTTP 路由清单 |
-| `shazam_state_map` | 状态定义发现：枚举/常量及其转换 |
-| `shazam_orphan` | 死代码检测：零入度符号（置信度 ≥ 70） |
-| `shazam_hotspots` | 复杂度热点排序 |
+- **Module dependency map** — which directories depend on which
+- **Top-10 files by PageRank** — the structural "spine" of the codebase
+- **Entry points** — exported symbols with the most incoming references
+- **Suggested reading order** — where to start understanding the code
+- **Hotspots** — files with the highest complexity and risk
 
-#### 写入/验证工具（4 个）
+### Before editing a symbol — `shazam_codequery` / `shazam_refs` / `shazam_call_chain`
 
-| 工具 | 用途 |
-|------|------|
-| `shazam_verify` | 编辑后诊断：git diff → 风险评估 → 孤儿符号 → 调用图一致性 |
-| `shazam_check` | 编译/lint 诊断：tree-sitter 解析验证 + 符号统计 |
-| `shazam_fix` | 自动格式化：检测 prettier/eslint/biome 配置，扫描格式问题，`--dry-run` 预览 |
-| `shazam_ready` | 提交前就绪检查：verify + check 组合门禁 |
+Before renaming, deleting, or changing any function, the agent checks:
 
-所有工具支持 `{ "json": true }` 结构化输出。
+| What | Which tool |
+|------|-----------|
+| Where is it defined? | `shazam_codequery --symbol <name>` |
+| What's its signature and visibility? | `shazam_symbol --symbol <name>` |
+| Who calls it? | `shazam_refs --symbol <name>` (incoming edges) |
+| What does it call? | `shazam_refs --symbol <name>` (outgoing edges) |
+| Full call chain? | `shazam_call_chain --symbol <name> --depth 2` |
 
-### 2 个自动 Hook
+### Before editing a file — `shazam_file_detail` / `shazam_codequery --file`
 
-- **启动注入**：首次进入仓库时，自动将项目概览注入系统提示
-- **编辑后验证**：每次 `write`/`edit` 后自动运行诊断并报告
+Reading raw source shows syntax; these tools show **structure**. The agent sees every symbol in the file with signatures, visibility, line ranges, incoming/outgoing reference counts, and PageRank scores — so it spots dependencies and side effects that raw reading misses.
 
-### 2 个命令
+### Before multi-file edits — `shazam_impact`
 
-- `/shazam-setup` — 检测 LSP 服务器可用性，输出安装指导
-- `/shazam-doctor` — 健康检查：tree-sitter 语法、LSP 服务器、缓存
+Pass the files you plan to change and get back:
 
-## 语言支持
+- **Blast radius** — every file that references the symbols in your target files
+- **Key symbols at risk** — high-PageRank symbols that would be affected
+- **Suggested tests** — test files most likely to catch regressions
+- **Risk level** — low / medium / high with specific reasons
 
-### Tree-sitter 解析（18 种语言）
+### After every edit — `shazam_verify`
 
-TypeScript/JavaScript、Python、Rust、Go、Java、C、C++、C#、Ruby、CSS、HTML、JSON、YAML、Bash、Lua、Kotlin、Swift、Scala
+The evidence gate. After each write/edit, the agent runs:
 
-### LSP 服务器（6 种语言，自动检测并启动）
+1. **Git diff** → what actually changed
+2. **Baseline comparison** → added/removed/modified symbols vs last snapshot
+3. **Orphan detection** → symbols with zero incoming references (dead code candidates)
+4. **Risk assessment** → low / medium / high based on change magnitude
+5. **Call-graph consistency** → broken calls, broken imports
 
-| 语言 | 服务器 |
-|------|--------|
-| TypeScript/JavaScript | typescript-language-server |
+Use `--quick` for a 2-second risk-only check after each individual edit. Run the full verify before committing.
+
+### Before committing — `shazam_ready`
+
+The final gate. Composes verify + check into a single pass/fail readout:
+
+```
+Status: ✅ READY   or   ❌ NOT READY
+- Risk level: low / medium / high
+- Orphan symbols: N
+- Files parsed: N / N
+```
+
+If not ready, it tells the agent exactly what to fix and which tools to run.
+
+### When CI is red — `shazam_check`
+
+Independent of git state. Runs tree-sitter parse validation across all project files and reports which files failed to parse, symbol counts, and edge statistics. For deeper diagnostics, points the agent to `npx tsc --noEmit` or language-specific linters.
+
+### Format issues — `shazam_fix`
+
+Detects available formatters from project config (prettier, eslint, biome) and scans files for:
+
+- Trailing whitespace
+- Tab indentation in space-convention files
+- Mixed tabs and spaces
+- Missing newline at end of file
+- Consecutive blank lines (>2)
+
+Always defaults to **dry-run mode** — shows what would change without touching files. The agent must explicitly pass `{ "dryRun": false }` to apply fixes.
+
+### Finding dead code — `shazam_orphan`
+
+Lists symbols with zero incoming references (filtering out exported entry points, anonymous functions, and test files). Confidence ≥ 70. Before deleting anything, the agent should also check for dynamic references.
+
+### Finding complexity problems — `shazam_hotspots`
+
+Ranks files by a composite of symbol count, edge density, and PageRank sum. The files at the top are where bugs are most likely to hide.
+
+### HTTP APIs — `shazam_routes`
+
+Discovers HTTP route registrations across the project — framework-agnostic pattern matching for Express, Flask, FastAPI, Gin, Actix, and more.
+
+### State machines — `shazam_state_map`
+
+Traces enum and constant definitions, their values, and transition relationships. Useful for understanding configuration states, feature flags, or finite state machines.
+
+### Keyword search — `shazam_codesearch`
+
+BM25-ranked symbol search across the entire codebase. Better than grep for finding "that function that handles authentication" when you don't know its exact name.
+
+## All Tools at a Glance
+
+| Tool | Type | Description |
+|------|------|-------------|
+| `shazam_overview` | Query | Project structure, modules, Top-10 PageRank files, reading order |
+| `shazam_codequery` | Query | Unified lookup: `--symbol`, `--file`, or `--query` (keyword) |
+| `shazam_codesearch` | Query | BM25 symbol search across entire codebase |
+| `shazam_file_detail` | Query | Deep file analysis: all symbols, signatures, ref counts, imports |
+| `shazam_symbol` | Query | Single symbol: definition, kind, visibility, call counts |
+| `shazam_refs` | Query | All incoming + outgoing references for a symbol |
+| `shazam_impact` | Query | Blast radius of planned file changes with risk level |
+| `shazam_call_chain` | Query | Upstream callers → downstream callees with depth control |
+| `shazam_routes` | Query | HTTP route inventory (framework-agnostic) |
+| `shazam_state_map` | Query | Enum/state definitions and transitions |
+| `shazam_orphan` | Query | Dead code candidates (zero incoming references) |
+| `shazam_hotspots` | Query | Complexity-ranked file list |
+| `shazam_verify` | Verify | Post-edit gate: diff, orphans, risk, call-graph consistency |
+| `shazam_check` | Verify | Parse validation and symbol statistics (git-independent) |
+| `shazam_fix` | Write | Auto-detect and preview format issues (dry-run by default) |
+| `shazam_ready` | Verify | Pre-commit composition of verify + check |
+
+All tools support `{ "json": true }` for structured output. Write tools use `{ "dryRun": true }` by default and require explicit opt-out to apply changes.
+
+## Automatic Hooks
+
+Two hooks run without the agent asking:
+
+### Overview Injection (`before_agent_start`)
+
+When the agent starts in a project, pi-shazam silently scans the codebase and injects a structural overview into the system prompt. The agent **sees the shape of the code before reading a single file**, eliminating the "where do I even start" problem.
+
+### Post-Edit Verification (`tool_result` → `write`/`edit`)
+
+After every file write or edit, pi-shazam re-scans the project and reports:
+
+- Total symbols and files
+- Graph changes since baseline (added/removed/modified)
+- Orphan symbol count (with smarter filtering — skips exported entry points and test files)
+- Edge count and file relationship coverage
+
+Findings are sent as a message into the conversation so the agent is immediately aware of structural impacts.
+
+## Commands
+
+| Command | Purpose |
+|---------|---------|
+| `/shazam-setup` | Detect installed language servers, print install instructions for missing ones |
+| `/shazam-doctor` | Full health check: tree-sitter grammars, LSP servers, cache integrity |
+
+## Languages
+
+### Tree-sitter Parsing (18 languages)
+
+TypeScript, JavaScript, Python, Rust, Go, Java, C, C++, C#, Ruby, CSS, HTML, JSON, YAML, Bash, Lua, Kotlin, Swift, Scala
+
+### LSP Diagnostics (6 languages, auto-spawned)
+
+| Language | Server |
+|----------|--------|
+| TypeScript / JavaScript | typescript-language-server |
 | Python | pyright |
 | Rust | rust-analyzer |
 | Go | gopls |
 | JSON | vscode-json-languageserver |
 | YAML | yaml-language-server |
 
-LSP 不可用时自动降级为纯 tree-sitter，不会抛错。
+When a language server is unavailable, tools fall back to tree-sitter and annotate output with `(tree-sitter only, LSP unavailable)`. They never throw on missing LSP.
 
-## 编码
+## Encoding
 
-自适应编码读取：UTF-8 → GBK → GB2312。中文字符项目自动处理。
+Adaptive file reading: UTF-8 → GBK → GB2312. Chinese-character source files are handled automatically. The scanner never assumes UTF-8.
 
-## JSON 输出格式
+## JSON Output Envelope
 
 ```json
 {
@@ -100,42 +205,41 @@ LSP 不可用时自动降级为纯 tree-sitter，不会抛错。
 }
 ```
 
-## 开发
+## Architecture
+
+```
+index.ts                    ← Pi extension entry point (default export)
+├── core/                   ← Pure analysis — zero Pi or LSP imports
+│   ├── treesitter.ts       ← AST parsing + symbol extraction (18 languages)
+│   ├── graph.ts            ← Symbol dependency graph (imports, calls, refs)
+│   ├── pagerank.ts         ← PageRank scoring
+│   ├── scanner.ts          ← Project walking + graph construction
+│   ├── encoding.ts         ← Adaptive encoding (UTF-8 → GBK → GB2312)
+│   └── cache.ts            ← Baseline save/load + graph diff
+├── lsp/                    ← Language server process management
+│   ├── manager.ts          ← Server lifecycle (spawn, stdio, health, shutdown)
+│   ├── client.ts           ← JSON-RPC over stdio via vscode-jsonrpc
+│   ├── servers.ts          ← Language → server config (6 languages)
+│   └── setup.ts            ← /shazam-setup command logic
+├── tools/                  ← One file per registerTool call (16 tools)
+└── hooks/                  ← Automatic event handlers (not LLM-callable)
+    ├── before-start.ts     ← Inject overview into system prompt
+    └── after-write.ts      ← Auto-verify after write/edit operations
+```
+
+Layer direction: `hooks/` → `tools/` → `core/` + `lsp/`. Core never imports from tools, hooks, or lsp.
+
+## Development
 
 ```bash
 git clone https://github.com/gjczone/pi-shazam.git
 cd pi-shazam
 npm install --legacy-peer-deps
 
-# 开发
 npm run dev          # tsc --watch
-
-# 检查
 npm run typecheck    # tsc --noEmit
 npm test             # vitest (98 tests)
-
-# 构建
 npm run build        # tsc → dist/
-```
-
-## 架构
-
-```
-index.ts                    ← Pi 扩展入口
-├── core/                   ← 纯分析逻辑（零 Pi 依赖）
-│   ├── treesitter.ts       ← AST 解析 + 符号提取
-│   ├── graph.ts            ← 符号依赖图
-│   ├── pagerank.ts         ← PageRank 评分
-│   ├── scanner.ts          ← 项目扫描 + 图构建
-│   ├── encoding.ts         ← UTF-8 → GBK → GB2312
-│   └── cache.ts            ← 基线保存/对比
-├── lsp/                    ← 语言服务器管理
-│   ├── manager.ts          ← 生命周期（spawn/stdio/shutdown）
-│   ├── client.ts           ← JSON-RPC over stdio
-│   ├── servers.ts          ← 语言→服务器配置表
-│   └── setup.ts            ← /shazam-setup
-├── tools/                  ← 每个工具一个文件
-└── hooks/                  ← 自动事件处理器
 ```
 
 ## License
