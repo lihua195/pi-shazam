@@ -1,5 +1,5 @@
 你是我的编程代理，任务是把现有的 Python CLI 项目 repomap 完全重构为
-一个原生 Pi coding agent 扩展包，命名为 pi-gewu。
+一个原生 Pi coding agent 扩展包，命名为 pi-shazam。
 
 ## 第一步：读懂现有代码（必须先做，不能跳过）
 
@@ -16,24 +16,25 @@
 
 ## 项目定位
 
-pi-gewu 是 Pi coding agent 的原生代码库感知扩展。
-"格物致知"——agent 在动手之前先深度理解代码库的结构、影响、风险。
+pi-shazam 是 Pi coding agent 的原生代码库感知扩展。
+"Shazam"——如同超级英雄的力量源自多位神灵的赐予，pi-shazam 的能力来自多个产品的融合：
+repomap/aider 的代码分析、pi-lens 的视觉感知、serena MCP 的语义理解、tree-sitter 的语法解析、LSP 的语言服务。
 所有能力作为原生工具注册到 Pi，LLM 视角与 read/write/bash 无任何区别。
 
 ## 技术栈
 
 - 语言：TypeScript（纯 TS，无 Python）
-- 包管理：npm，发布名 pi-gewu
+- 包管理：npm，发布名 pi-shazam
 - tree-sitter：node-tree-sitter + 各语言 grammar 包
 - LSP：vscode-languageserver-protocol（外置 language server，
-  用户自行安装，pi-gewu 负责进程管理和通信）
+  用户自行安装，pi-shazam 负责进程管理和通信）
 - 图算法：纯 TS 实现 PageRank（原 Python 逻辑直接移植）
 - Pi extension API：@earendil-works/pi-coding-agent 的 ExtensionAPI 类型
 
 ## 目录结构
 
 ```
-pi-gewu/
+pi-shazam/
 ├── package.json
 ├── tsconfig.json
 ├── index.ts                    # Pi extension 入口，default export
@@ -123,7 +124,7 @@ export function registerBeforeStartHook(pi: ExtensionAPI) {
 
 ## LSP 设计
 
-外置模式：pi-gewu 不打包 language server，负责：
+外置模式：pi-shazam 不打包 language server，负责：
 1. 检测系统上已安装的 server（pyright、tsserver、rust-analyzer 等 17 种）
 2. 管理 server 进程（spawn、stdio 通信、保活）
 3. 实现完整 LSP client（initialize、textDocument/didOpen、
@@ -138,7 +139,7 @@ pi 退出时统一 kill。
 
 只写查询类工具的调用时机，验证类工具一律不写（由 hooks 保证）。
 在 SKILL.md 末尾加一行说明：
-"verify / fix / check / ready 由 pi-gewu hooks 自动执行，
+"verify / fix / check / ready 由 pi-shazam hooks 自动执行，
 无需主动调用。如果你看到诊断输出，直接根据结果行动即可。"
 
 ## 实现要求

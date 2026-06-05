@@ -1,7 +1,7 @@
 {
-  "name": "pi-gewu",
+  "name": "pi-shazam",
   "version": "0.1.0",
-  "description": "Pi coding agent native codebase awareness extension - 格物致知",
+  "description": "Pi coding agent native codebase awareness extension - Shazam: power from multiple sources (repomap, pi-lens, serena MCP, tree-sitter, LSP) unified into one",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,7 +27,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gjczone/pi-gewu.git"
+    "url": "https://github.com/gjczone/pi-shazam.git"
   },
   "dependencies": {
     "2": "^3.0.0",

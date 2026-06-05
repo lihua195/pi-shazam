@@ -5,6 +5,6 @@ dist/
 *.map
 !types/**/*.d.ts
 .cache/
-.pi-gewu/
+.pi-shazam/
 .qoder/
 *.tgz

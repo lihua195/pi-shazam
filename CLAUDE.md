@@ -1,16 +1,16 @@
-# pi-gewu
+# pi-shazam
 
-Pi coding agent native codebase awareness extension. "格物致知" — agent gains deep structural understanding of a codebase before acting.
+Pi coding agent native codebase awareness extension. "Shazam" — like the superhero whose power comes from multiple deities, pi-shazam unifies the strength of multiple analysis engines (repomap/aider, pi-lens, serena MCP, tree-sitter, LSP) into one coherent interface for the agent.
 
 Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as a native Pi extension in TypeScript. All analysis capabilities register as first-class Pi tools — LLM sees them alongside `read`/`write`/`bash` with no distinction.
 
 ## Project Snapshot
 
 - **Runtime**: TypeScript on Node.js ≥18, ES2022 target, NodeNext module resolution, ESM (`"type": "module"`)
-- **Package**: npm `pi-gewu`, entry `dist/index.js` (default export function receiving `ExtensionAPI`)
+- **Package**: npm `pi-shazam`, entry `dist/index.js` (default export function receiving `ExtensionAPI`)
 - **Primary user flow**: LLM calls analysis tools (`overview`, `impact`, `codequery`, etc.) to understand code structure, change impact, and call chains before making edits
 - **Architecture**: 4 layers — `core/` (parsing, graph, ranking), `lsp/` (language server management), `tools/` (Pi tool wrappers), `hooks/` (automatic verification)
-- **External dependency**: Language servers (pyright, tsserver, rust-analyzer, gopls) are user-installed; pi-gewu manages process lifecycle
+- **External dependency**: Language servers (pyright, tsserver, rust-analyzer, gopls) are user-installed; pi-shazam manages process lifecycle
 - **Release artifact**: npm package with `dist/` compiled output and `SKILL.md`
 
 ## Commands
@@ -31,7 +31,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 - `tree-sitter@^0.22.4` pinned via `overrides` in package.json
 - `vscode-languageserver-protocol` for LSP type definitions
 - `iconv-lite` for UTF-8/GBK/GB2312 encoding fallback
-- Test the extension by symlinking `dist/` into `~/.pi/agent/extensions/pi-gewu` or configuring in Pi settings
+- Test the extension by symlinking `dist/` into `~/.pi/agent/extensions/pi-shazam` or configuring in Pi settings
 
 ## Architecture
 
