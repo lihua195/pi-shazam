@@ -2,6 +2,7 @@
  * pi-shazam tools/file_detail — Single file deep analysis.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -23,9 +24,9 @@ Scenario: before editing a file for the first time. Before refactoring
 a large file. When deciding where to add a new function (PageRank shows
 you the file's "gravity"). After someone else's PR to understand what
 changed structurally.`,
-		parameters: pi.typebox.Object({
-			file: pi.typebox.String(),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			file: Type.String(),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

@@ -2,6 +2,7 @@
  * pi-shazam tools/codesearch — BM25 symbol search.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -20,10 +21,10 @@ and ranks by PageRank-weighted relevance, not just substring match.
 Scenario: finding error handling patterns. Locating all database query
 functions. Searching for "auth" across a multi-language codebase.
 Finding usage of a deprecated API before removing it.`,
-		parameters: pi.typebox.Object({
-			query: pi.typebox.String(),
-			topN: pi.typebox.Optional(pi.typebox.Number()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			query: Type.String(),
+			topN: Type.Optional(Type.Number()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

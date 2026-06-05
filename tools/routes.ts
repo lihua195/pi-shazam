@@ -2,6 +2,7 @@
  * pi-shazam tools/routes — HTTP route inventory.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -20,8 +21,8 @@ routes WITHOUT authentication guards (security risk).
 Scenario: adding a new API endpoint. Changing a route path or parameter
 pattern. Refactoring middleware. Auditing auth coverage across
 endpoints. Before deleting a handler function.`,
-		parameters: pi.typebox.Object({
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

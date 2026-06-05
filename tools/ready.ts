@@ -5,6 +5,7 @@
  * This is the FINAL GATE before shipping code.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { executeVerifyJson } from "./verify.js";
@@ -40,8 +41,8 @@ Fix all issues and call ready again until it passes with zero errors.
 
 Scenario: about to git commit. About to push. About to open a PR.
 About to call goal_complete. Before merging to main.`,
-		parameters: pi.typebox.Object({
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

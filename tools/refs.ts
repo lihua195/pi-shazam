@@ -2,6 +2,7 @@
  * pi-shazam tools/refs — Reference finder.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -20,11 +21,11 @@ symbol. A reference you miss is a broken import or a runtime crash.
 Scenario: renaming a variable. Changing a function from public to
 private. Deleting dead code (confirm zero references first). Checking
 if a deprecated function still has callers.`,
-		parameters: pi.typebox.Object({
-			symbol: pi.typebox.String(),
-			file: pi.typebox.Optional(pi.typebox.String()),
-			line: pi.typebox.Optional(pi.typebox.Number()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			symbol: Type.String(),
+			file: Type.Optional(Type.String()),
+			line: Type.Optional(Type.Number()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

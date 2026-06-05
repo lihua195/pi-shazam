@@ -6,6 +6,7 @@
  * when LSP is unavailable, annotated in output.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { diffBaseline, loadBaseline } from "../core/cache.js";
@@ -27,9 +28,9 @@ Use --quick for a 2s risk-only check after each edit. Use full verify
 
 Scenario: after every edit. Before git commit. Before calling
 goal_complete. When CI is red and you need local diagnostics.`,
-		parameters: pi.typebox.Object({
-			quick: pi.typebox.Optional(pi.typebox.Boolean()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			quick: Type.Optional(Type.Boolean()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

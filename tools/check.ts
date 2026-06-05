@@ -5,6 +5,7 @@
  * Falls back to tree-sitter only when LSP is unavailable, annotated in output.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -24,9 +25,9 @@ diff state — it runs on the entire project.
 Scenario: CI failed, need local reproduction. verify says "run check
 for details." Mid-refactor before all files are saved. After npm install
 to confirm no type regressions.`,
-		parameters: pi.typebox.Object({
-			file: pi.typebox.Optional(pi.typebox.String()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			file: Type.Optional(Type.String()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

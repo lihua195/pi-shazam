@@ -2,6 +2,7 @@
  * pi-shazam tools/orphan — Dead code detection.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -23,10 +24,10 @@ dynamic dispatch.
 Scenario: cleaning up unused code. Finding abandoned modules. Before a
 major refactor to identify removable surface area. After removing a
 feature to find orphaned helpers.`,
-		parameters: pi.typebox.Object({
-			file: pi.typebox.Optional(pi.typebox.String()),
-			minConfidence: pi.typebox.Optional(pi.typebox.Number()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			file: Type.Optional(Type.String()),
+			minConfidence: Type.Optional(Type.Number()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

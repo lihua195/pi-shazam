@@ -2,6 +2,7 @@
  * pi-shazam tools/impact — Change blast radius analysis.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -21,11 +22,11 @@ Changing a type definition. Before any PR that touches >1 file.
 
 Pass --with-symbols for per-symbol risk breakdown. Pass --compact for
 concise output (file names only). Supports multiple --files.`,
-		parameters: pi.typebox.Object({
-			files: pi.typebox.Array(pi.typebox.String()),
-			withSymbols: pi.typebox.Optional(pi.typebox.Boolean()),
-			compact: pi.typebox.Optional(pi.typebox.Boolean()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			files: Type.Array(Type.String()),
+			withSymbols: Type.Optional(Type.Boolean()),
+			compact: Type.Optional(Type.Boolean()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;
