@@ -13,6 +13,23 @@ import type { ExtensionAPI, ExtensionContext } from "./types/pi-extension.js";
 import { LspManager } from "./lsp/manager.js";
 import { generateSetupReport } from "./lsp/setup.js";
 
+// ── Tool registrations ────────────────────────────────────────────────────
+import { registerOverview } from "./tools/overview.js";
+import { registerImpact } from "./tools/impact.js";
+import { registerCodequery } from "./tools/codequery.js";
+import { registerCallChain } from "./tools/call_chain.js";
+import { registerVerify } from "./tools/verify.js";
+import { registerCheck } from "./tools/check.js";
+import { registerFix } from "./tools/fix.js";
+import { registerReady } from "./tools/ready.js";
+import { registerRefs } from "./tools/refs.js";
+import { registerRoutes } from "./tools/routes.js";
+import { registerStateMap } from "./tools/state_map.js";
+import { registerOrphan } from "./tools/orphan.js";
+import { registerHotspots } from "./tools/hotspots.js";
+import { registerCodesearch } from "./tools/codesearch.js";
+import { registerFileDetail } from "./tools/file_detail.js";
+
 export default function (pi: ExtensionAPI): void {
 	const projectRoot = process.cwd();
 	const log = (msg: string) => pi.logger.info(`[pi-shazam] ${msg}`);
@@ -43,7 +60,8 @@ export default function (pi: ExtensionAPI): void {
 	// ── /shazam-setup command ───────────────────────────────────────────────
 
 	pi.registerCommand("shazam-setup", {
-		description: "Detect and report LSP server availability with install instructions",
+		description:
+			"Detect and report LSP server availability with install instructions",
 		async handler(_args: string, ctx: ExtensionContext) {
 			const report = generateSetupReport(projectRoot);
 			ctx.ui.setStatus("shazam-setup", "LSP setup report generated");
@@ -59,14 +77,11 @@ export default function (pi: ExtensionAPI): void {
 	// ── /shazam-doctor command ──────────────────────────────────────────────
 
 	pi.registerCommand("shazam-doctor", {
-		description: "Health check: tree-sitter grammars, LSP servers, cache integrity",
+		description:
+			"Health check: tree-sitter grammars, LSP servers, cache integrity",
 		async handler(_args: string, ctx: ExtensionContext) {
 			const lspReport = generateSetupReport(projectRoot);
-			const msg = [
-				"## Shazam Doctor — Health Check",
-				"",
-				lspReport,
-			].join("\n");
+			const msg = ["## Shazam Doctor — Health Check", "", lspReport].join("\n");
 			ctx.ui.setStatus("shazam-doctor", "Health check complete");
 			pi.sendMessage({
 				customType: "shazam-doctor",
@@ -75,6 +90,23 @@ export default function (pi: ExtensionAPI): void {
 			});
 		},
 	});
+
+	// ── Tools (LLM-visible) ────────────────────────────────────────────────
+	registerOverview(pi);
+	registerImpact(pi);
+	registerCodequery(pi);
+	registerCallChain(pi);
+	registerVerify(pi);
+	registerCheck(pi);
+	registerFix(pi);
+	registerReady(pi);
+	registerRefs(pi);
+	registerRoutes(pi);
+	registerStateMap(pi);
+	registerOrphan(pi);
+	registerHotspots(pi);
+	registerCodesearch(pi);
+	registerFileDetail(pi);
 
 	log("pi-shazam loaded");
 }
