@@ -2,6 +2,7 @@
  * pi-shazam tools/codequery — Unified symbol/file query.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -25,11 +26,11 @@ not guess or invent it. Use --file to verify the file's actual contents.
 Scenario: before editing any function/class. Before renaming. Before
 deleting. When you need to find where something is defined. When grep
 returns too many results.`,
-		parameters: pi.typebox.Object({
-			symbol: pi.typebox.Optional(pi.typebox.String()),
-			file: pi.typebox.Optional(pi.typebox.String()),
-			query: pi.typebox.Optional(pi.typebox.String()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			symbol: Type.Optional(Type.String()),
+			file: Type.Optional(Type.String()),
+			query: Type.Optional(Type.String()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

@@ -2,6 +2,7 @@
  * pi-shazam tools/hotspots — Complexity hotspot ranking.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -22,9 +23,9 @@ project's core.
 Scenario: code review prioritization. Deciding which tests to write
 next. Understanding where a new team member should start reading.
 Triaging bug reports (is the affected file a hotspot?).`,
-		parameters: pi.typebox.Object({
-			topN: pi.typebox.Optional(pi.typebox.Number()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			topN: Type.Optional(Type.Number()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

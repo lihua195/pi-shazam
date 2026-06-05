@@ -2,6 +2,7 @@
  * pi-shazam tools/overview — Project structure summary.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -21,8 +22,8 @@ to an unfamiliar project directory.
 
 Output: plain text summary by default. Pass { json: true } for
 structured output with file lists and PageRank scores.`,
-		parameters: pi.typebox.Object({
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

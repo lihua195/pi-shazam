@@ -2,6 +2,7 @@
  * pi-shazam tools/state_map — State definition discovery.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -22,9 +23,9 @@ that would be impacted by variant changes.
 Scenario: adding a new enum variant. Removing a state-machine state.
 Auditing exhaustive match/switch coverage. Before changing a union
 type's members.`,
-		parameters: pi.typebox.Object({
-			symbol: pi.typebox.String(),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			symbol: Type.String(),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

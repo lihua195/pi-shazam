@@ -2,6 +2,7 @@
  * pi-shazam tools/call_chain — Call graph traversal.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -21,10 +22,10 @@ depth (default 2).
 
 Scenario: changing parameter order. Removing a function. Renaming an
 exported symbol. Changing return type. Adding required parameters.`,
-		parameters: pi.typebox.Object({
-			symbol: pi.typebox.String(),
-			depth: pi.typebox.Optional(pi.typebox.Number()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			symbol: Type.String(),
+			depth: Type.Optional(Type.Number()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

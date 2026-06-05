@@ -2,6 +2,7 @@
  * pi-shazam tools/symbol — Symbol lookup.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 
@@ -16,10 +17,10 @@ Faster than grep for precise symbol lookup.
 
 Scenario: finding where a function is defined, checking a symbol's
 type signature, verifying a symbol exists before referencing it.`,
-		parameters: pi.typebox.Object({
-			name: pi.typebox.String(),
-			file: pi.typebox.Optional(pi.typebox.String()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			name: Type.String(),
+			file: Type.Optional(Type.String()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;

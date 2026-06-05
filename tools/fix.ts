@@ -6,6 +6,7 @@
  * Supports nearest-wins formatter detection (prettier, biome, eslint, ruff, gofmt).
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { readFileAdaptive } from "../core/encoding.js";
@@ -27,10 +28,10 @@ After fixing, re-run shazam_verify to confirm clean.
 Scenario: trailing whitespace. Import sorting. Indentation mismatches.
 Line length violations after an edit. Mixed tabs/spaces. Missing
 newlines at end of file.`,
-		parameters: pi.typebox.Object({
-			dryRun: pi.typebox.Optional(pi.typebox.Boolean()),
-			file: pi.typebox.Optional(pi.typebox.String()),
-			json: pi.typebox.Optional(pi.typebox.Boolean()),
+		parameters: Type.Object({
+			dryRun: Type.Optional(Type.Boolean()),
+			file: Type.Optional(Type.String()),
+			json: Type.Optional(Type.Boolean()),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
 			const json = params.json ?? false;
