@@ -63,29 +63,32 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 │   ├── pagerank.ts         ← PageRank symbol importance scoring
 │   ├── scanner.ts          ← Project file scanning + graph building
 │   ├── encoding.ts         ← UTF-8 → GBK → GB2312 adaptive encoding
-│   └── cache.ts            ← Graph baseline save/diff
+│   └── cache.ts            ← Graph baseline save/diff + persistent V2 graph cache
 ├── lsp/                    ← Language server process management
 │   ├── manager.ts          ← Server lifecycle (spawn, stdio, health, shutdown)
 │   ├── client.ts           ← LSP protocol communication (JSON-RPC over stdio via vscode-jsonrpc)
 │   ├── servers.ts          ← Language→server config table (6 languages: Python, TypeScript, Go, JSON, YAML, Rust)
 │   └── setup.ts            ← /shazam-setup command: detect + install guidance
 ├── tools/                  ← One file per registerTool call
+│   ├── _context.ts         ← Tool-level shared LspManager holder (replaces core/lsp-global.ts)
 │   ├── overview.ts         ← Project structure summary
 │   ├── impact.ts           ← File-level change impact
-│   ├── codequery.ts        ← Unified symbol/file query
 │   ├── codesearch.ts       ← BM25 symbol search
 │   ├── file_detail.ts      ← Single file deep analysis
 │   ├── call_chain.ts       ← Call graph traversal
 │   ├── symbol.ts           ← Symbol lookup
-│   ├── refs.ts             ← Reference finder
 │   ├── routes.ts           ← HTTP route inventory
 │   ├── state_map.ts        ← State definition discovery
 │   ├── verify.ts           ← Post-edit diagnostics gate
 │   ├── fix.ts              ← Auto-fix lint/format
 │   ├── ready.ts            ← Pre-commit readiness
 │   ├── check.ts            ← Compiler/lint diagnostics
-│   ├── orphan.ts           ← Dead code detection
-│   └── hotspots.ts         ← Complexity hotspot ranking
+│   ├── hotspots.ts         ← Complexity hotspot ranking
+│   ├── hover.ts            ← Symbol type/documentation hover (uses LSP)
+│   ├── find_tests.ts       ← Test file discovery
+│   ├── type_hierarchy.ts   ← LSP type hierarchy + implementations
+│   ├── rename_symbol.ts    ← Symbol rename
+│   └── safe_delete.ts      ← Safe symbol deletion
 └── hooks/                  ← Automatic (not LLM-visible)
     ├── before-start.ts     ← Inject overview into system prompt
     └── after-write.ts      ← Auto verify + fix after write/edit
@@ -97,8 +100,8 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 
 ## Core Flows
 
-- **Overview injection**: `before_agent_start` event → `core/treesitter` scan → `core/pagerank` → format summary → inject into `systemPrompt` array
-- **Tool call**: LLM calls tool → `tools/*.execute()` → `core/` analysis (tree-sitter parse → graph build → pagerank) → optional LSP enrichment → return `AgentToolResult`
+- **Overview injection**: `before_agent_start` event → `core/treesitter` scan (with persistent disk cache) → `core/pagerank` → format summary → inject into `systemPrompt` array
+- **Tool call**: LLM calls tool → `tools/*.execute()` → `core/scanner` (disk cache → in-memory cache → incremental/full scan) → `core/` analysis → optional LSP enrichment → return `AgentToolResult`
 - **Auto-verify**: `tool_call` event (write/edit) → `hooks/after-write` → `core/` diagnostics + LSP `textDocument/publishDiagnostics` → `pi.sendMessage()` with findings
 - **LSP lifecycle**: extension load → `lsp/manager` detects project languages (6 supported: Python, TypeScript, Go, JSON, YAML, Rust) → spawns servers on demand → `lsp/client` handles JSON-RPC via vscode-jsonrpc over stdio → `session_shutdown` kills all
 
