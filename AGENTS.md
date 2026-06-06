@@ -316,7 +316,7 @@ pi -p "call shazam_overview" 2>&1 | grep -q "Extension error" && echo "FAIL" || 
 
 - `index.ts` — extension entry point and registration coordinator
 - `SKILL.md` — Pi agent skill file documenting all 14 tools for LLM discovery
-- `CLAUDE.md` — this file: architecture, conventions, workflows
+- `AGENTS.md` — this file: architecture, conventions, workflows
 - `README.md` — user-facing: Pi + MCP setup, tool list, language support
 - `package.json` — npm manifest, dependencies, `bin` field for MCP entry
 - `tsconfig.json` — TypeScript compiler configuration (must include `mcp/`)
@@ -345,7 +345,7 @@ pi -p "call shazam_overview" 2>&1 | grep -q "Extension error" && echo "FAIL" || 
 - CI: Invoke `github-workflow` skill before the first code commit. CI must exist on day 1.
 - PRs: One vertical slice per PR — build a complete module (core + tool + typecheck), then merge. No big-bang PRs.
 - TDD: Write the test first for every slice. Watch it fail, implement, verify, commit.
-- CLAUDE.md: Update this file whenever a new module, tool, command, or data flow is created.
+- AGENTS.md: Update this file whenever a new module, tool, command, or data flow is created.
 
 ## Testing Rules
 
