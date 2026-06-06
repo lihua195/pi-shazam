@@ -10,3 +10,4 @@ dist/
 .pi-shazam/
 .qoder/
 *.tgz
+.agents/
