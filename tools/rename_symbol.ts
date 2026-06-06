@@ -9,6 +9,7 @@ import type { ExtensionAPI } from "../types/pi-extension.js";
 import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
+import { getNextForTool, formatNextSection } from "../core/output.js";
 
 export function registerRenameSymbol(pi: ExtensionAPI): void {
 	pi.registerTool({
@@ -41,7 +42,16 @@ Changing a class name to match conventions.`,
 					{
 						type: "text",
 						text: json
-							? JSON.stringify(result, null, 2)
+							? JSON.stringify(
+									{
+										schema_version: "1.0",
+										command: "rename_symbol",
+										status: "ok",
+										result,
+									},
+									null,
+									2,
+								)
 							: formatRenameResult(result, params.symbol, params.newName),
 					},
 				],
@@ -119,13 +129,13 @@ function formatRenameResult(result: RenameResult, symbolName: string, newName: s
 			"",
 			`Files affected: ${result.fileCount}`,
 			`Reference changes: ${result.changes}`,
-			"",
-			"### Next (Required)",
-			"",
-			"- 🔴 Safe-guard: \`git stash\` or commit current changes first",
-			"- 🔴 After rename: \`shazam_verify\` to check for broken references",
-			"- 🟡 Review: \`shazam_overview\` to confirm project structure",
 		);
+	}
+
+	const nextItems = getNextForTool("rename_symbol", { topSymbol: symbolName });
+	const nextSection = formatNextSection(nextItems);
+	if (nextSection) {
+		lines.push("", nextSection);
 	}
 
 	return lines.join("\n");

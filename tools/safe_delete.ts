@@ -8,6 +8,7 @@ import type { ExtensionAPI } from "../types/pi-extension.js";
 import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
+import { getNextForTool, formatNextSection } from "../core/output.js";
 
 export function registerSafeDelete(pi: ExtensionAPI): void {
 	pi.registerTool({
@@ -43,7 +44,16 @@ Removing a utility that was replaced by a library.`,
 					{
 						type: "text",
 						text: json
-							? JSON.stringify(result, null, 2)
+							? JSON.stringify(
+									{
+										schema_version: "1.0",
+										command: "safe_delete",
+										status: "ok",
+										result,
+									},
+									null,
+									2,
+								)
 							: formatSafeDeleteResult(result, params.symbol),
 					},
 				],
@@ -144,28 +154,10 @@ function formatSafeDeleteResult(result: SafeDeleteResult, symbolName: string): s
 
 	lines.push(result.message, "");
 
-	if (result.status === "safe" && !result.dryRun) {
-		lines.push(
-			"### Next (Required)",
-			"",
-			"- 🔴 \`shazam_verify\` to confirm no broken references",
-			"- 🔴 Run tests to ensure nothing is broken",
-			"- 🟡 \`shazam_overview\` to review project structure after deletion",
-		);
-	} else if (result.status === "safe" && result.dryRun) {
-		lines.push(
-			"### Next (Required)",
-			"",
-			"- 🟡 Review the outgoing calls listed above",
-			"- 🟡 Pass dryRun=false to confirm deletion",
-		);
-	} else if (result.status === "has_references") {
-		lines.push(
-			"### Next (Required)",
-			"",
-			"- 🔴 \`shazam_call_chain --symbol " + symbolName + "\` to review all references",
-			"- 🟡 Remove or update the referencing code first",
-		);
+	const nextItems = getNextForTool("safe_delete", { topSymbol: symbolName });
+	const nextSection = formatNextSection(nextItems);
+	if (nextSection) {
+		lines.push(nextSection);
 	}
 
 	return lines.join("\n");

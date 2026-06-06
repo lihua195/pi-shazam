@@ -41,7 +41,16 @@ types before calling a function. Getting documentation for an API.`,
 					{
 						type: "text",
 						text: json
-							? JSON.stringify(result, null, 2)
+							? JSON.stringify(
+									{
+										schema_version: "1.0",
+										command: "hover",
+										status: "ok",
+										result,
+									},
+									null,
+									2,
+								)
 							: formatHoverResult(result, params.name),
 					},
 				],

@@ -11,6 +11,7 @@ import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { isNonSourceFile } from "../core/filter.js";
+import { getNextForTool, formatNextSection } from "../core/output.js";
 
 export function registerFindTests(pi: ExtensionAPI): void {
 	pi.registerTool({
@@ -231,12 +232,12 @@ function formatFindTestsResult(
 
 	if (result.matches.length === 0) {
 		lines.push("No test files found.");
-		lines.push("");
-		lines.push("### Next (Recommended)");
-		lines.push(
-			"- Use `shazam_codesearch --query 'test'` to search for test references",
-		);
-		lines.push("- Use `shazam_overview` to browse all source files");
+		const nextItems = getNextForTool("find_tests");
+		const nextSection = formatNextSection(nextItems);
+		if (nextSection) {
+			lines.push("");
+			lines.push(nextSection);
+		}
 		return lines.join("\n");
 	}
 
@@ -256,14 +257,13 @@ function formatFindTestsResult(
 		lines.push("");
 	}
 
-	lines.push("### Next (Recommended)");
-	lines.push("- Run tests with `npx vitest run` or `npm test`");
-	lines.push(
-		"- Use `shazam_hover --name <testName>` to inspect a test function",
-	);
-	lines.push(
-		"- Use `shazam_file_detail --file <testFile>` to browse test structure",
-	);
+	const firstTest = result.matches[0]?.tests[0];
+	const nextItems = getNextForTool("find_tests", { testFunc: firstTest });
+	const nextSection = formatNextSection(nextItems);
+	if (nextSection) {
+		lines.push("");
+		lines.push(nextSection);
+	}
 
 	return lines.join("\n");
 }

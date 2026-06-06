@@ -12,6 +12,7 @@ import { Type } from "typebox";
 import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { getLspManager } from "../core/lsp-global.js";
+import { getNextForTool, formatNextSection } from "../core/output.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
@@ -47,7 +48,16 @@ relationships before adding a new method.`,
 					{
 						type: "text",
 						text: json
-							? JSON.stringify(result, null, 2)
+							? JSON.stringify(
+									{
+										schema_version: "1.0",
+										command: "type_hierarchy",
+										status: "ok",
+										result,
+									},
+									null,
+									2,
+								)
 							: formatTypeHierarchy(result, params.name),
 					},
 				],
@@ -213,6 +223,12 @@ function formatTypeHierarchy(result: TypeHierarchyResult, name: string): string 
 		lines.push("");
 	} else {
 		lines.push("No subtypes found.", "");
+	}
+
+	const nextItems = getNextForTool("type_hierarchy");
+	const nextSection = formatNextSection(nextItems);
+	if (nextSection) {
+		lines.push(nextSection);
 	}
 
 	return lines.join("\n");
