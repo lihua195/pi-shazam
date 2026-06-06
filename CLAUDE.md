@@ -114,6 +114,9 @@ mcp/                        ← MCP server for non-Pi clients
 - **Overview injection**: `before_agent_start` event → `core/treesitter` scan (with persistent disk cache) → `core/pagerank` → format summary → inject into `systemPrompt` array
 - **Tool call**: LLM calls tool → `tools/*.execute()` → `core/scanner` (disk cache → in-memory cache → incremental/full scan) → `core/` analysis → optional LSP enrichment via `tools/lsp_enrich.ts` (5s timeout, tree-sitter fallback) → return `AgentToolResult`
 - **Auto-verify**: `tool_call` event (write/edit) → `hooks/after-write` → `core/` diagnostics + LSP `textDocument/publishDiagnostics` → `pi.sendMessage()` with findings
+- **Tool logging**: `tool_call` + `tool_result` events → `hooks/tool-logger` → writes JSONL to `~/.pi/hooks/audit/shazam-calls.log` (same dir as audit-guard)
+- **Agent guidance**: `before_agent_start` → `hooks/shazam-guide` → injects tool list into system prompt; `tool_result` (write/edit) → nudges `shazam_verify`; `tool_call` (grep/find) → nudges `shazam_codesearch`
+- **MCP tool calls**: MCP client → JSON-RPC over stdio → `mcp/tools.ts` (wrapped with `withLogging()`) → `core/` analysis → return `{ content: [...] }`
 - **LSP lifecycle**: extension load → `lsp/manager` detects project languages (6 supported: Python, TypeScript, Go, JSON, YAML, Rust) → spawns servers on demand → `lsp/client` handles JSON-RPC via vscode-jsonrpc over stdio → `session_shutdown` kills all
 
 ## API Surface
@@ -232,8 +235,42 @@ All tools follow the same pattern:
 | Step | Command             | What it checks |
 | ---- | ------------------- | -------------- |
 | 1    | `npm run typecheck` | Type safety    |
-| 2    | `npm test`          | 98 tests       |
+| 2    | `npm test`          | 208 tests      |
 | 3    | `npm run build`     | Compile output |
+| 4    | `pi -p "call shazam_overview briefly"` | Pi integration smoke test |
+
+### Pi 集成测试
+
+```bash
+# Install into Pi
+pi install npm:pi-shazam@latest     # from npm
+# OR copy local build:
+cp dist/**/*.js ~/.pi/agent/npm/node_modules/pi-shazam/dist/ -r
+
+# Smoke test all tools
+pi -p "call shazam_overview briefly"
+pi -p "call shazam_verify"
+pi -p "call shazam_hotspots"
+
+# Check: no "Extension error" in output, tools return meaningful results.
+```
+
+### MCP 测试
+
+```bash
+printf '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}\n{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"shazam_hotspots","arguments":{}}}\n' | timeout 15 node dist/mcp/entry.js . 2>/dev/null | tail -1
+```
+
+### Hook 验证
+
+```bash
+# Verify all hooks registered in built dist
+grep -c "registerShazamGuide\|registerToolLogger\|registerBeforeStart\|registerAfterWrite" dist/index.js
+# Should output: 4
+
+# Verify system prompt injection works (no crash)
+pi -p "call shazam_overview" 2>&1 | grep -q "Extension error" && echo "FAIL" || echo "OK"
+```
 
 ### 发布前契约检查（强制）
 
@@ -271,15 +308,27 @@ All tools follow the same pattern:
 - `core/` — Pure analysis, no external I/O beyond filesystem reads
 - `lsp/` — External process management (language servers)
 - `tools/` — Pi tool registration wrappers (one file per tool)
-- `hooks/` — Automatic event handlers (not LLM-callable)
+- `hooks/` — Automatic event handlers (not LLM-callable). See `.agents/skills/pi-hooks/SKILL.md`
+- `mcp/` — MCP server for non-Pi clients. See `.agents/skills/mcp-server/SKILL.md`
+- `tests/` — vitest suite (208 tests). See `.agents/skills/testing/SKILL.md`
 
 ## Important Files
 
 - `index.ts` — extension entry point and registration coordinator
-- `SKILL.md` — Pi agent skill file documenting all 16 tools for LLM discovery
-- `package.json` — npm manifest, dependencies, build scripts
-- `tsconfig.json` — TypeScript compiler configuration
-- `types/pi-extension.d.ts` — self-contained ExtensionAPI type stub (source of truth for Pi API types)
+- `SKILL.md` — Pi agent skill file documenting all 14 tools for LLM discovery
+- `CLAUDE.md` — this file: architecture, conventions, workflows
+- `README.md` — user-facing: Pi + MCP setup, tool list, language support
+- `package.json` — npm manifest, dependencies, `bin` field for MCP entry
+- `tsconfig.json` — TypeScript compiler configuration (must include `mcp/`)
+- `types/pi-extension.d.ts` — self-contained ExtensionAPI type stub
+- `.agents/skills/` — project-level skills: pi-extension, pi-hooks, kimi-code-hooks, mcp-server, release-publish, testing, architecture, sync-discipline
+
+## Key Conventions
+
+- **systemPrompt in hooks**: `before_agent_start.systemPrompt` may be `string` or `string[]` at runtime. Always check with `Array.isArray()` before calling `.some()` or `.push()`.
+- **ctx.ui?.notify?.()**: Pi's `ExtensionUIContext` may not have `notify` in all modes. Always use optional chaining.
+- **Hook return values**: `before_agent_start` handler returns `{ systemPrompt: string }` to replace. `tool_call` handler returns `{ block: true, reason: "..." }` to block.
+- **Log directory**: All audit logs go to `~/.pi/hooks/audit/` (Pi) or `~/.kimi-code/audit/` (Kimi Code).
 
 <general-project-rules>
 
