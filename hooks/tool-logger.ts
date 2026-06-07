@@ -1,14 +1,13 @@
 /**
  * Log shazam tool calls to ~/.pi/hooks/audit/shazam-calls.log (JSONL).
  *
- * Each log entry captures enough detail for debugging and optimization:
- * - Basic: ts, project, tool, event, durationMs, success
- * - Tool-specific: verdict (verify), hitCount (codesearch), symbolCount (overview), etc.
- * - Error: error message (truncated)
- * - Context: result size, params summary
+ * Each log entry captures the full result text (truncated at 10KB) for debugging:
+ * - call:   ts, project, tool, params
+ * - result: ts, project, tool, durationMs, success, error, result (truncated output)
  *
- * Follows audit-guard.ts pattern: writes to ~/.pi/hooks/audit/.
+ * With 72h auto-cleanup via radar.ts, log size stays bounded.
  */
+
 import type { ExtensionAPI } from "../types/pi-extension.js";
 import { appendFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
@@ -16,6 +15,7 @@ import { homedir } from "node:os";
 
 const AUDIT_DIR = join(homedir(), ".pi", "hooks", "audit");
 const LOG_FILE = join(AUDIT_DIR, "shazam-calls.log");
+const MAX_RESULT_CHARS = 10_000;
 
 const _starts = new Map<string, number>();
 
@@ -43,32 +43,6 @@ function write(entry: Record<string, unknown>): void {
 
 function isShazam(name: string): boolean {
 	return name.startsWith("shazam_");
-}
-
-/** Extract tool-specific metadata from result text */
-function extractMeta(tool: string, text: string): Record<string, unknown> {
-	const meta: Record<string, unknown> = {};
-	const t = text.slice(0, 500);
-
-	// verify: check for PASS / WARN / FAIL verdict
-	if (tool === "shazam_verify") {
-		if (t.includes("PASS")) meta.verdict = "PASS";
-		else if (t.includes("FAIL")) meta.verdict = "FAIL";
-		else if (t.includes("WARN")) meta.verdict = "WARN";
-	}
-
-	// codesearch / overview: count results
-	const symbolMatches = t.match(/(\d+) symbols?/i);
-	if (symbolMatches) meta.symbolCount = parseInt(symbolMatches[1], 10);
-
-	const fileMatches = t.match(/(\d+) files?/i);
-	if (fileMatches) meta.fileCount = parseInt(fileMatches[1], 10);
-
-	// call_chain: reference count
-	const refMatches = t.match(/(\d+) references?/i);
-	if (refMatches) meta.refCount = parseInt(refMatches[1], 10);
-
-	return meta;
 }
 
 function summarize(v: unknown): unknown {
@@ -108,7 +82,7 @@ export function registerToolLogger(pi: ExtensionAPI): void {
 		const durationMs = start != null ? Date.now() - start : -1;
 		_starts.delete(event.toolCallId);
 
-		// Extract result text for metadata parsing
+		// Extract full result text
 		const texts: string[] = [];
 		if (event.content) {
 			for (const c of event.content) {
@@ -116,7 +90,9 @@ export function registerToolLogger(pi: ExtensionAPI): void {
 			}
 		}
 		const combined = texts.join("\n");
-		const meta = extractMeta(event.toolName, combined);
+		const truncated = combined.length > MAX_RESULT_CHARS
+			? combined.slice(0, MAX_RESULT_CHARS) + `\n... [truncated at ${MAX_RESULT_CHARS} chars, total was ${combined.length}]`
+			: combined;
 
 		write({
 			ts: ts(),
@@ -125,9 +101,8 @@ export function registerToolLogger(pi: ExtensionAPI): void {
 			tool: event.toolName,
 			durationMs,
 			success: !event.isError,
-			resultSize: combined.length,
-			error: event.isError ? texts[0]?.slice(0, 300) : null,
-			...meta,
+			error: event.isError ? (texts[0]?.slice(0, 300) ?? null) : null,
+			result: truncated,
 		});
 	});
 }

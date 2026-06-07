@@ -212,6 +212,35 @@ export const NEXT_RULES: NextRule[] = [
 			level: "also",
 		}),
 	},
+	{
+		forTools: ["call_chain"],
+		condition: (_ctx, graph) => graph === undefined || hasTestFiles(graph),
+		recommendation: () => ({
+			tool: "find_tests",
+			label: "Find tests for affected modules",
+			level: "also",
+		}),
+	},
+
+	// overview (enhanced)
+	{
+		forTools: ["overview"],
+		condition: (_ctx, graph) => graph === undefined || hasTestFiles(graph),
+		recommendation: () => ({
+			tool: "find_tests",
+			label: "Discover test layout",
+			level: "also",
+		}),
+	},
+	{
+		forTools: ["overview"],
+		condition: (_ctx, graph) => graph === undefined || hasHierarchyKinds(graph),
+		recommendation: () => ({
+			tool: "type_hierarchy",
+			label: "Explore type hierarchy",
+			level: "also",
+		}),
+	},
 
 	// hover (type_hierarchy suppressed when graph has no class/interface)
 	{
