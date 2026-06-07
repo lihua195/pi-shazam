@@ -474,40 +474,27 @@ function scanIncremental(
 		cachedFiles.delete(relPath);
 	}
 
-	// Remove and re-parse changed files
+	// Snapshot old symbol IDs for changed files BEFORE modifying graph,
+	// so edge rebuild can trace callers across non-import edges (issue #93).
+	const oldSymIdsByFile = new Map<string, Set<string>>();
 	for (const relPath of changedFiles) {
-		// Snapshot old data for rollback if re-parse fails
-		const oldSymbols =
-			graph.fileSymbols
-				.get(relPath)
-				?.map((id) => {
-					const sym = graph.symbols.get(id);
-					return sym ? { ...sym } : null;
-				})
-				.filter(Boolean) ?? [];
-		const oldEntry = cachedFiles.get(relPath) ?? null;
+		const oldIds = new Set(graph.fileSymbols.get(relPath) ?? []);
+		oldSymIdsByFile.set(relPath, oldIds);
+	}
 
-		removeFileData(graph, relPath);
-		cachedFiles.delete(relPath);
-
+	// Re-parse changed files — delay removeFileData until after parse succeeds
+	// to avoid the rollback path that restores symbols but not edges (#156).
+	for (const relPath of changedFiles) {
 		const mtime = fileMtimes.get(relPath) ?? 0;
 		const entry = parseFile(adapter, root, relPath, mtime);
 		if (!entry) {
-			// Re-parse failed — restore old data
-			if (oldEntry) {
-				cachedFiles.set(relPath, oldEntry);
-				for (const sym of oldSymbols) {
-					if (sym) {
-						graph.symbols.set(sym.id, sym);
-						const fileSyms = graph.fileSymbols.get(relPath) || [];
-						fileSyms.push(sym.id);
-						graph.fileSymbols.set(relPath, fileSyms);
-					}
-				}
-			}
+			// Re-parse failed — keep old data untouched (no rollback needed)
 			continue;
 		}
 
+		// Parse succeeded — remove old data and replace with new
+		removeFileData(graph, relPath);
+		cachedFiles.delete(relPath);
 		cachedFiles.set(relPath, entry);
 
 		for (const sym of entry.symbols) {
@@ -521,14 +508,7 @@ function scanIncremental(
 	// Rebuild edges only for changed files and files that depend on them.
 	// Previously this cleared ALL edges and rebuilt for every file (O(N)),
 	// negating the benefit of incremental scanning for large projects.
-
-	// Snapshot old symbol IDs for changed files BEFORE removing edges,
-	// so we can trace callers across non-import edges (issue #93).
-	const oldSymIdsByFile = new Map<string, Set<string>>();
-	for (const relPath of changedFiles) {
-		const oldIds = new Set(graph.fileSymbols.get(relPath) ?? []);
-		oldSymIdsByFile.set(relPath, oldIds);
-	}
+	// oldSymIdsByFile was built above before removeFileData calls.
 
 	// Find files that import from changed files (dependents)
 	const dependentFiles = new Set<string>();
@@ -587,9 +567,12 @@ function collectSourceFiles(root: string, maxFiles: number): string[] {
 		try {
 			entries = readdirSync(dir, { withFileTypes: true });
 		} catch (err) {
-			// Log directory read failures (fixes #133)
+			// Log directory read failures (fixes #133, #160)
 			if (err instanceof Error && (err.message.includes('EACCES') || err.message.includes('EPERM'))) {
 				console.warn(`[pi-shazam] collectSourceFiles: permission denied: ${dir}`);
+			} else {
+				const code = (err as any)?.code ?? String(err);
+				console.warn(`[pi-shazam] collectSourceFiles: unexpected error reading ${dir}: ${code}`);
 			}
 			return;
 		}

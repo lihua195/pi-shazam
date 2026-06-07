@@ -7,7 +7,7 @@
  */
 
 import { readdirSync, statSync, existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join, resolve, delimiter } from "node:path";
 import { homedir } from "node:os";
 import { LspClient } from "./client.js";
 import type { LspDiagnostic, LspLocation } from "./client.js";
@@ -162,11 +162,15 @@ function detectWorkspaceRoot(projectRoot: string, filePath: string | null, langu
 function isExecutable(filePath: string): boolean {
 	try {
 		const st = statSync(filePath);
-		// Check if file exists and is executable (or just exists on Windows)
-		if (process.platform === "win32") return st.isFile();
-		return st.isFile();
-		// Note: actual X_OK check requires fs.accessSync which we skip for simplicity
-		// The spawn() call will fail if it's not executable
+		if (!st.isFile()) return false;
+		if (process.platform === "win32") {
+			// On Windows, check for executable extensions
+			const lower = filePath.toLowerCase();
+			return lower.endsWith(".exe") || lower.endsWith(".cmd") || lower.endsWith(".bat");
+		}
+		// On POSIX, check the executable permission bit
+		// eslint-disable-next-line no-bitwise
+		return (st.mode & 0o111) !== 0;
 	} catch {
 		return false;
 	}
@@ -174,7 +178,7 @@ function isExecutable(filePath: string): boolean {
 
 function findInPath(command: string): string | null {
 	const pathEnv = process.env.PATH ?? "";
-	const dirs = pathEnv.split(":");
+	const dirs = pathEnv.split(delimiter);
 	for (const dir of dirs) {
 		const candidate = join(dir, command);
 		if (isExecutable(candidate)) return candidate;
