@@ -10,7 +10,8 @@ MUST follow this document.
 
 This section documents the Pi coding agent extension API contract, extracted from
 `@oh-my-pi/pi-coding-agent@15.9.5` runtime source. It serves as the authoritative
-reference for how Pi extensions (plugins) are built.
+reference for how Pi extensions (plugins) are built. The type stub at
+`types/pi-extension.d.ts` derives from this contract.
 
 ### 1.1 Extension Factory Function
 
@@ -25,11 +26,30 @@ The `pi` object is a flat plain object. There are NO nested properties like
 the type stub is for backward compatibility only; access them with `?.` optional
 chaining or avoid them entirely.
 
+**pi-shazam MUST NOT depend on these non-existent properties:**
+
+| Property     | Status                                |
+| ------------ | ------------------------------------- |
+| `pi.logger`  | Does not exist (defended with `?.`)   |
+| `pi.typebox` | Does not exist (use direct `import`)  |
+| `pi.zod`     | Does not exist (not used)             |
+| `pi.pi`      | Does not exist (not used)             |
+
 ### 1.2 ExtensionAPI Reference
 
 The complete `ExtensionAPI` interface (from `types/pi-extension.d.ts`):
 
-#### 1.2.1 Event Subscription — `pi.on(event, handler)`
+#### 1.2.1 Core Properties
+
+| Property                          | Type     | Description                  |
+| --------------------------------- | -------- | ---------------------------- |
+| `on(event, handler)`              | Method   | Subscribe to lifecycle event |
+| `registerTool(tool)`              | Method   | Register LLM-visible tool    |
+| `registerCommand(name, opts)`     | Method   | Register `/command`          |
+| `sendMessage(msg, opts?)`         | Method   | Send custom message          |
+| `events`                          | EventBus | Inter-extension communication|
+
+#### 1.2.2 Event Subscription — `pi.on(event, handler)`
 
 | Event                     | Handler Signature                                                                  | Return Value                                 |
 | ------------------------- | ---------------------------------------------------------------------------------- | -------------------------------------------- |
@@ -73,7 +93,7 @@ The complete `ExtensionAPI` interface (from `types/pi-extension.d.ts`):
 | `user_bash`               | `(e: UserBashEvent, ctx) => UserBashEventResult \| void`                           | `{ result? }`                                |
 | `user_python`             | `(e: UserPythonEvent, ctx) => UserPythonEventResult \| void`                       | `{ result? }`                                |
 
-#### 1.2.2 Tool Registration — `pi.registerTool(tool)`
+#### 1.2.3 Tool Registration — `pi.registerTool(tool)`
 
 ```ts
 interface ToolDefinition<TParams extends TSchema, TDetails = unknown> {
@@ -114,7 +134,9 @@ interface AgentToolResult<T> {
 }
 ```
 
-#### 1.2.3 Command Registration — `pi.registerCommand(name, opts)`
+**pi-shazam convention**: All tools return `{ content: [{ type: "text", text: string }] }`.
+
+#### 1.2.4 Command Registration — `pi.registerCommand(name, opts)`
 
 ```ts
 pi.registerCommand(name: string, options: {
@@ -127,7 +149,7 @@ pi.registerCommand(name: string, options: {
 `ExtensionCommandContext` extends `ExtensionContext` with session-control methods:
 `newSession()`, `branch()`, `navigateTree()`, `switchSession()`, `waitForIdle()`, `reload()`.
 
-#### 1.2.4 Message Sending — `pi.sendMessage(msg, opts?)`
+#### 1.2.5 Message Sending — `pi.sendMessage(msg, opts?)`
 
 ```ts
 sendMessage(message: {
@@ -143,7 +165,7 @@ sendMessage(message: {
 
 **pi-shazam convention**: Always use `string` format for `content`.
 
-#### 1.2.5 Other API Methods
+#### 1.2.6 Other API Methods
 
 | Method                                          | Purpose                                           |
 | ----------------------------------------------- | ------------------------------------------------- |
@@ -168,7 +190,7 @@ sendMessage(message: {
 | `registerProvider(name, config)`                | Register or override model provider               |
 | `events`                                        | Shared EventBus for inter-extension communication |
 
-#### 1.2.6 ExtensionContext
+#### 1.2.7 ExtensionContext
 
 ```ts
 interface ExtensionContext {
@@ -261,28 +283,46 @@ index.ts                    <- Pi extension entry, default export(pi: ExtensionA
   │   ├── type_hierarchy.ts <- LSP type hierarchy + implementations
   │   ├── rename_symbol.ts  <- Symbol rename
   │   └── safe_delete.ts    <- Safe symbol deletion
-  └── hooks/                <- Automatic (not LLM-visible)
-      ├── before-start.ts   <- Inject overview into system prompt
-      └── after-write.ts    <- Auto verify + fix after write/edit
+  ├── hooks/                <- Automatic (not LLM-visible)
+  │   ├── before-start.ts   <- Inject overview into system prompt
+  │   └── after-write.ts    <- Auto verify + fix after write/edit
+  └── mcp/                  <- MCP server for non-Pi clients
+      ├── entry.ts          <- McpServer + StdioServerTransport init
+      └── tools.ts          <- 14 MCP tool registrations wrapping core
 ```
 
 ### 2.2 Dependency Direction
 
 `hooks/` -> `tools/` -> `core/` + `lsp/`
+`mcp/`   -> `core/` + `lsp/`
 
 - `core/` has zero Pi or LSP imports.
 - Tools compose core functions and optionally enrich with LSP data.
 - Hooks call tool logic directly and inject results into LLM context via `pi.sendMessage()`.
+- `mcp/` wraps core directly, bypasses tools layer.
 
 ### 2.3 Key Design Principles
 
-1. **Layer boundaries**: `core/` MUST NOT import from `tools/`, `hooks/`, or `lsp/`.
+1. **Layer boundaries**: `core/` MUST NOT import from `tools/`, `hooks/`, `lsp/`, or `mcp/`.
 2. **LSP degradation**: When LSP server is unavailable, fall back to tree-sitter only.
    Annotate output with "(tree-sitter only, LSP unavailable)". Never throw on missing LSP.
 3. **Tool naming**: Prefix all tools with `shazam_` to avoid conflicts.
 4. **Symbol IDs**: Format as `{file}::{name}::{line}` — stable convention used across tools.
 5. **Output format**: All tools return plain text by default, structured JSON when `{ json: true }` is passed. Never mix formats.
 6. **Encoding**: Always use `core/encoding.ts` adaptive reader (UTF-8 -> GBK -> GB2312). Never assume UTF-8.
+7. **File organization**: One file = one business concept. No files named `utils.ts` or `helpers.ts` over 200 lines.
+
+### 2.4 Layer Details
+
+**core/** — Pure analysis, zero external I/O beyond filesystem reads. No Pi, LSP, or MCP imports.
+
+**lsp/** — External process management for language servers. Spawns, monitors health, handles stdio, implements JSON-RPC with timeout/fallback.
+
+**tools/** — One file per `registerTool` call. Each exports `register*` function + `execute*` function. Use `tools/_factory.ts` `createTool()` factory for consistent registration.
+
+**hooks/** — Automatic event handlers, not LLM-callable. Each exports `register*` function only. Subscribed in `index.ts`.
+
+**mcp/** — MCP server for non-Pi clients (Cursor, Claude Desktop, etc.). Wraps `core/` functions with Zod schemas, not TypeBox.
 
 ---
 
@@ -307,38 +347,256 @@ index.ts                    <- Pi extension entry, default export(pi: ExtensionA
 
 For every non-trivial change:
 
-1. **Before touching code**: Run `repomap overview` to understand current structure.
-2. **Before editing a file**: Run `repomap impact --files <f> --with-symbols` to assess blast radius.
+1. **Before touching code**: Run `shazam_overview` to understand current structure.
+2. **Before editing a file**: Run `shazam_impact --files <f> --with-symbols` to assess blast radius.
 3. **Edit**: Make minimal changes. Do one thing per change.
-4. **After editing**: Run `repomap verify` for evidence gate.
+4. **After editing**: Run `shazam_verify` for evidence gate.
 5. **Verification gate**: `npm run typecheck` + `npm test` + `npm run build` — all must pass.
 
 ### 3.4 Adding a New Tool
 
-1. Create `tools/<name>.ts` with a `register*` function.
-2. Use `createTool(pi, { name, label, description, params, execute })` from `tools/_factory.ts`.
-3. Import and call `register*` in `index.ts`.
-4. For complex async tools, use `customExecute` instead of `execute`.
-5. Append Next recommendation rules to `NEXT_RULES` in `core/output.ts`.
-6. Write tests in `tests/`.
+pi-shazam uses a `createTool()` factory from `tools/_factory.ts` that eliminates
+per-tool boilerplate. The factory auto-handles: `json`/`maxTokens` params,
+`scanProject(".")`, content envelope, and truncation.
 
-### 3.5 Adding a New Language
+**Standard tool (synchronous):**
+
+```typescript
+import { createTool } from "./tools/_factory.js";
+import { Type } from "typebox";
+
+createTool(pi, {
+  name: "shazam_mytool",
+  label: "My Tool",
+  description: "When to use this tool...",
+  params: Type.Object({
+    query: Type.String(),
+    limit: Type.Optional(Type.Number()),
+  }),
+  execute(graph, params) {
+    return "output string";
+  },
+});
+```
+
+**Async / LSP tool:**
+
+```typescript
+createTool(pi, {
+  name: "shazam_mytool",
+  // ...
+  customExecute: async (toolCallId, params, signal, onUpdate, ctx) => {
+    const graph = scanProject(".");
+    // async + LSP logic here
+    return { content: [{ type: "text", text: "result" }] };
+  },
+});
+```
+
+**Registration checklist for a new tool:**
+
+1. Create `tools/<name>.ts` with `register*` function using `createTool()`.
+2. Import and call `register*` in `index.ts`.
+3. For complex async tools, use `customExecute` instead of `execute`.
+4. Append Next recommendation rules to `NEXT_RULES` in `core/output.ts`.
+5. Write tests in `tests/`.
+6. Update the tool table in `AGENTS.md`.
+7. Add docs to `SKILL.md` (Pi agent skill file).
+8. Update `README.md` if user-facing tool list changed.
+9. Sync `mcp/tools.ts` in the same PR (see §3.11).
+
+**Description style rotation** — vary across 5 styles so the LLM sees variety:
+
+| Style | Example |
+|-------|---------|
+| Scenario trigger | "When you first enter a project — use this to..." |
+| Prerequisite | "Required before editing 2+ files or any shared/exported module" |
+| Consequence hint | "Without this you ship bugs — traces ALL upstream callers" |
+| Action binding | "After every write or edit — confirm no errors" |
+| Anti-pattern warning | "Don't reach for grep — this ranks results by relevance" |
+
+### 3.5 Modifying an Existing Tool
+
+When changing tool schema, description, or output format:
+
+1. Update the `createTool()` call in the tool file.
+2. Sync the MCP Zod schema in `mcp/tools.ts` (same PR).
+3. Update `SKILL.md` tool docs.
+4. Update `AGENTS.md` tool table if description changed.
+5. Run `npm test` — verify tool output tests pass.
+
+### 3.6 Adding a New Language
 
 1. Add grammar to `core/treesitter.ts` `EXT_TO_LANG` map.
 2. Add tree-sitter query in the queries section.
 3. Add LSP server config in `lsp/servers.ts`.
 
-### 3.6 Modifying Core Algorithms
+### 3.7 Modifying Core Algorithms
 
 - Changing `core/pagerank.ts` or `core/graph.ts`: verify all tools that consume `RepoGraph` still produce correct output.
 - Changing `lsp/client.ts`: verify `lsp/manager.ts` lifecycle still works. Test with at least 2 language servers.
 - Changing tool output format: update the specific `tools/*.ts` formatter and verify JSON envelope schema.
 
-### 3.7 Test-Driven Development
+### 3.8 Test-Driven Development
 
 Write the failing test FIRST, then implement. This is non-negotiable for features and bugfixes.
 
-### 3.8 Code Style
+### 3.9 Pi Hooks — Lifecycle Event Handlers
+
+Hooks subscribe to Pi lifecycle events via `pi.on()`. They live in `hooks/` and are
+registered in `index.ts`. Hooks are NOT LLM-callable — they fire automatically.
+
+**Hook handler signature:** `(event: E, ctx: ExtensionContext) => R | void`
+
+- `ctx.cwd` — working directory
+- `ctx.ui?.notify?.(msg, type)` — show notification (use optional chaining)
+- `pi.sendMessage(...)` — inject message into conversation
+- Return `{ block: true, reason: "..." }` to block a `tool_call`
+- Return `{ systemPrompt: string }` from `before_agent_start` to inject text
+
+**Registration pattern:**
+
+```typescript
+// hooks/my-hook.ts
+import type { ExtensionAPI } from "../types/pi-extension.js";
+
+export function registerMyHook(pi: ExtensionAPI): void {
+  pi.on("tool_call", (event, ctx) => {
+    // event.toolName, event.input, ctx.cwd, ctx.sendMessage(), etc.
+  });
+}
+```
+
+```typescript
+// index.ts
+import { registerMyHook } from "./hooks/my-hook.js";
+// inside default export:
+registerMyHook(pi);
+```
+
+**System prompt injection:**
+
+```typescript
+pi.on("before_agent_start", (_event, _ctx) => {
+  const sp = Array.isArray(_event.systemPrompt)
+    ? _event.systemPrompt.join("\n")
+    : String(_event.systemPrompt ?? "");
+  if (sp.includes("my-guide")) return; // avoid double injection
+
+  return {
+    systemPrompt: sp + "\n\nmy guidance text here",
+  };
+});
+```
+
+**Critical**: `systemPrompt` may be `string` or `string[]` at runtime. Always check with `Array.isArray()`.
+
+**Logging pattern** — follow audit-guard.ts convention, write to `~/.pi/hooks/audit/`:
+
+```typescript
+import { appendFileSync, mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { homedir } from "node:os";
+
+const AUDIT_DIR = join(homedir(), ".pi", "hooks", "audit");
+function write(line: string) {
+  mkdirSync(AUDIT_DIR, { recursive: true });
+  appendFileSync(join(AUDIT_DIR, "my-log.log"), line + "\n", "utf-8");
+}
+```
+
+**Existing hooks in pi-shazam:**
+
+| Hook | Event | Purpose |
+|------|-------|---------|
+| `before-start.ts` | `before_agent_start` | Inject project structure overview into system prompt |
+| `pre-edit.ts` | `tool_call` | Detect multi-file edits, warn about blast radius |
+| `shazam-guide.ts` | `tool_result` + `tool_call` | Nudge agent to use shazam tools |
+| `tool-logger.ts` | `tool_call` + `tool_result` | Log shazam calls to audit dir |
+
+### 3.10 MCP Server — Non-Pi Client Wrapping
+
+Wraps pi-shazam core tools as MCP server at `npx pi-shazam-mcp`.
+
+**Entry (`mcp/entry.ts`):**
+
+```typescript
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+
+const server = new McpServer({ name: "pi-shazam", version: "0.4.1" });
+const graph = scanProject(projectRoot);
+registerAllTools(server, graph, projectRoot);
+await server.connect(new StdioServerTransport());
+```
+
+`package.json` must have: `"bin": { "pi-shazam-mcp": "dist/mcp/entry.js" }`
+
+**Tool registration (`mcp/tools.ts`) — Zod schemas (NOT TypeBox):**
+
+```typescript
+import { z } from "zod";
+
+server.registerTool("shazam_xxx", {
+  description: "...",
+  inputSchema: z.object({ param: z.string() }),
+}, withLogging("shazam_xxx", async ({ param }) => {
+  const text = executeXxx(graph, param);
+  return { content: [{ type: "text", text }] };
+}));
+```
+
+**`withLogging` wrapper** — logs start/end/duration/error to `~/.kimi-code/audit/shazam-calls.log`.
+Every handler must be wrapped.
+
+**MCP client config:**
+
+```json
+{ "mcpServers": { "pi-shazam": { "command": "npx", "args": ["pi-shazam-mcp"] } } }
+```
+
+### 3.11 Sync Discipline (Pi <-> MCP <-> Docs)
+
+When one piece changes, others MUST follow in the same PR.
+
+**Tool changes:**
+
+| Change | AGENTS.md | SKILL.md | README.md | mcp/tools.ts | mcp/README.md |
+|--------|-----------|----------|-----------|-------------|---------------|
+| New tool | Add to table | Add full docs | Add if user-facing | Add registerTool | Add to table |
+| Delete tool | Remove | Remove | Remove | Remove | Remove |
+| Schema change | — | Update params | — | Update Zod | — |
+| Description change | Sync | Sync | — | Sync | Sync |
+| Rename | Update all | Update all | Update if listed | Update | Update |
+
+**Hook changes:**
+
+| Change | AGENTS.md | AGENTS.md Change Map |
+|--------|-----------|---------------------|
+| New hook | Add to hooks/ tree | Add to architecture |
+| Hook event changed | Update description | — |
+| Delete hook | Remove from tree | — |
+
+**Doc changes:**
+
+| Change | Must also update |
+|--------|-----------------|
+| Architecture | AGENTS.md tree + AGENTS.md |
+| Languages supported | README + AGENTS.md + SKILL.md |
+| Commands | README + SKILL.md |
+| Release | README npm badge auto-updates |
+
+**Before commit checklist:**
+
+- [ ] Pi tools + MCP tools count matches
+- [ ] Tool descriptions match between Pi and MCP
+- [ ] AGENTS.md tool table synced
+- [ ] SKILL.md has all tools documented
+- [ ] README.md tool counts correct
+- [ ] Architecture tree in AGENTS.md current
+- [ ] Language counts verified against code
+
+### 3.12 Code Style
 
 - **Language**: English only in all source code, comments, commit messages, PRs, and issues.
 - **No emoji**: No emoji or decorative Unicode in source files, tool output, or commit messages.
@@ -355,26 +613,68 @@ Write the failing test FIRST, then implement. This is non-negotiable for feature
 NEVER run `npm publish` directly. Local npm tokens expire. All publishing goes through
 `.github/workflows/publish.yml`.
 
-### 4.2 Release Steps
+### 4.2 When to Release
 
-1. Complete development, all tests pass.
-2. `npm version patch` (or `minor`/`major`) — auto-creates git tag.
-3. `git push origin <branch> --tags`
-4. Create PR -> merge to main.
-5. Create GitHub Release: `gh release create vX.Y.Z`
-6. Release event auto-triggers `.github/workflows/publish.yml`.
-   - Manual trigger alternative: `gh workflow run publish.yml --ref main -f tag=latest`
+After any user-facing change: new tools, new hooks, bugfixes, significant doc updates.
 
-### 4.3 CI Pipeline (publish.yml)
+Version strategy:
+- **patch** (0.3.0 -> 0.3.1): bugfixes, typos, minor tweaks
+- **minor** (0.2.0 -> 0.3.0): new features (tools, hooks, MCP)
+- **major** (0.x -> 1.0): breaking changes, API removals
 
-- `npm ci --legacy-peer-deps`
-- `npx tsc --noEmit` (type check)
-- `npm test` (unit tests)
-- `npm run build` (compile)
-- `npm publish` (with `secrets.NPM_TOKEN`)
-- Wait 15s, then `npm view pi-shazam` verification
+### 4.3 Release Steps
 
-### 4.4 Pre-Publish Contract Check (MANDATORY)
+```bash
+# 1. Verify everything passes
+npm run typecheck
+npm test
+npm run build
+
+# 2. Bump version (creates git tag)
+npm version patch   # or minor / major
+
+# 3. Push code + tags
+git push origin main --tags
+
+# 4. Create GitHub Release (triggers publish.yml)
+gh release create v0.X.Y \
+  --title "v0.X.Y — summary" \
+  --notes "## Changes\n- ..."
+
+# 5. Wait for publish CI
+gh run watch $(gh run list --workflow publish.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+
+# 6. Verify
+npm view pi-shazam version  # should show new version
+
+# 7. Test in Pi
+cd project && pi install npm:pi-shazam@0.X.Y
+pi -p "call shazam_overview briefly"
+```
+
+### 4.4 Publish CI (.github/workflows/publish.yml)
+
+Triggered by GitHub Release event. Runs:
+1. `npm ci --legacy-peer-deps`
+2. `npx tsc --noEmit` (typecheck)
+3. `npm test`
+4. `npm run build`
+5. `npm publish` (with `secrets.NPM_TOKEN`)
+6. Wait 15s -> `npm view pi-shazam` verify
+
+**NOTE**: `secrets.NPM_TOKEN` is a GitHub repository secret (npm Automation Token, no 2FA).
+
+### 4.5 Pre-Release Checklist
+
+- [ ] All tests pass locally
+- [ ] Typecheck passes (0 errors)
+- [ ] Build compiles
+- [ ] `shazam_verify` passes on test project
+- [ ] README / AGENTS.md / SKILL.md synced
+- [ ] MCP tools synced with Pi tools
+- [ ] No stale branches or worktrees
+
+### 4.6 Pre-Publish Contract Check (MANDATORY)
 
 Before every release, run these checks against `dist/`:
 
@@ -385,6 +685,13 @@ grep "content:" dist/index.js      # sendMessage: string format
 grep "content:" dist/hooks/*.js    # sendMessage: string format
 grep "content:" dist/tools/*.js    # Tool return: [{type:"text", text:...}]
 grep "systemPrompt:" dist/hooks/   # Returns string, not string[]
+```
+
+### 4.7 Post-Release
+
+```bash
+pi install npm:pi-shazam@latest   # update Pi
+pi -p "call shazam_overview"      # smoke test
 ```
 
 ---
@@ -438,9 +745,75 @@ grep "systemPrompt:" dist/hooks/   # Returns string, not string[]
 
 ---
 
-## 6. Verification Matrix
+## 6. Testing
 
-### 6.1 After Every Change (MANDATORY)
+### 6.1 Test Framework
+
+vitest, 426 tests across 36 test files. Run: `npm test`
+
+### 6.2 Graph Mock Pattern
+
+```typescript
+import { scanProject } from "../core/scanner.js";
+import type { RepoGraph } from "../core/graph.js";
+
+let _graph: RepoGraph | null = null;
+function getGraph(): RepoGraph {
+  if (!_graph) _graph = scanProject(".");
+  return _graph;
+}
+```
+
+Use `scanProject(".")` for real-project tests (cached after first call).
+
+### 6.3 Tool Output Tests
+
+```typescript
+it("should return project structure summary", async () => {
+  const { executeOverview } = await import("../tools/overview.js");
+  const result = executeOverview(getGraph(), ".");
+  expect(result).toBeDefined();
+  expect(typeof result).toBe("string");
+  expect(result.length).toBeGreaterThan(0);
+  expect(result).toMatch(/index\.ts|Top|PageRank/i);
+});
+```
+
+### 6.4 Schema Tests (Zod / MCP)
+
+```typescript
+it("overview schema should accept optional filter", () => {
+  const schema = z.object({ filter: z.string().optional() });
+  expect(() => schema.parse({})).not.toThrow();
+  expect(() => schema.parse({ filter: "index" })).not.toThrow();
+});
+```
+
+### 6.5 Integration Smoke Tests
+
+```bash
+# Pi integration
+pi install npm:pi-shazam@latest
+pi -p "call shazam_overview briefly"
+pi -p "call shazam_verify"
+pi -p "call shazam_hotspots"
+# Check: no "Extension error" in output, tools return meaningful results.
+
+# MCP smoke test
+printf '{"jsonrpc":"2.0","id":0,"method":"initialize",...}\n{"jsonrpc":"2.0","id":1,"method":"tools/call",...}\n' \
+  | timeout 15 node dist/mcp/entry.js . 2>/dev/null | tail -1
+# Verify: {"result":{"content":[...]}}
+```
+
+### 6.6 Hook Verification
+
+```bash
+# Verify hooks registered in built dist
+grep -c "registerShazamGuide\|registerToolLogger\|registerBeforeStart\|registerAfterWrite" dist/index.js
+# Should output: 4
+```
+
+### 6.7 After Every Change (MANDATORY)
 
 | Step | Command             | What It Checks |
 | ---- | ------------------- | -------------- |
@@ -448,26 +821,16 @@ grep "systemPrompt:" dist/hooks/   # Returns string, not string[]
 | 2    | `npm test`          | All unit tests |
 | 3    | `npm run build`     | Compile output |
 
-### 6.2 Before Commit
+### 6.8 Debugging Guide
 
-Run `repomap verify` for full evidence gate: changes, risk, orphan symbols,
-LSP diagnostics, graph diff (when baseline exists).
-
-### 6.3 Debugging Guide
-
-| Symptom                               | Check                                           |
-| ------------------------------------- | ----------------------------------------------- |
-| Extension fails to load               | Compare against CONTRACT.md, verify API version |
-| `text.replace is not a function`      | Check sendMessage content is string, not array  |
-| `Cannot read properties of undefined` | Check pi.logger/pi.typebox/ctx.ui access        |
-| Tool not appearing                    | Verify register\* is called in index.ts         |
-| Tree-sitter parse failure             | Check grammar version compatibility             |
-| LSP communication error               | Check lsp/client.ts JSON-RPC framing            |
-
-### 6.4 Integration Testing
-
-Symlink `dist/` into `~/.pi/agent/extensions/pi-shazam` and verify tool calls
-in a live Pi session. Use `~/.A1/repomap` as test target (Python + tree-sitter + LSP).
+| Symptom                               | Check                                               |
+| ------------------------------------- | --------------------------------------------------- |
+| Extension fails to load               | Compare against `docs/INSTRUCTION.md` §1 contract   |
+| `text.replace is not a function`      | Check sendMessage content is string, not array      |
+| `Cannot read properties of undefined` | Check pi.logger/pi.typebox/ctx.ui access            |
+| Tool not appearing                    | Verify register* is called in index.ts              |
+| Tree-sitter parse failure             | Check grammar version compatibility                 |
+| LSP communication error               | Check lsp/client.ts JSON-RPC framing                |
 
 ---
 
@@ -476,19 +839,20 @@ in a live Pi session. Use `~/.A1/repomap` as test target (Python + tree-sitter +
 | File                      | Role                                   |
 | ------------------------- | -------------------------------------- |
 | `index.ts`                | Extension entry, all registrations     |
-| `CONTRACT.md`             | Pi ExtensionAPI authoritative contract |
 | `types/pi-extension.d.ts` | Self-contained ExtensionAPI type stub  |
 | `AGENTS.md`               | Agent context and project rules        |
 | `SKILL.md`                | Pi agent skill file for LLM discovery  |
 | `package.json`            | npm manifest, dependencies, scripts    |
 | `tsconfig.json`           | TypeScript compiler configuration      |
+| `docs/INSTRUCTION.md`     | This file — development & maintenance guide |
+| `docs/kimi-code-hooks.md` | Kimi Code hook system reference (external) |
 | `core/treesitter.ts`      | Language support, symbol extraction    |
 | `core/graph.ts`           | Symbol dependency graph                |
 | `core/scanner.ts`         | Project scanning + graph building      |
 | `lsp/client.ts`           | LSP JSON-RPC implementation            |
 | `tools/_factory.ts`       | Tool registration factory              |
+| `tools/_context.ts`       | Shared LspManager holder               |
 | `hooks/before-start.ts`   | System prompt injection                |
-| `hooks/after-write.ts`    | Auto verification after edits          |
 
 ---
 
@@ -496,5 +860,6 @@ in a live Pi session. Use `~/.A1/repomap` as test target (Python + tree-sitter +
 
 | Date       | Version | Change                                                                                                                                                                                     |
 | ---------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 2026-06-06 | 1.0     | Initial version. Merged Pi ExtensionAPI contract (CONTRACT.md, types/pi-extension.d.ts, pi-coding-agent@15.9.5), project architecture, dev workflow, release process, tech stack baseline. |
-| 2026-06-06 | 1.1     | Upgraded iconv-lite (0.6.3 -> 0.7.2), typebox (1.1.39 -> 1.2.1), vscode-languageserver-protocol (3.17.0 -> 3.18.0). All 178 tests pass.                                                    |
+| 2026-06-06 | 1.0     | Initial version. Merged Pi ExtensionAPI contract, project architecture, dev workflow, release process, tech stack baseline.                                                                |
+| 2026-06-06 | 1.1     | Upgraded iconv-lite (0.6.3 -> 0.7.2), typebox (1.1.39 -> 1.2.1), vscode-languageserver-protocol (3.17.0 -> 3.18.0).                                                                       |
+| 2026-06-08 | 2.0     | Merged all individual SKILL.md files (pi-extension, pi-hooks, mcp-server, testing, release-publish, architecture, sync-discipline) and CONTRACT.md. Flattened docs/ directory.             |
