@@ -79,28 +79,61 @@ function describeFileChange(file: ChangedFile): string {
 	return `${file.linesAdded} lines added, ${file.linesRemoved} removed`;
 }
 
-// ── LSP diagnostics collection (lightweight) ──────────────────────────────
+// ── LSP diagnostics collection ──────────────────────────────────────────
+
+interface LspDiagEntry {
+	file: string;
+	line: number;
+	severity: "error" | "warning";
+	message: string;
+}
+
+interface LspDiagResult {
+	errorCount: number;
+	warningCount: number;
+	/** First few errors for quick reference (max 5) */
+	topErrors: LspDiagEntry[];
+}
 
 /**
- * Check if TypeScript errors exist WITHOUT running full tsc.
- * Uses a quick check: looks for common error patterns in recently modified files.
- * Returns error/warning counts only — no individual error details.
- * 
- * Note: We intentionally do NOT run tsc --noEmit on every write/edit.
- * Full diagnostics are noisy and waste context. The LLM can run
- * `shazam_verify` or `npx tsc --noEmit` when it needs detailed errors.
+ * Run tsc --noEmit and collect diagnostics.
+ * Returns summary counts + first 5 errors for actionable context.
+ * Full error list is available via `shazam_verify` or `npx tsc --noEmit`.
  */
-async function collectLspDiagnostics(): Promise<{ errorCount: number; warningCount: number }> {
-	// Quick check: only count errors, don't parse details
+async function collectLspDiagnostics(): Promise<LspDiagResult> {
 	try {
 		const { stdout } = await execAsync(
-			"npx tsc --noEmit 2>&1 | grep -c 'error TS' || true",
-			{ encoding: "utf-8", timeout: 10000, maxBuffer: 1024 * 1024 },
+			"npx tsc --noEmit --pretty false 2>&1 || true",
+			{ encoding: "utf-8", timeout: 15000, maxBuffer: 10 * 1024 * 1024 },
 		);
-		const errorCount = parseInt(stdout.trim(), 10) || 0;
-		return { errorCount, warningCount: 0 };
+		const output = stdout.trim();
+		if (!output) return { errorCount: 0, warningCount: 0, topErrors: [] };
+
+		const errors: LspDiagEntry[] = [];
+		const warnings: LspDiagEntry[] = [];
+		const lines = output.split("\n");
+
+		for (const line of lines) {
+			const match = line.match(/^(.+\.(?:ts|tsx|js|jsx))\((\d+),(\d+)\):\s+(error|warning)\s+(TS\d+)?\s*(.*)$/i);
+			if (match) {
+				const entry: LspDiagEntry = {
+					file: match[1]!,
+					line: parseInt(match[2]!, 10),
+					severity: match[4]?.toLowerCase() === "error" ? "error" : "warning",
+					message: (match[6] || match[5] || "").slice(0, 120),
+				};
+				if (entry.severity === "error") errors.push(entry);
+				else warnings.push(entry);
+			}
+		}
+
+		return {
+			errorCount: errors.length,
+			warningCount: warnings.length,
+			topErrors: errors.slice(0, 5), // Only first 5 for context
+		};
 	} catch {
-		return { errorCount: 0, warningCount: 0 };
+		return { errorCount: 0, warningCount: 0, topErrors: [] };
 	}
 }
 
@@ -207,13 +240,18 @@ export async function handleWriteResult(toolName: string, projectRoot: string): 
 			lines.push("");
 		}
 
-		// ── LSP Diagnostics (summary only — no individual errors) ───────────
+		// ── LSP Diagnostics (summary + top errors) ─────────────────────────
 		const lspDiags = await collectLspDiagnostics();
 
 		lines.push("### LSP Diagnostics");
 		if (lspDiags.errorCount > 0) {
-			lines.push(`[FAIL] ${lspDiags.errorCount} type error(s) found`);
-			lines.push("  Run `npx tsc --noEmit` to see details");
+			lines.push(`[FAIL] ${lspDiags.errorCount} type error(s) found:`);
+			for (const err of lspDiags.topErrors) {
+				lines.push(`  - ${err.file}:${err.line} — ${err.message}`);
+			}
+			if (lspDiags.errorCount > 5) {
+				lines.push(`  ... and ${lspDiags.errorCount - 5} more (run \`npx tsc --noEmit\` to see all)`);
+			}
 		} else {
 			lines.push("[PASS] No type errors");
 		}
