@@ -209,11 +209,71 @@ function detectFormatters(projectRoot: string): string[] {
 }
 
 /**
+ * Parse .editorconfig file to extract indent_style and indent_size.
+ * Returns { style, size } or null if not found.
+ * Handles the case where indent_size is not set but indent_style is (fixes #153).
+ */
+function parseEditorconfig(projectRoot: string): { style?: string; size?: number } | null {
+	const editorconfigPath = join(projectRoot, '.editorconfig');
+	if (!existsSync(editorconfigPath)) return null;
+	
+	try {
+		const content = readFileSync(editorconfigPath, 'utf-8');
+		const lines = content.split('\n');
+		let inRootSection = false;
+		let style: string | undefined;
+		let size: number | undefined;
+		
+		for (const line of lines) {
+			const trimmed = line.trim();
+			
+			// Section header
+			if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+				inRootSection = trimmed === '[*]' || trimmed === '[*.{ts,tsx,js,jsx}]';
+				continue;
+			}
+			
+			if (!inRootSection) continue;
+			
+			// Parse key-value pairs
+			const eqIndex = trimmed.indexOf('=');
+			if (eqIndex === -1) continue;
+			
+			const key = trimmed.slice(0, eqIndex).trim().toLowerCase();
+			const val = trimmed.slice(eqIndex + 1).trim().toLowerCase();
+			
+			if (key === 'indent_style') {
+				style = val;
+			}
+			if (key === 'indent_size') {
+				size = parseInt(val, 10);
+			}
+		}
+		
+		// If indent_style is set but indent_size is not, use default (fixes #153)
+		if (style && size === undefined) {
+			// Editorconfig spec: indent_size defaults to tab_width, which defaults to 4 for spaces, 8 for tabs
+			size = style === 'tab' ? 8 : 4;
+		}
+		
+		return { style, size };
+	} catch {
+		return null;
+	}
+}
+
+/**
  * Detect the dominant indentation style in the project.
  * Returns 'tabs' if most files use tabs, 'spaces' otherwise.
  * This prevents false positives when the project consistently uses tabs (fixes #111).
  */
 function detectIndentationStyle(files: string[], projectRoot: string): 'tabs' | 'spaces' {
+	// First, try to read from .editorconfig (fixes #153)
+	const editorconfig = parseEditorconfig(projectRoot);
+	if (editorconfig?.style === 'tab') return 'tabs';
+	if (editorconfig?.style === 'space') return 'spaces';
+	
+	// Fall back to file-based detection
 	let tabFiles = 0;
 	let spaceFiles = 0;
 	const sampleSize = Math.min(files.length, 20); // Sample up to 20 files

@@ -1,11 +1,9 @@
 /**
  * pi-shazam core/cache — Graph baseline save/diff for incremental analysis.
  *
- * Ported from repomap/src/__init__.py (get_project_cache_dir, compare_graph_snapshots,
- * IncrementalCache).
- *
- * Uses Node.js fs + path for file I/O, matching repomap's convention of
- * storing cache under ~/.cache/repomap/<project-slug>.
+ * Provides persistent graph caching with mtime-based invalidation.
+ * Stores cache under ~/.cache/repomap/<project-slug> for process-isolated
+ * cache directories. Supports V2 serialization with file-level data.
  */
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";

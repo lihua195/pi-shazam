@@ -316,7 +316,11 @@ async function runLspDiagnostics(
 	if (targetFiles.length === 0) return { diagnostics: [], available: false };
 
 	const lspManager = getLspManager();
-	if (!lspManager) return runSubprocessDiagnostics(projectRoot);
+	if (!lspManager) {
+		// Log fallback to subprocess diagnostics (fixes #149)
+		console.warn('[pi-shazam] LSP manager not available, falling back to subprocess diagnostics');
+		return runSubprocessDiagnostics(projectRoot);
+	}
 
 	const diagnostics: LspDiagEntry[] = [];
 	const serversUsed = new Set<string>();

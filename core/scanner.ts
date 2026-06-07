@@ -68,8 +68,10 @@ function getFileMtimes(root: string, files: string[]): Map<string, number> {
 	for (const relPath of files) {
 		try {
 			mtimes.set(relPath, statSync(join(root, relPath)).mtimeMs);
-		} catch {
-			// skip unstatable files
+		} catch (err) {
+			// Log but continue — file may have been deleted between collection and stat
+			if (err instanceof Error && err.message.includes('ENOENT')) continue;
+			console.warn(`[pi-shazam] getFileMtimes: failed to stat ${relPath}: ${err}`);
 		}
 	}
 	return mtimes;
@@ -176,7 +178,13 @@ function parseFile(adapter: TreeSitterAdapter, root: string, relPath: string, mt
 		const jsImportBindings = adapter.extractJsTsImportBindings(tree, lang);
 
 		return { mtime, symbols, imports, calls, jsImportBindings };
-	} catch {
+	} catch (err) {
+		// Log parse failures to aid debugging (fixes #133)
+		if (err instanceof Error && err.message.includes('File too large')) {
+			// Expected for large files — skip silently
+			return null;
+		}
+		console.warn(`[pi-shazam] parseFile: failed to parse ${relPath}: ${err}`);
 		return null;
 	}
 }
@@ -578,7 +586,11 @@ function collectSourceFiles(root: string, maxFiles: number): string[] {
 		let entries;
 		try {
 			entries = readdirSync(dir, { withFileTypes: true });
-		} catch {
+		} catch (err) {
+			// Log directory read failures (fixes #133)
+			if (err instanceof Error && (err.message.includes('EACCES') || err.message.includes('EPERM'))) {
+				console.warn(`[pi-shazam] collectSourceFiles: permission denied: ${dir}`);
+			}
 			return;
 		}
 

@@ -4,7 +4,8 @@
  * Installs a pre-commit hook that runs shazam_verify --preCommit
  * before allowing a commit. Blocks commit on FAIL verdict.
  *
- * The hook is installed as .git/hooks/pre-commit in the project root.
+ * The hook is installed in the git hooks directory (supports worktrees
+ * and custom GIT_DIR via git rev-parse --git-path hooks).
  * It calls npx shazam_verify (via the Pi extension's verify tool)
  * through the MCP entry point.
  */
@@ -70,20 +71,45 @@ fi
 `;
 
 /**
+ * Get the git hooks directory for the given project.
+ * Uses git rev-parse --git-path hooks to support worktrees and custom GIT_DIR (fixes #138).
+ *
+ * @param projectRoot - Absolute path to the project root
+ * @returns The absolute path to the git hooks directory
+ */
+export function getGitHooksDir(projectRoot: string): string {
+	try {
+		const hooksPath = execSync("git rev-parse --git-path hooks", {
+			cwd: projectRoot,
+			encoding: "utf-8",
+			timeout: 5000,
+		}).trim();
+		// If the path is relative, resolve against project root
+		if (hooksPath.startsWith("/")) {
+			return hooksPath;
+		}
+		return resolve(projectRoot, hooksPath);
+	} catch {
+		// Fallback to .git/hooks for non-git directories
+		const gitDir = resolve(projectRoot, ".git");
+		return join(gitDir, "hooks");
+	}
+}
+
+/**
  * Install the pre-commit git hook for the given project.
  *
- * Writes .git/hooks/pre-commit with the shazam verify script
- * and makes it executable.
+ * Writes pre-commit hook with the shazam verify script
+ * and makes it executable. Supports worktrees and custom GIT_DIR (fixes #138).
  *
  * @param projectRoot - Absolute path to the project root
  * @returns The path to the installed hook file
  */
 export function installPreCommitHook(projectRoot: string): string {
-	const gitDir = resolve(projectRoot, ".git");
-	const hooksDir = join(gitDir, "hooks");
+	const hooksDir = getGitHooksDir(projectRoot);
 	const hookPath = join(hooksDir, "pre-commit");
 
-	// Ensure .git/hooks directory exists
+	// Ensure hooks directory exists
 	if (!existsSync(hooksDir)) {
 		throw new Error(`Git hooks directory not found: ${hooksDir}. Is this a git repository?`);
 	}
@@ -106,12 +132,14 @@ export function installPreCommitHook(projectRoot: string): string {
 
 /**
  * Check if the pre-commit hook is installed for the given project.
+ * Supports worktrees and custom GIT_DIR (fixes #138).
  *
  * @param projectRoot - Absolute path to the project root
  * @returns True if the shazam pre-commit hook is installed
  */
 export function isPreCommitHookInstalled(projectRoot: string): boolean {
-	const hookPath = join(resolve(projectRoot, ".git"), "hooks", "pre-commit");
+	const hooksDir = getGitHooksDir(projectRoot);
+	const hookPath = join(hooksDir, "pre-commit");
 	if (!existsSync(hookPath)) return false;
 	const content = readFileSync(hookPath, "utf-8");
 	return content.includes("shazam");
@@ -119,13 +147,13 @@ export function isPreCommitHookInstalled(projectRoot: string): boolean {
 
 /**
  * Remove the installed pre-commit hook, restoring any backup if present.
+ * Supports worktrees and custom GIT_DIR (fixes #138).
  *
  * @param projectRoot - Absolute path to the project root
  * @returns True if the hook was removed
  */
 export function removePreCommitHook(projectRoot: string): boolean {
-	const gitDir = resolve(projectRoot, ".git");
-	const hooksDir = join(gitDir, "hooks");
+	const hooksDir = getGitHooksDir(projectRoot);
 	const hookPath = join(hooksDir, "pre-commit");
 	const backupPath = join(hooksDir, "pre-commit.shazam-backup");
 

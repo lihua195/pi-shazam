@@ -2,8 +2,9 @@
  * pi-shazam tools/hover — Symbol type/documentation hover.
  *
  * Uses LSP textDocument/hover to get type information and documentation
- * for a symbol at a given position. Falls back to graph metadata when
- * LSP is unavailable.
+ * for a symbol at a given position. Falls back to tree-sitter AST docstring
+ * extraction when LSP is unavailable. Includes source code extraction as
+ * final fallback.
  */
 import type { ExtensionAPI } from "../types/pi-extension.js";
 import { Type } from "typebox";

@@ -159,7 +159,9 @@ function detectSymbolChanges(projectRoot: string): SymbolChange[] {
 		}
 
 		return changes;
-	} catch {
+	} catch (err) {
+		// Log error to aid debugging (fixes #143)
+		console.warn(`[pi-shazam] detectSymbolChanges failed: ${err}`);
 		return [];
 	}
 }

@@ -3,8 +3,7 @@
  *
  * Detects project languages, spawns LSP servers on demand,
  * handles health checks, restarts, and graceful shutdown.
- *
- * Ported from repomap/src/lsp.py (detect_project_languages, detect_lsp_server).
+ * Supports multiple detection sources: project-local, PATH, and user home.
  */
 
 import { readdirSync, statSync, existsSync } from "node:fs";
