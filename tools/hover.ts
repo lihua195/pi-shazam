@@ -13,6 +13,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { getNextForTool, formatNextSection } from "../core/output.js";
 import { createTool } from "./_factory.js";
+import { TreeSitterAdapter } from "../core/treesitter.js";
 
 export function registerHover(pi: ExtensionAPI): void {
 	createTool(pi, {
@@ -52,52 +53,157 @@ interface HoverResult {
 }
 
 /**
- * Extract JSDoc comment above a symbol definition from source file.
+ * Extract JSDoc/Python docstring comment above a symbol definition from source file.
+ * Uses tree-sitter AST for accurate comment-node detection, falling back to
+ * text-based extraction when tree-sitter is unavailable.
  * Returns the comment text or undefined if not found.
  */
-function extractDocstring(filePath: string, symbolLine: number): string | undefined {
+interface AstNode {
+	type: string;
+	text: string;
+	children: AstNode[];
+	startPosition: { row: number; column: number };
+	endPosition: { row: number; column: number };
+}
+
+function extractDocstring(filePath: string, symbolLine: number, _kind?: string): string | undefined {
 	try {
 		const content = readFileSync(filePath, "utf-8");
-		const lines = content.split("\n");
-		const lineIdx = symbolLine - 1; // Convert to 0-based
-		
-		// Look backwards for JSDoc comment
-		const docLines: string[] = [];
-		let i = lineIdx - 1;
-		
-		// Skip empty lines above the symbol
-		while (i >= 0 && lines[i]?.trim() === "") i--;
-		
-		// Check if we have a */ (end of JSDoc)
-		if (i >= 0 && lines[i]?.trim().endsWith("*/")) {
-			// Collect JSDoc lines backwards
-			while (i >= 0) {
-				const line = lines[i]!;
-				docLines.unshift(line);
-				if (line.trim().startsWith("/**")) break;
-				i--;
-			}
-			
-			// Clean up JSDoc comment
-			if (docLines.length > 0) {
-				return docLines
-					.map(l => l.replace(/^\s*\/\*\*?\s?/, "").replace(/\s*\*\/\s*$/, "").replace(/^\s*\*\s?/, ""))
-					.filter(l => l.length > 0)
-					.join("\n");
+		const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
+		const lang = TreeSitterAdapter.langForExtension(ext);
+
+		// Try tree-sitter AST-based extraction first (more accurate)
+		if (lang) {
+			const tsAdapter = new TreeSitterAdapter(() => {});
+			if (tsAdapter.hasLanguage(lang)) {
+				const tree = tsAdapter.parse(content, lang);
+				if (tree) {
+					const rootNode = tree.rootNode as unknown as AstNode;
+					const docComment = extractDocstringFromAst(rootNode, symbolLine);
+					if (docComment) return docComment;
+				}
 			}
 		}
-		
-		// Check for single-line comment above
-		if (i >= 0 && lines[i]?.trim().startsWith("//")) {
-			while (i >= 0 && lines[i]?.trim().startsWith("//")) {
-				docLines.unshift(lines[i]!.trim().replace(/^\/\/\s?/, ""));
-				i--;
-			}
-			return docLines.join("\n");
-		}
+
+		// Fallback: text-based extraction
+		return extractDocstringTextFallback(content, symbolLine);
 	} catch {
-		// File read failed
+		return undefined;
 	}
+}
+
+/**
+ * Tree-sitter AST-based docstring extraction.
+ * Walks the AST to find the node at the given line, then looks for
+ * a comment node immediately preceding it.
+ */
+function extractDocstringFromAst(root: AstNode, symbolLine: number): string | undefined {
+	// Walk the tree to find the target line and look for preceding comments
+	const commentNodes: { row: number; text: string; endRow: number }[] = [];
+
+	function walk(n: AstNode): void {
+		const row = n.startPosition.row + 1;
+		const endRow = n.endPosition.row + 1;
+
+		if (n.type === "comment") {
+			commentNodes.push({ row, text: n.text, endRow });
+		}
+
+		if (n.children && n.children.length > 0) {
+			for (const child of n.children) {
+				walk(child);
+			}
+		}
+	}
+
+	walk(root);
+
+	// Find the closest comment node that ends on the line just before symbolLine
+	let bestComment: string | undefined;
+	for (const c of commentNodes) {
+		// Check if this comment is directly above the target (no blank lines between)
+		if (c.endRow >= symbolLine - 1 && c.endRow < symbolLine) {
+			bestComment = c.text;
+		}
+	}
+
+	if (bestComment) {
+		return bestComment
+			.replace(/^\/\*\*?\s?/, "")
+			.replace(/\s*\*\/\s*$/, "")
+			.split("\n")
+			.map((l) => l.replace(/^\s*\*\s?/, ""))
+			.filter((l) => l.length > 0)
+			.join("\n");
+	}
+
+	return undefined;
+}
+
+/**
+ * Text-based fallback for docstring extraction.
+ * Used when tree-sitter is not available for the language.
+ */
+function extractDocstringTextFallback(content: string, symbolLine: number): string | undefined {
+	const lines = content.split("\n");
+	const lineIdx = symbolLine - 1; // Convert to 0-based
+	
+	// Look backwards for JSDoc comment
+	const docLines: string[] = [];
+	let i = lineIdx - 1;
+	
+	// Skip empty lines above the symbol
+	while (i >= 0 && lines[i]?.trim() === "") i--;
+	
+	// Check if we have a */ (end of JSDoc)
+	if (i >= 0 && lines[i]?.trim().endsWith("*/")) {
+		// Collect JSDoc lines backwards
+		while (i >= 0) {
+			const line = lines[i]!;
+			docLines.unshift(line);
+			if (line.trim().startsWith("/**")) break;
+			i--;
+		}
+		
+		// Clean up JSDoc comment
+		if (docLines.length > 0) {
+			return docLines
+				.map(l => l.replace(/^\s*\/\*\*?\s?/, "").replace(/\s*\*\/\s*$/, "").replace(/^\s*\*\s?/, ""))
+				.filter(l => l.length > 0)
+				.join("\n");
+		}
+	}
+	
+	// Check for single-line comment above
+	if (i >= 0 && lines[i]?.trim().startsWith("//")) {
+		while (i >= 0 && lines[i]?.trim().startsWith("//")) {
+			docLines.unshift(lines[i]!.trim().replace(/^\/\/\s?/, ""));
+			i--;
+		}
+		return docLines.join("\n");
+	}
+
+	// Check for Python triple-quoted docstring
+	if (i >= 0) {
+		const line = lines[i]!.trim();
+		if (line.endsWith('"""') || line.endsWith("'''")) {
+			const closeChars = line.endsWith('"""') ? '"""' : "'''";
+			const startChars = closeChars;
+			docLines.unshift(line);
+			i--;
+			while (i >= 0) {
+				const l = lines[i]!;
+				docLines.unshift(l);
+				if (l.trimStart().startsWith(startChars)) break;
+				i--;
+			}
+			return docLines
+				.map(l => l.replace(new RegExp(`^\\s*${startChars}\\s?`), "").replace(new RegExp(`\\s*${closeChars}\\s*$`), ""))
+				.filter(l => l.length > 0)
+				.join("\n");
+		}
+	}
+	
 	return undefined;
 }
 

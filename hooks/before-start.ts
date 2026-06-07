@@ -7,6 +7,12 @@
  *
  * Also injects context-sensitive proactive recommendations based on project
  * state (test files, type hierarchy, git status).
+ *
+ * Composable parts (fixes #124):
+ * - getUncommittedChangeCount: counts uncommitted changes
+ * - buildProactiveRecommendations: builds context-aware recommendations
+ * - buildSessionBaselineSection: builds baseline summary
+ * - generateOverviewForPrompt: orchestrates all parts
  */
 
 import type { ExtensionAPI } from "../types/pi-extension.js";
