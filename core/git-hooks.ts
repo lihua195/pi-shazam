@@ -16,58 +16,141 @@ import { execSync } from "node:child_process";
 
 /**
  * Pre-commit hook script content.
- * Runs shazam_verify --preCommit and exits with 1 on failure.
+ * Detects project language and runs appropriate checks:
+ *   - TypeScript/JavaScript: tsc --noEmit, eslint/biome
+ *   - Rust: cargo check, cargo clippy
+ *   - Go: go vet, golangci-lint
+ *   - Python: pyright, ruff, mypy
+ * Use 'git commit --no-verify' to bypass.
  */
 const PRE_COMMIT_HOOK_CONTENT = `#!/bin/bash
 # shazam pre-commit hook — auto-installed by pi-shazam
-# Runs shazam_verify --preCommit before allowing a commit.
+# Detects project language and runs appropriate checks.
 # Use 'git commit --no-verify' to bypass.
+
+set -e
 
 echo "[shazam] Running pre-commit verification..."
 
-# Try to run via npx pi-shazam-mcp with a simple verify script
-# Fallback path: try node directly
 HOOK_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+cd "$HOOK_DIR" || exit 1
 
-if command -v npx &>/dev/null; then
-  # Direct node invocation of the verify logic
-  cd "$HOOK_DIR" || exit 1
-
-  # Run git diff checks directly
-  CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null | wc -l)
-  if [ "$CHANGED_FILES" -eq 0 ]; then
-    echo "[shazam] No staged changes to verify."
-    exit 0
-  fi
-
-  echo "[shazam] Checking $CHANGED_FILES changed file(s)..."
-
-  # Run typecheck if available
-  if [ -f "package.json" ] && grep -q '"typecheck"' package.json 2>/dev/null; then
-    echo "[shazam] Running typecheck..."
-    npm run typecheck 2>/dev/null
-    TSC_EXIT=$?
-    if [ $TSC_EXIT -ne 0 ]; then
-      echo "[shazam] FAIL: TypeScript typecheck found errors."
-      echo "[shazam] Fix errors or use 'git commit --no-verify' to bypass."
-      exit 1
-    fi
-  fi
-
-  # Run tests for changed files if test script exists
-  if [ -f "package.json" ] && grep -q '"test"' package.json 2>/dev/null; then
-    echo "[shazam] Running tests for changed files..."
-    # For now, just run a quick test on changed areas
-    # Full test suite is too slow for pre-commit
-  fi
-
-  echo "[shazam] PASS: Pre-commit checks passed."
-  exit 0
-else
-  echo "[shazam] WARN: npx not found, skipping pre-commit verification."
-  echo "[shazam] Install Node.js to enable pre-commit verification."
+# Check for staged changes
+CHANGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null | wc -l)
+if [ "$CHANGED_FILES" -eq 0 ]; then
+  echo "[shazam] No staged changes to verify."
   exit 0
 fi
+
+echo "[shazam] Checking $CHANGED_FILES changed file(s)..."
+
+ERRORS=0
+
+# ── TypeScript/JavaScript ──────────────────────────────────────────────
+if [ -f "tsconfig.json" ] || [ -f "package.json" ]; then
+  # Type check
+  if command -v npx &>/dev/null; then
+    if [ -f "tsconfig.json" ]; then
+      echo "[shazam] Running TypeScript typecheck..."
+      if ! npx tsc --noEmit 2>/dev/null; then
+        echo "[shazam] FAIL: TypeScript typecheck found errors."
+        ERRORS=$((ERRORS + 1))
+      fi
+    fi
+    
+    # Lint (eslint or biome)
+    if [ -f "eslint.config.js" ] || [ -f "eslint.config.mjs" ] || [ -f ".eslintrc.js" ] || [ -f ".eslintrc.json" ]; then
+      echo "[shazam] Running eslint..."
+      if ! npx eslint . --max-warnings=0 2>/dev/null; then
+        echo "[shazam] FAIL: eslint found issues."
+        ERRORS=$((ERRORS + 1))
+      fi
+    elif [ -f "biome.json" ] || [ -f "biome.jsonc" ]; then
+      echo "[shazam] Running biome check..."
+      if ! npx biome check . 2>/dev/null; then
+        echo "[shazam] FAIL: biome found issues."
+        ERRORS=$((ERRORS + 1))
+      fi
+    fi
+  fi
+fi
+
+# ── Rust ───────────────────────────────────────────────────────────────
+if [ -f "Cargo.toml" ]; then
+  if command -v cargo &>/dev/null; then
+    echo "[shazam] Running cargo check..."
+    if ! cargo check 2>/dev/null; then
+      echo "[shazam] FAIL: cargo check found errors."
+      ERRORS=$((ERRORS + 1))
+    fi
+    
+    # Clippy (optional, only if installed)
+    if cargo clippy --version &>/dev/null 2>&1; then
+      echo "[shazam] Running cargo clippy..."
+      if ! cargo clippy -- -D warnings 2>/dev/null; then
+        echo "[shazam] FAIL: clippy found warnings."
+        ERRORS=$((ERRORS + 1))
+      fi
+    fi
+  fi
+fi
+
+# ── Go ─────────────────────────────────────────────────────────────────
+if [ -f "go.mod" ]; then
+  if command -v go &>/dev/null; then
+    echo "[shazam] Running go vet..."
+    if ! go vet ./... 2>/dev/null; then
+      echo "[shazam] FAIL: go vet found errors."
+      ERRORS=$((ERRORS + 1))
+    fi
+    
+    # golangci-lint (optional)
+    if command -v golangci-lint &>/dev/null; then
+      echo "[shazam] Running golangci-lint..."
+      if ! golangci-lint run 2>/dev/null; then
+        echo "[shazam] FAIL: golangci-lint found issues."
+        ERRORS=$((ERRORS + 1))
+      fi
+    fi
+  fi
+fi
+
+# ── Python ─────────────────────────────────────────────────────────────
+if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "requirements.txt" ]; then
+  # Type check (pyright or mypy)
+  if command -v pyright &>/dev/null; then
+    echo "[shazam] Running pyright..."
+    if ! pyright . 2>/dev/null; then
+      echo "[shazam] FAIL: pyright found errors."
+      ERRORS=$((ERRORS + 1))
+    fi
+  elif command -v mypy &>/dev/null; then
+    echo "[shazam] Running mypy..."
+    if ! mypy . 2>/dev/null; then
+      echo "[shazam] FAIL: mypy found errors."
+      ERRORS=$((ERRORS + 1))
+    fi
+  fi
+  
+  # Lint (ruff)
+  if command -v ruff &>/dev/null; then
+    echo "[shazam] Running ruff check..."
+    if ! ruff check . 2>/dev/null; then
+      echo "[shazam] FAIL: ruff found issues."
+      ERRORS=$((ERRORS + 1))
+    fi
+  fi
+fi
+
+# ── Summary ────────────────────────────────────────────────────────────
+if [ $ERRORS -gt 0 ]; then
+  echo "[shazam] FAIL: $ERRORS check(s) failed."
+  echo "[shazam] Fix errors or use 'git commit --no-verify' to bypass."
+  exit 1
+fi
+
+echo "[shazam] PASS: All checks passed."
+exit 0
 `;
 
 /**
@@ -176,7 +259,7 @@ export function removePreCommitHook(projectRoot: string): boolean {
 
 /**
  * Run pre-commit verification synchronously.
- * Used by the pre-commit hook script.
+ * Detects project language and runs appropriate checks.
  *
  * @param projectRoot - Absolute path to the project root
  * @returns { verdict: "PASS" | "FAIL" | "WARN", message: string }
@@ -194,27 +277,75 @@ export function runPreCommitVerify(projectRoot: string): { verdict: "PASS" | "FA
 		}
 
 		const changedFiles = changedOutput.split("\n").filter(Boolean);
+		const errors: string[] = [];
 
-		// Run typecheck if package.json has typecheck script, fall back to npx tsc
-		const pkgJsonPath = join(projectRoot, "package.json");
-		if (existsSync(pkgJsonPath)) {
+		// ── TypeScript/JavaScript ──────────────────────────────────────────
+		if (existsSync(join(projectRoot, "tsconfig.json"))) {
 			try {
-				const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf-8")) as Record<string, unknown>;
-				const scripts = (pkg.scripts as Record<string, string> | undefined) ?? {};
-				const typecheckCmd = scripts.typecheck
-					? "npm run typecheck"
-					: "npx tsc --noEmit";
-				execSync(`${typecheckCmd} 2>/dev/null`, {
+				execSync("npx tsc --noEmit 2>/dev/null", {
 					cwd: projectRoot,
 					encoding: "utf-8",
 					timeout: 60000,
 				});
 			} catch {
-				return {
-					verdict: "FAIL",
-					message: `TypeScript typecheck failed for ${changedFiles.length} staged file(s). Fix type errors or use 'git commit --no-verify' to bypass.`,
-				};
+				errors.push("TypeScript typecheck failed");
 			}
+		}
+
+		// ── Rust ───────────────────────────────────────────────────────────
+		if (existsSync(join(projectRoot, "Cargo.toml"))) {
+			try {
+				execSync("cargo check 2>/dev/null", {
+					cwd: projectRoot,
+					encoding: "utf-8",
+					timeout: 120000,
+				});
+			} catch {
+				errors.push("cargo check failed");
+			}
+		}
+
+		// ── Go ─────────────────────────────────────────────────────────────
+		if (existsSync(join(projectRoot, "go.mod"))) {
+			try {
+				execSync("go vet ./... 2>/dev/null", {
+					cwd: projectRoot,
+					encoding: "utf-8",
+					timeout: 60000,
+				});
+			} catch {
+				errors.push("go vet failed");
+			}
+		}
+
+		// ── Python ─────────────────────────────────────────────────────────
+		if (existsSync(join(projectRoot, "pyproject.toml")) || existsSync(join(projectRoot, "setup.py"))) {
+			// Try pyright first, then mypy
+			try {
+				execSync("pyright . 2>/dev/null", {
+					cwd: projectRoot,
+					encoding: "utf-8",
+					timeout: 60000,
+				});
+			} catch {
+				try {
+					execSync("mypy . 2>/dev/null", {
+						cwd: projectRoot,
+						encoding: "utf-8",
+						timeout: 60000,
+					});
+				} catch {
+					errors.push("Python type check failed");
+				}
+			}
+		}
+
+		// ── Summary ────────────────────────────────────────────────────────
+		if (errors.length > 0) {
+			return {
+				verdict: "FAIL",
+				message: `${errors.length} check(s) failed for ${changedFiles.length} staged file(s): ${errors.join(", ")}. Use 'git commit --no-verify' to bypass.`,
+			};
 		}
 
 		return {
