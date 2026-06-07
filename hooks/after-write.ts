@@ -13,9 +13,13 @@
 
 import type { ExtensionAPI } from "../types/pi-extension.js";
 import { scanProject } from "../core/scanner.js";
+import { getGraphEdgeCount } from "../core/graph.js";
 import { diffBaseline } from "../core/cache.js";
 import { diffFromBaseline, formatBaselineDiff } from "../core/baseline.js";
-import { execSync } from "node:child_process";
+import { execSync, exec } from "node:child_process";
+import { promisify } from "node:util";
+
+const execAsync = promisify(exec);
 
 /** Tool names that trigger auto-verify */
 const _WRITE_TOOLS = new Set(["write", "edit"]);
@@ -86,16 +90,18 @@ interface LspDiagEntry {
 /**
  * Collect LSP diagnostics for changed files by running a subprocess checker.
  * Falls back to tsc --noEmit for TypeScript projects.
+ * Uses async exec to avoid blocking the event loop (fixes #97).
  */
-function collectLspDiagnostics(): LspDiagEntry[] {
+async function collectLspDiagnostics(log?: (msg: string) => void): Promise<LspDiagEntry[]> {
 	const diagnostics: LspDiagEntry[] = [];
 	try {
-		// Run tsc --noEmit for TypeScript diagnostics
+		// Run tsc --noEmit for TypeScript diagnostics (async, 15s timeout)
 		try {
-			const output = execSync(
-				"npx tsc --noEmit 2>&1 || true",
-				{ encoding: "utf-8", timeout: 30000 },
-			).trim();
+			const { stdout } = await execAsync(
+				"npx tsc --noEmit --pretty false 2>&1 || true",
+				{ encoding: "utf-8", timeout: 15000, maxBuffer: 10 * 1024 * 1024 },
+			);
+			const output = stdout.trim();
 
 			if (output) {
 				// Parse tsc output for error lines
@@ -113,11 +119,11 @@ function collectLspDiagnostics(): LspDiagEntry[] {
 					}
 				}
 			}
-		} catch {
-			// tsc not available, skip
+		} catch (err) {
+			log?.(`[pi-shazam] tsc diagnostics failed: ${err}`);
 		}
-	} catch {
-		// Silently fail
+	} catch (err) {
+		log?.(`[pi-shazam] LSP diagnostics collection failed: ${err}`);
 	}
 	return diagnostics;
 }
@@ -166,7 +172,7 @@ function detectSymbolChanges(projectRoot: string): SymbolChange[] {
  * @param projectRoot - Project root directory
  * @returns Diagnostic findings as a formatted text string with verdict
  */
-export function handleWriteResult(toolName: string, projectRoot: string): { text: string; verdict: "PASS" | "WARN" | "FAIL" } {
+export async function handleWriteResult(toolName: string, projectRoot: string): Promise<{ text: string; verdict: "PASS" | "WARN" | "FAIL" }> {
 	try {
 		// Re-scan project to detect changes
 		const graph = scanProject(projectRoot, () => {});
@@ -176,8 +182,7 @@ export function handleWriteResult(toolName: string, projectRoot: string): { text
 		lines.push("");
 
 		// ── Project summary ──────────────────────────────────────────────
-		let edgeCount = 0;
-		for (const [, edges] of graph.outgoing) edgeCount += edges.length;
+			const edgeCount = getGraphEdgeCount(graph);
 		lines.push(`Project: ${graph.symbols.size} symbols, ${graph.fileSymbols.size} files, ${edgeCount} edges`);
 		lines.push("");
 
@@ -225,7 +230,7 @@ export function handleWriteResult(toolName: string, projectRoot: string): { text
 		}
 
 		// ── LSP Diagnostics (per-file) ───────────────────────────────────
-		const lspDiags = collectLspDiagnostics();
+		const lspDiags = await collectLspDiagnostics();
 		const lspErrors = lspDiags.filter((d) => d.severity === "error");
 		const lspWarnings = lspDiags.filter((d) => d.severity === "warning");
 
@@ -318,7 +323,7 @@ export function registerAfterWriteHook(pi: ExtensionAPI): void {
 				return;
 			}
 
-			const result = handleWriteResult(event.toolName, ".");
+			const result = await handleWriteResult(event.toolName, ".");
 
 			// Send findings as a message to the LLM
 			pi.sendMessage({

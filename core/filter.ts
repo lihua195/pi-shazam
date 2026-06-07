@@ -6,6 +6,8 @@
  * codebase and avoids pattern duplication.
  */
 
+import type { RepoGraph } from "./graph.js";
+
 /**
  * Config files, generated files, and lockfiles — excluded from source-file
  * analysis (hotspots, orphan detection, overview, check).
@@ -15,13 +17,13 @@
  *
  * @returns true if the file path matches a known non-source pattern.
  */
-const NON_SOURCE_FILE_PATTERNS: readonly string[] = [
-	"package-lock.json",
-	"package.json",
-	"tsconfig.json",
-	"node_modules/",
-	"dist/",
-	".json",
+const NON_SOURCE_FILE_PATTERNS: readonly RegExp[] = [
+	/package-lock\.json$/,
+	/^package\.json$/,
+	/(?:^|\/)tsconfig[^/]*\.json$/,
+	/node_modules\//,
+	/\/dist\//,
+	/\.json$/,
 ];
 
 /**
@@ -62,5 +64,33 @@ export const SKIP_DIRS = new Set([
 ]);
 
 export function isNonSourceFile(file: string): boolean {
-	return NON_SOURCE_FILE_PATTERNS.some((p) => file.includes(p));
+	return NON_SOURCE_FILE_PATTERNS.some((p) => p.test(file));
+}
+
+/**
+ * Shared orphan symbol detection.
+ *
+ * Single implementation used by baseline diff and verify tools.
+ * Uses isNonSourceFile() for consistent filtering (avoids false matches
+ * from naive includes("node_modules")).
+ *
+ * Returns symbols with zero incoming references, excluding:
+ *  - Non-source files (config, lockfiles, node_modules, dist)
+ *  - High-PageRank exported symbols (likely public API)
+ *  - Anonymous functions (no name to reference)
+ *  - Test files
+ */
+export function findOrphans(graph: RepoGraph): { name: string; kind: string; file: string; line: number }[] {
+	const orphans: { name: string; kind: string; file: string; line: number }[] = [];
+	for (const sym of graph.symbols.values()) {
+		if (isNonSourceFile(sym.file)) continue;
+		const incoming = graph.incoming.get(sym.id);
+		if (!incoming || incoming.length === 0) {
+			if (sym.visibility === "exported" && sym.pagerank > 0.01) continue;
+			if (sym.kind === "anonymous_function") continue;
+			if (sym.file.includes("tests/") || sym.file.includes(".test.")) continue;
+			orphans.push({ name: sym.name, kind: sym.kind, file: sym.file, line: sym.line });
+		}
+	}
+	return orphans;
 }

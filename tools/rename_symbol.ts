@@ -28,8 +28,10 @@ export function registerRenameSymbol(pi: ExtensionAPI): void {
 		}),
 		execute(graph, params) {
 			const json = params.json ?? false;
-			const symbolName = params.symbol as string;
-			const newName = params.newName as string;
+			const symbolName = typeof params.symbol === "string" ? params.symbol : "";
+			const newName = typeof params.newName === "string" ? params.newName : "";
+			if (!symbolName) return "Error: symbol parameter is required";
+			if (!newName) return "Error: newName parameter is required";
 			const result = executeRenameSymbol(graph, symbolName, newName);
 			return json
 				? JSON.stringify({ schema_version: "1.0", command: "rename_symbol", status: "ok", result }, null, 2)

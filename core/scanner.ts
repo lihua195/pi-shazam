@@ -7,7 +7,7 @@
  * This is the main entry point that all tools compose from.
  */
 
-import { readdirSync, statSync } from "node:fs";
+import { readdirSync, statSync, existsSync } from "node:fs";
 import { join, relative, resolve, dirname } from "node:path";
 import { TreeSitterAdapter, EXT_TO_LANG } from "./treesitter.js";
 import { createRepoGraph, createEdge } from "./graph.js";
@@ -29,6 +29,17 @@ const SOURCE_EXTS = new Set(Object.keys(EXT_TO_LANG));
 
 let cachedGraph: RepoGraph | null = null;
 let cachedProjectPath: string = "";
+
+// ── Concurrency guard (issue #92) ───────────────────────────────────────────
+// While Node.js is single-threaded and scanProject() is fully synchronous,
+// this mutex prevents re-entrant calls (e.g., scanProject called from within
+// a tool that itself was triggered by another scanProject invocation).
+let _scanning = false;
+function enterScan(): void {
+	if (_scanning) throw new Error("Re-entrant scanProject detected — this is a bug");
+	_scanning = true;
+}
+function exitScan(): void { _scanning = false; }
 
 interface FileCacheEntry {
 	mtime: number;
@@ -79,6 +90,43 @@ export function getProjectGraph(projectRoot: string = ".", log?: (msg: string) =
 /**
  * Remove all symbols, edges, and file-level mappings for a given file from the graph.
  */
+/**
+ * Remove only the edges for a single file (not symbols).
+ * Used during incremental edge rebuild to clear old edges before
+ * rebuilding only what changed.
+ */
+function removeEdgesForFile(graph: RepoGraph, relPath: string): void {
+	const symIds = new Set(graph.fileSymbols.get(relPath) ?? []);
+
+	// Remove outgoing edges from this file's symbols
+	for (const id of symIds) {
+		graph.outgoing.delete(id);
+	}
+	// Remove incoming edges to this file's symbols from other files
+	for (const id of symIds) {
+		graph.incoming.delete(id);
+	}
+	// Remove file-level import/call data for this file
+	graph.fileImports.delete(relPath);
+	graph.fileCalls.delete(relPath);
+	graph.fileImportBindings.delete(relPath);
+
+	// Also remove cross-file references: edges in other files that
+	// point to this file's symbols
+	for (const [source, edges] of graph.outgoing) {
+		const filtered = edges.filter((e) => !symIds.has(e.target));
+		if (filtered.length !== edges.length) {
+			graph.outgoing.set(source, filtered);
+		}
+	}
+	for (const [target, edges] of graph.incoming) {
+		const filtered = edges.filter((e) => !symIds.has(e.source));
+		if (filtered.length !== edges.length) {
+			graph.incoming.set(target, filtered);
+		}
+	}
+}
+
 function removeFileData(graph: RepoGraph, relPath: string): void {
 	const symIds = graph.fileSymbols.get(relPath) || [];
 	for (const id of symIds) {
@@ -136,7 +184,7 @@ function parseFile(adapter: TreeSitterAdapter, root: string, relPath: string, mt
 /**
  * Build edges for a single file using its cached parse data and the current graph state.
  */
-function buildEdgesForFile(graph: RepoGraph, relPath: string, entry: FileCacheEntry): void {
+function buildEdgesForFile(graph: RepoGraph, root: string, relPath: string, entry: FileCacheEntry): void {
 	const thisFileSymIds = graph.fileSymbols.get(relPath) || [];
 
 	// Import edges
@@ -146,7 +194,7 @@ function buildEdgesForFile(graph: RepoGraph, relPath: string, entry: FileCacheEn
 			entry.imports.map(([m]) => m),
 		);
 		for (const [importedModule] of entry.imports) {
-			const resolvedImport = resolveImport(importedModule, relPath, graph);
+			const resolvedImport = resolveImport(importedModule, relPath, root, graph);
 			const targetFileSyms = graph.fileSymbols.get(resolvedImport) || [];
 			for (const srcId of thisFileSymIds) {
 				for (const tgtId of targetFileSyms) {
@@ -178,7 +226,7 @@ function buildEdgesForFile(graph: RepoGraph, relPath: string, entry: FileCacheEn
 		for (const binding of entry.jsImportBindings) {
 			const localSym = findSymbolByNameInFile(binding.localName, relPath, graph.symbols);
 			if (!localSym) continue;
-			const resolvedModule = resolveImport(binding.module, relPath, graph);
+			const resolvedModule = resolveImport(binding.module, relPath, root, graph);
 			const sourceSym = findSymbolByNameInFile(binding.importedName, resolvedModule, graph.symbols);
 			if (sourceSym) {
 				addEdge(graph, createEdge(localSym.id, sourceSym.id, 0.8, "import-binding", 1.0));
@@ -208,6 +256,15 @@ function getGraphCachePath(projectRoot: string): string {
  * @returns The fully built RepoGraph with PageRank scores set
  */
 export function scanProject(projectPath: string, log?: (msg: string) => void): RepoGraph {
+	enterScan();
+	try {
+		return _scanProject(projectPath, log);
+	} finally {
+		exitScan();
+	}
+}
+
+function _scanProject(projectPath: string, log?: (msg: string) => void): RepoGraph {
 	const root = resolve(projectPath);
 	const logger = log ?? (() => {});
 
@@ -351,7 +408,7 @@ function scanFull(root: string, files: string[], adapter: TreeSitterAdapter, log
 
 	// Phase 2: Build edges for all files
 	for (const [relPath, entry] of newFileCache) {
-		buildEdgesForFile(graph, relPath, entry);
+		buildEdgesForFile(graph, root, relPath, entry);
 	}
 
 	// Phase 3: Compute PageRank
@@ -453,17 +510,55 @@ function scanIncremental(
 		}
 	}
 
-	// Rebuild edges for ALL files (changed files may affect edge resolution
-	// for dependents — e.g., a new export in file A creates new import edges from file B)
-	// Clear all existing edges first
-	graph.outgoing.clear();
-	graph.incoming.clear();
-	graph.fileImports.clear();
-	graph.fileCalls.clear();
-	graph.fileImportBindings.clear();
+	// Rebuild edges only for changed files and files that depend on them.
+	// Previously this cleared ALL edges and rebuilt for every file (O(N)),
+	// negating the benefit of incremental scanning for large projects.
 
-	for (const [relPath, entry] of cachedFiles) {
-		buildEdgesForFile(graph, relPath, entry);
+	// Snapshot old symbol IDs for changed files BEFORE removing edges,
+	// so we can trace callers across non-import edges (issue #93).
+	const oldSymIdsByFile = new Map<string, Set<string>>();
+	for (const relPath of changedFiles) {
+		const oldIds = new Set(graph.fileSymbols.get(relPath) ?? []);
+		oldSymIdsByFile.set(relPath, oldIds);
+	}
+
+	// Find files that import from changed files (dependents)
+	const dependentFiles = new Set<string>();
+	for (const relPath of changedFiles) {
+		// Remove old edges for this file only
+		removeEdgesForFile(graph, relPath);
+		dependentFiles.add(relPath);
+		// Find all files that import from this changed file
+		for (const [importer, imports] of graph.fileImports) {
+			if (imports.includes(relPath)) {
+				dependentFiles.add(importer);
+			}
+		}
+	}
+
+	// Also trace cross-file call edges: files whose symbols had incoming
+	// edges from the changed file's old symbols need their edges rebuilt.
+	for (const [, oldIds] of oldSymIdsByFile) {
+		for (const oldId of oldIds) {
+			const incoming = graph.incoming.get(oldId);
+			if (!incoming) continue;
+			for (const edge of incoming) {
+				const callerSym = graph.symbols.get(edge.source);
+				if (callerSym) {
+					dependentFiles.add(callerSym.file);
+				}
+			}
+		}
+	}
+
+	// Also remove edges for deleted files (already handled by removeFileData above)
+
+	// Rebuild edges only for changed + dependent files
+	for (const relPath of dependentFiles) {
+		const entry = cachedFiles.get(relPath);
+		if (entry) {
+			buildEdgesForFile(graph, root, relPath, entry);
+		}
 	}
 
 	// Recompute PageRank
@@ -526,8 +621,9 @@ function addEdge(graph: RepoGraph, edge: Edge): void {
 /**
  * Resolve a relative import path to a file path that matches the fileSymbols keys.
  * Handles extensionless imports (e.g., "./foo" → "./foo.ts" or "./foo/index.ts").
+ * Accepts projectRoot for absolute-path disk validation (fixes #102).
  */
-function resolveImport(importPath: string, fromFile: string, graph?: RepoGraph): string {
+function resolveImport(importPath: string, fromFile: string, root: string, graph?: RepoGraph): string {
 	if (importPath.startsWith(".")) {
 		const fromDir = dirname(fromFile);
 		let resolved = join(fromDir, importPath);
@@ -548,6 +644,14 @@ function resolveImport(importPath: string, fromFile: string, graph?: RepoGraph):
 				if (graph.fileSymbols.has(c)) return c;
 			}
 		}
+
+		// Disk validation using absolute paths (root-aware, fixes #102).
+		for (const c of candidates) {
+			if (existsSync(join(root, c))) {
+				return c;
+			}
+		}
+		// When no candidate exists on disk, return the first candidate.
 		return candidates[0]!;
 	}
 

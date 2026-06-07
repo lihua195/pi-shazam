@@ -86,34 +86,6 @@ export function loadBaseline(projectPath: string): SerializedGraph | null {
 	}
 }
 
-/**
- * Save the last snapshot (timestamp + metadata only, not full graph).
- */
-export function saveLastSnapshot(projectPath: string, metadata: Record<string, unknown>): string {
-	const { lastSnapshot } = getCachePaths(projectPath);
-	const data = {
-		timestamp: Date.now(),
-		...metadata,
-	};
-	mkdirSync(dirname(lastSnapshot), { recursive: true });
-	writeFileSync(lastSnapshot, JSON.stringify(data, null, 2), "utf-8");
-	return lastSnapshot;
-}
-
-/**
- * Load the last snapshot metadata.
- */
-export function loadLastSnapshot(projectPath: string): Record<string, unknown> | null {
-	const { lastSnapshot } = getCachePaths(projectPath);
-	if (!existsSync(lastSnapshot)) return null;
-	try {
-		const raw = readFileSync(lastSnapshot, "utf-8");
-		return JSON.parse(raw) as Record<string, unknown>;
-	} catch {
-		return null;
-	}
-}
-
 // ── Graph diff (current vs baseline) ─────────────────────────────────────────
 
 /**
@@ -137,7 +109,7 @@ export function diffBaseline(graph: RepoGraph, projectPath: string): GraphDiff |
 
 // ── Persistent graph cache (V2) ──────────────────────────────────────────────
 
-const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 1 day — prevents stale cache in active projects (fixes #100)
 
 /**
  * Save the full graph + file mtimes to a persistent cache file.

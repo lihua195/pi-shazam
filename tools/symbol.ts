@@ -49,17 +49,21 @@ export function registerSymbol(pi: ExtensionAPI): void {
 			const json = params.json ?? false;
 			const maxTokens = params.maxTokens;
 			const mode = (params.mode as string) ?? "default";
+			const name = typeof params.name === "string" ? params.name : "";
+			if (!name) {
+				return { content: [{ type: "text", text: "Error: name parameter is required" }] };
+			}
 
 			// State mode: bypass LSP, use graph-only state map analysis
 			if (mode === "state") {
 				const graph = scanProject(".");
-				const result = executeStateMap(graph, params.name as string);
+				const result = executeStateMap(graph, name);
 				let text = json
 					? JSON.stringify({
 							schema_version: "1.0",
 							command: "symbol",
 							status: "ok",
-							result: { symbol: params.name, mode: "state", text: result },
+							result: { symbol: name, mode: "state", text: result },
 						})
 					: result;
 				if (maxTokens && !json) {
@@ -70,7 +74,7 @@ export function registerSymbol(pi: ExtensionAPI): void {
 
 			const graph = scanProject(".");
 
-			const matches = findSymbols(graph, params.name as string, params.file as string | undefined);
+			const matches = findSymbols(graph, name, params.file as string | undefined);
 			const uniqueFiles = [...new Set(matches.map((m) => m.file))];
 
 			// Fetch LSP documentSymbols for each file in parallel

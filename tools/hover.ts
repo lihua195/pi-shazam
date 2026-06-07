@@ -135,7 +135,7 @@ export async function executeHover(graph: RepoGraph, name: string, file?: string
 	return result;
 }
 
-function formatHoverResult(result: HoverResult, name: string): string {
+export function formatHoverResult(result: HoverResult, name: string): string {
 	const lines: string[] = [`## Hover: \`${name}\``, ""];
 
 	if (!result.file) {

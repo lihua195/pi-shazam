@@ -11,7 +11,7 @@ import { executeCodesearch } from "../tools/codesearch.js";
 import { executeSymbolWithMode } from "../tools/symbol.js";
 import { executeFileDetail } from "../tools/file_detail.js";
 import { executeCallChain, getFlatReferences, formatFlatReferences } from "../tools/call_chain.js";
-import { executeHover } from "../tools/hover.js";
+import { executeHover, formatHoverResult } from "../tools/hover.js";
 import { executeFindTests } from "../tools/find_tests.js";
 import { executeHotspots } from "../tools/hotspots.js";
 import { executeFix } from "../tools/fix.js";
@@ -179,7 +179,7 @@ export function registerAllTools(server: McpServer, graph: RepoGraph, projectRoo
 		},
 		withLogging("shazam_hover", async ({ name, file }) => {
 			const result = await executeHover(graph, name as string, file as string | undefined);
-			const text = JSON.stringify(result, null, 2);
+			const text = formatHoverResult(result, name as string);
 			return { content: [{ type: "text", text }] };
 		}),
 	);

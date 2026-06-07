@@ -63,6 +63,17 @@ export interface JSExportBinding {
 	kind: "local" | "reexport" | "namespace" | "wildcard";
 }
 
+// ── Edge counting ────────────────────────────────────────────────────────────
+
+/** Count total edges in the graph (sum of outgoing edge list lengths). */
+export function getGraphEdgeCount(graph: RepoGraph): number {
+	let count = 0;
+	for (const [, edges] of graph.outgoing) {
+		count += edges.length;
+	}
+	return count;
+}
+
 // ── Factory ──────────────────────────────────────────────────────────────────
 
 export function createRepoGraph(): RepoGraph {
@@ -117,7 +128,6 @@ export function createEdge(
 	return { source, target, weight, kind, confidence };
 }
 
-// ── Serialization (for cache) ────────────────────────────────────────────────
 
 export interface SerializedSymbol {
 	id: string;

@@ -61,6 +61,7 @@ describe("Hook: before-start (overview injection)", () => {
 			fileImports: new Map(),
 			fileCalls: new Map(),
 			fileImportBindings: new Map(),
+			fileExports: new Map(),
 		};
 		const overview = executeOverview(emptyGraph, ".");
 		expect(overview).toBeDefined();

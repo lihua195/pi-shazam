@@ -211,7 +211,7 @@ export class TreeSitterAdapter {
 		const parser = this.parsers.get(lang);
 		if (!parser) return null;
 
-		const MAX_PARSE_SIZE = 10 * 1024 * 1024; // 10MB
+		const MAX_PARSE_SIZE = 5 * 1024 * 1024; // 5MB — catches minified bundles/data files (fixes #101)
 		if (source.length > MAX_PARSE_SIZE) {
 			this.log(`File too large for parsing (${source.length} chars > ${MAX_PARSE_SIZE}), skipping`);
 			return null;

@@ -16,7 +16,7 @@ pi-shazam answers the questions every agent should ask before touching code:
 - "Who calls this function?" → `shazam_call_chain`
 - "Did my edit introduce errors?" → `shazam_verify`
 
-Under the hood it parses **every source file** with tree-sitter (18 languages), builds a **full dependency graph** (symbols, imports, calls, references), ranks them with **PageRank**, and optionally enriches results with **LSP diagnostics** (6 languages). The agent gets precise, ranked answers in one call — no grep, no guesswork.
+Under the hood it parses **every source file** with tree-sitter (14 languages), builds a **full dependency graph** (symbols, imports, calls, references), ranks them with **PageRank**, and optionally enriches results with **LSP diagnostics** (6 languages). The agent gets precise, ranked answers in one call — no grep, no guesswork.
 
 ## Primary: Pi Package
 

@@ -2,8 +2,8 @@
  * Tests for core/scanner — incremental file analysis (issue #27).
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { scanProject, getProjectGraph, resetCache } from "../core/scanner.js";
-import { mkdtempSync, writeFileSync, rmSync, mkdirSync, statSync, utimesSync } from "node:fs";
+import { scanProject, resetCache } from "../core/scanner.js";
+import { mkdtempSync, writeFileSync, rmSync, utimesSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 

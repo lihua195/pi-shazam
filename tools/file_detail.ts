@@ -31,14 +31,18 @@ export function registerFileDetail(pi: ExtensionAPI): void {
 		customExecute: async (_toolCallId, params, _signal, _onUpdate, _ctx): Promise<AgentToolResult> => {
 			const json = params.json ?? false;
 			const maxTokens = params.maxTokens;
+			const file = typeof params.file === "string" ? params.file : "";
+			if (!file) {
+				return { content: [{ type: "text", text: "Error: file parameter is required" }] };
+			}
 			const graph = scanProject(".");
 
 			// Fetch LSP hierarchy in parallel with graph-based detail
 			const detailPromise = Promise.resolve(
-				json ? executeFileDetailJson(graph, params.file as string) : executeFileDetail(graph, params.file as string),
+				json ? executeFileDetailJson(graph, file) : executeFileDetail(graph, file),
 			);
 			const lspManager = getLspManager();
-			const hierarchyPromise = lspDocumentSymbols(lspManager, params.file as string, 5000);
+			const hierarchyPromise = lspDocumentSymbols(lspManager, file, 5000);
 
 			const [detailText, lspSymbols] = await Promise.all([detailPromise, hierarchyPromise]);
 
@@ -181,10 +185,12 @@ export function executeFileDetail(graph: RepoGraph, file: string): string {
 			}
 		}
 		// Add standalone symbols (not in any container)
-		if (standalone.length > 0) {
+		const memberIds = new Set(containers.flatMap(({ members }) => members.map((m) => m.id)));
+		const filteredStandalone = standalone.filter((sym) => !memberIds.has(sym.id));
+		if (filteredStandalone.length > 0) {
 			lines.push("");
 			lines.push("Other symbols:");
-			for (const sym of standalone) {
+			for (const sym of filteredStandalone) {
 				const inc = graph.incoming.get(sym.id);
 				const out = graph.outgoing.get(sym.id);
 				const incCount = inc ? inc.length : 0;

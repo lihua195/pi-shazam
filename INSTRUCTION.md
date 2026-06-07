@@ -226,7 +226,7 @@ The `pi.typebox` property does NOT exist at runtime. The Pi runtime resolves
 ```
 index.ts                    <- Pi extension entry, default export(pi: ExtensionAPI)
   ├── core/                 <- Pure analysis logic, no Pi dependency
-  │   ├── treesitter.ts     <- AST parsing + symbol extraction (18 languages)
+  │   ├── treesitter.ts     <- AST parsing + symbol extraction (14 languages)
   │   ├── graph.ts          <- Symbol dependency graph (imports, calls, references)
   │   ├── pagerank.ts       <- PageRank symbol importance scoring
   │   ├── scanner.ts        <- Project file scanning + graph building

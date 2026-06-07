@@ -5,8 +5,11 @@
  * Ported from repomap's encoding detection pattern.
  */
 
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import * as iconv from "iconv-lite";
+
+// Tree-sitter's MAX_PARSE_SIZE — skip files larger than 10MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 // ── Encoding detection and reading ───────────────────────────────────────────
 
@@ -17,8 +20,21 @@ import * as iconv from "iconv-lite";
  * 3. Try GB2312
  *
  * Returns the decoded string content.
+ * Throws if the file exceeds MAX_FILE_SIZE (10MB) to prevent OOM.
  */
 export function readFileAdaptive(filePath: string): string {
+	// Check file size before reading to prevent OOM
+	try {
+		const stat = statSync(filePath);
+		if (stat.size > MAX_FILE_SIZE) {
+			throw new Error(`File too large (${stat.size} bytes > ${MAX_FILE_SIZE}): ${filePath}`);
+		}
+	} catch (err) {
+		if (err instanceof Error && err.message.startsWith("File too large")) {
+			throw err; // re-throw our size error
+		}
+		// stat failed (permission, missing) — fall through to readFileSync which will error with a clearer message
+	}
 	const buffer = readFileSync(filePath);
 
 	// Try UTF-8 first

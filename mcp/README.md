@@ -102,7 +102,7 @@ The MCP server shares the same `core/` and `lsp/` layers as the Pi extension. No
 
 ## Language Support
 
-- Parsing: 18 languages (tree-sitter)
-- LSP: 6 languages (TypeScript, Python, Rust, Go, JSON, YAML)
+- **Parsing (tree-sitter):** 14 languages — Python, TypeScript/TSX, JavaScript/JSX, Go, Rust, HTML, CSS, JSON, C, C++, Java, C#, Ruby
+- **LSP (didOpen):** 7 languages — Python, TypeScript, JavaScript, Go, Rust, JSON, YAML
 
-When LSP servers are unavailable, tools fall back to tree-sitter only.
+> **Design note:** LSP `didOpen` is intentionally scoped to 7 languages with well-tested language server coverage. Remaining languages (C/C++, Java, C#, Ruby, HTML, CSS) use tree-sitter parsing only. We will not add more LSP languages unless a specific language server integration is fully verified. See `lsp/client.ts` `_detectLanguage` for the authoritative mapping.

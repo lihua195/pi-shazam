@@ -25,6 +25,9 @@ export function registerImpact(pi: ExtensionAPI): void {
 		}),
 		execute(graph, params) {
 			const json = params.json ?? false;
+			if (!params.files || !Array.isArray(params.files)) {
+				return "Error: --files is required (must be an array of file paths)";
+			}
 			const files = params.files as string[];
 			return json
 				? executeImpactJson(graph, files)

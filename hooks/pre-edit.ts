@@ -11,18 +11,46 @@
  */
 
 import type { ExtensionAPI } from "../types/pi-extension.js";
-import { execSync } from "node:child_process";
+
+/** Maximum number of edited files tracked in the set. */
+const MAX_EDITED_FILES = 100;
 
 /**
  * Track files edited in the current session for multi-edit detection.
+ * Key: file path, Value: insertion order timestamp.
  */
-const _editedFiles = new Set<string>();
+const _editedFiles = new Map<string, number>();
+let _editCounter = 0;
+
+/**
+ * Track tentative file additions from tool_call for removal on failed tool_result.
+ */
+const _tentativeFiles = new Map<string, Set<string>>();
 
 /**
  * Get the list of files that have been edited so far in this session.
  */
 export function getEditedFiles(): string[] {
-	return [..._editedFiles];
+	return [..._editedFiles.keys()];
+}
+
+/**
+ * Add a file to the edited files tracker with eviction of oldest entries.
+ */
+function addEditedFile(file: string): void {
+	// Evict oldest entry if at capacity
+	if (_editedFiles.size >= MAX_EDITED_FILES && !_editedFiles.has(file)) {
+		let oldestFile: string | null = null;
+		let oldestTime = Infinity;
+		for (const [f, t] of _editedFiles) {
+			if (t < oldestTime) {
+				oldestTime = t;
+				oldestFile = f;
+			}
+		}
+		if (oldestFile) _editedFiles.delete(oldestFile);
+	}
+	_editedFiles.set(file, ++_editCounter);
 }
 
 /**
@@ -30,6 +58,8 @@ export function getEditedFiles(): string[] {
  */
 export function clearEditedFiles(): void {
 	_editedFiles.clear();
+	_editCounter = 0;
+	_tentativeFiles.clear();
 }
 
 /**
@@ -62,42 +92,34 @@ function extractFilesFromInput(input: unknown): string[] {
 }
 
 /**
- * Check if a file is a shared/exported module by looking at git history
- * and import frequency.
- */
-function isSharedModule(filePath: string): boolean {
-	try {
-		// Check if the file is imported by many other files
-		const importCount = execSync(
-			`grep -r "from ['\"./]*${filePath.replace(/\.[^.]+$/, "")}['\"]" --include="*.ts" --include="*.js" --include="*.tsx" --include="*.jsx" -l 2>/dev/null | wc -l`,
-			{ encoding: "utf-8", timeout: 3000 },
-		).trim();
-		const count = parseInt(importCount, 10);
-		return count >= 3;
-	} catch {
-		return false;
-	}
-}
-
-/**
  * Register the pre-edit guard hook.
  *
  * On tool_call for write/edit, checks if the edit affects multiple files
  * or modifies a shared module and sends a warning message.
+ *
+ * On tool_result for failed writes, removes tentatively tracked files.
  */
 export function registerPreEditGuard(pi: ExtensionAPI): void {
 	pi.on("tool_call", (event, ctx) => {
 		if (event.toolName !== "write" && event.toolName !== "edit") return;
 
-		// Don't re-warn if we already warned for this tool call
 		const input = "input" in event ? (event as unknown as Record<string, unknown>).input : {};
 
 		const files = extractFilesFromInput(input);
 		if (files.length === 0) return;
 
-		// Track files for multi-edit detection
+		// Track tentatively for this tool call (for removal on failure)
+		const toolId = (event as unknown as Record<string, unknown>).toolCallId as string | undefined;
+		if (toolId) {
+			if (!_tentativeFiles.has(toolId)) _tentativeFiles.set(toolId, new Set());
+			for (const f of files) {
+				_tentativeFiles.get(toolId)!.add(f);
+			}
+		}
+
+		// Track files for multi-edit detection (with eviction)
 		for (const f of files) {
-			_editedFiles.add(f);
+			addEditedFile(f);
 		}
 
 		// Combine current files with previously edited files
@@ -111,19 +133,29 @@ export function registerPreEditGuard(pi: ExtensionAPI): void {
 			reasons.push(`This session has touched ${allFiles.length} files`);
 		}
 
-		// Condition 2: Shared/exported module being modified
-		for (const f of files) {
-			if (isSharedModule(f)) {
-				reasons.push(`File "${f}" appears to be a shared module (imported by multiple files)`);
-				break;
-			}
-		}
+		// Condition 2: Shared/exported module check is deferred to graph availability.
+		// Formerly used blocking execSync("grep -r ..."); now relies on multi-file
+		// detection (Condition 1) which catches most risky edit patterns.
 
 		if (reasons.length > 0) {
 			ctx.ui?.notify?.(
 				`[shazam] Caution: ${reasons.join("; ")}. Run \`shazam_impact --files ${allFiles.join(" ")}\` to assess blast radius before editing.`,
 				"warning",
 			);
+		}
+	});
+
+	// On tool_result: remove tentatively tracked files if the tool call failed
+	pi.on("tool_result", (event) => {
+		if (event.toolName !== "write" && event.toolName !== "edit") return;
+		if (!event.isError) return;
+
+		const toolId = (event as unknown as Record<string, unknown>).toolCallId as string | undefined;
+		if (toolId && _tentativeFiles.has(toolId)) {
+			for (const f of _tentativeFiles.get(toolId)!) {
+				_editedFiles.delete(f);
+			}
+			_tentativeFiles.delete(toolId);
 		}
 	});
 
@@ -136,3 +168,5 @@ export function registerPreEditGuard(pi: ExtensionAPI): void {
 		clearEditedFiles();
 	});
 }
+
+

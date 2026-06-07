@@ -4,6 +4,7 @@
 import { describe, it, expect } from "vitest";
 import { scanProject } from "../core/scanner.js";
 import type { RepoGraph } from "../core/graph.js";
+import { getGraphEdgeCount } from "../core/graph.js";
 import { existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -30,10 +31,7 @@ describe("scanProject", () => {
 
 	it("should build edges (imports and calls) between symbols", () => {
 		const graph = scanProject(".");
-		let totalEdges = 0;
-		for (const [, edges] of graph.outgoing) {
-			totalEdges += edges.length;
-		}
+		const totalEdges = getGraphEdgeCount(graph);
 		expect(totalEdges).toBeGreaterThan(0);
 	});
 

@@ -27,7 +27,8 @@ export function registerSafeDelete(pi: ExtensionAPI): void {
 		}),
 		execute(graph, params) {
 			const json = params.json ?? false;
-			const symbolName = params.symbol as string;
+			const symbolName = typeof params.symbol === "string" ? params.symbol : "";
+			if (!symbolName) return "Error: symbol parameter is required";
 			const dryRun = (params.dryRun as boolean) ?? true;
 			const result = executeSafeDelete(graph, symbolName, dryRun);
 			return json

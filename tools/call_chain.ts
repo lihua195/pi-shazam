@@ -26,7 +26,8 @@ export function registerCallChain(pi: ExtensionAPI): void {
 			const json = params.json ?? false;
 			const flat = (params.flat as boolean) ?? false;
 			const depth = (params.depth as number) ?? 2;
-			const symbolName = params.symbol as string;
+			const symbolName = typeof params.symbol === "string" ? params.symbol : "";
+			if (!symbolName) return "Error: symbol parameter is required";
 			if (flat) {
 				const refs = getFlatReferences(graph, symbolName);
 				return json ? JSON.stringify(refs, null, 2) : formatFlatReferences(refs, symbolName);

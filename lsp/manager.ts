@@ -128,7 +128,12 @@ function detectWorkspaceRoot(projectRoot: string, filePath: string | null, langu
 	}
 	current = resolve(current);
 
-	while (true) {
+	// Maximum directory walk depth to prevent infinite loops on systems
+	// with symlinks, mount points, or unconventional layouts (fixes #98).
+	const MAX_DEPTH = 50;
+	let depth = 0;
+	while (depth < MAX_DEPTH) {
+		depth++;
 		for (const marker of markers) {
 			if (existsSync(join(current, marker))) {
 				return current;

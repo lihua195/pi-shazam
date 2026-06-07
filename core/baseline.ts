@@ -11,6 +11,8 @@
  */
 
 import type { RepoGraph } from "./graph.js";
+import { getGraphEdgeCount } from "./graph.js";
+import { findOrphans } from "./filter.js";
 
 // ── Baseline data structure ───────────────────────────────────────────────────
 
@@ -82,12 +84,9 @@ export function createBaseline(
 	branch: string,
 	commit: string,
 ): SessionBaseline {
-	let edgeCount = 0;
-	for (const [, edges] of graph.outgoing) {
-		edgeCount += edges.length;
-	}
+	const edgeCount = getGraphEdgeCount(graph);
 
-	const orphanCount = countOrphans(graph);
+	const orphanCount = findOrphans(graph).length;
 
 	const baseline: SessionBaseline = {
 		branch,
@@ -119,10 +118,7 @@ export function createBaseline(
 export function diffFromBaseline(graph: RepoGraph, lspErrors: number, lspWarnings: number): BaselineDiff | null {
 	if (!_baseline) return null;
 
-	let edgeCount = 0;
-	for (const [, edges] of graph.outgoing) {
-		edgeCount += edges.length;
-	}
+	const edgeCount = getGraphEdgeCount(graph);
 
 	const currentOrphans = findOrphans(graph);
 	const currentOrphanCount = currentOrphans.length;
@@ -196,23 +192,4 @@ export function formatBaselineSummary(baseline: SessionBaseline): string {
 	return lines.join("\n");
 }
 
-// ── Helpers ─────────────────────────────────────────────────────────────────
 
-function countOrphans(graph: RepoGraph): number {
-	return findOrphans(graph).length;
-}
-
-function findOrphans(graph: RepoGraph): { name: string; kind: string; file: string; line: number }[] {
-	const orphans: { name: string; kind: string; file: string; line: number }[] = [];
-	for (const sym of graph.symbols.values()) {
-		if (sym.file.includes("node_modules") || sym.file.includes(".git")) continue;
-		const incoming = graph.incoming.get(sym.id);
-		if (!incoming || incoming.length === 0) {
-			if (sym.visibility === "exported" && sym.pagerank > 0.01) continue;
-			if (sym.kind === "anonymous_function") continue;
-			if (sym.file.includes("tests/") || sym.file.includes(".test.")) continue;
-			orphans.push({ name: sym.name, kind: sym.kind, file: sym.file, line: sym.line });
-		}
-	}
-	return orphans;
-}

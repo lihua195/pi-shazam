@@ -5,7 +5,7 @@
  * and cache invalidation rules.
  */
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, writeFileSync, rmSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { createRepoGraph, createSymbol, createEdge, serializeGraphV2, deserializeGraphV2 } from "../core/graph.js";

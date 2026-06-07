@@ -14,6 +14,7 @@
  */
 
 import type { RepoGraph } from "./graph.js";
+import { getGraphEdgeCount } from "./graph.js";
 import { execSync } from "node:child_process";
 
 // ── Next recommendation system ────────────────────────────────────────────
@@ -487,6 +488,7 @@ export function buildToolOutput(
 
 /**
  * Get the number of uncommitted git changes (for context in output).
+ * Returns 0 on error instead of -1 to match expected return semantics (fixes #99).
  */
 export function getGitChangeCount(): number {
 	try {
@@ -494,7 +496,7 @@ export function getGitChangeCount(): number {
 		const match = output.match(/(\d+)\s+file/);
 		return match ? parseInt(match[1]!, 10) : 0;
 	} catch {
-		return -1;
+		return 0;
 	}
 }
 
@@ -502,10 +504,7 @@ export function getGitChangeCount(): number {
  * Get overall project stats from the graph.
  */
 export function getGraphSummary(graph: RepoGraph): { symbols: number; files: number; edges: number } {
-	let edgeCount = 0;
-	for (const [, edges] of graph.outgoing) {
-		edgeCount += edges.length;
-	}
+	const edgeCount = getGraphEdgeCount(graph);
 	return {
 		symbols: graph.symbols.size,
 		files: graph.fileSymbols.size,

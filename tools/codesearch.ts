@@ -7,7 +7,7 @@
  * "(LSP enriched)" or "(tree-sitter only)" accordingly.
  */
 import { readdirSync, statSync } from "node:fs";
-import { execSync } from "node:child_process";
+import { execSync, execFileSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import type { ExtensionAPI, AgentToolResult } from "../types/pi-extension.js";
@@ -42,18 +42,22 @@ export function registerCodesearch(pi: ExtensionAPI): void {
 			const json = params.json ?? false;
 			const target = params.target ?? "symbol";
 			const maxTokens = params.maxTokens;
+			const query = typeof params.query === "string" ? params.query : "";
+			if (!query) {
+				return { content: [{ type: "text", text: "Error: query parameter is required" }] };
+			}
 			const graph = scanProject(".");
 
 			if (target === "code") {
-				const result = executeFulltextSearch(params.query as string, params.topN as number | undefined);
+				const result = executeFulltextSearch(query, params.topN as number | undefined);
 				let text = json
 					? JSON.stringify({
 							schema_version: "1.0",
 							command: "codesearch",
 							status: "ok",
-							result: { query: params.query, target: "code", results: result.length },
+							result: { query, target: "code", results: result.length },
 						})
-					: formatFulltextResult(result, params.query as string);
+					: formatFulltextResult(result, query);
 				if (maxTokens && !json) {
 					text = truncateOutput(text.split("\n"), maxTokens as number);
 				}
@@ -68,9 +72,9 @@ export function registerCodesearch(pi: ExtensionAPI): void {
 			}
 
 			// BM25 + LSP workspace/symbol in parallel
-			const bm25Results = executeCodesearch(graph, params.query as string, params.topN as number | undefined);
+			const bm25Results = executeCodesearch(graph, query, params.topN as number | undefined);
 			const lspManager = getLspManager();
-			const lspResults = await lspWorkspaceSearch(lspManager, params.query as string, 5000);
+			const lspResults = await lspWorkspaceSearch(lspManager, query, 5000);
 			const merged = mergeResults(graph, bm25Results, lspResults, params.topN as number | undefined);
 			const source = lspResults.length > 0 ? "lsp+bm25" : "bm25";
 
@@ -283,15 +287,20 @@ function executeFulltextSearch(query: string, topN?: number): FulltextMatch[] {
 	const limit = topN ?? 20;
 
 	// Try ripgrep first (fastest, respects .gitignore)
-	if (
-		existsSync("/usr/bin/rg") ||
-		existsSync("/usr/local/bin/rg") ||
-		execSync("which rg 2>/dev/null || true").toString().trim()
-	) {
+	const rgPath = findRipgrep();
+	if (rgPath) {
 		try {
-			const output = execSync(
-				`rg --no-heading -n --max-count 20 --context 1 -i -g '!.git' -g '!node_modules' -g '!dist' -g '!*.lock' -g '!package-lock.json' -g '!yarn.lock' -g '!pnpm-lock.yaml' ${JSON.stringify(query)} 2>/dev/null | head -${limit * 3}`,
-				{ encoding: "utf-8", timeout: 5000 },
+			const output = execFileSync(
+				rgPath,
+				[
+					"--no-heading", "-n", "--max-count", "20",
+					"--context", "1", "-i",
+					"-g", "!.git", "-g", "!node_modules", "-g", "!dist",
+					"-g", "!*.lock", "-g", "!package-lock.json",
+					"-g", "!yarn.lock", "-g", "!pnpm-lock.yaml",
+					"--", query,
+				],
+				{ encoding: "utf-8", timeout: 5000, maxBuffer: 10 * 1024 * 1024 },
 			);
 			return parseRipgrepOutput(output, query, limit);
 		} catch {
@@ -301,6 +310,21 @@ function executeFulltextSearch(query: string, topN?: number): FulltextMatch[] {
 
 	// Fallback: built-in file scan
 	return builtinFulltextSearch(query, limit);
+}
+
+/** Find ripgrep binary on the system, returning its path or null. */
+function findRipgrep(): string | null {
+	const candidates = ["/usr/bin/rg", "/usr/local/bin/rg"];
+	for (const c of candidates) {
+		if (existsSync(c)) return c;
+	}
+	try {
+		const result = execSync("which rg 2>/dev/null || true", { encoding: "utf-8", timeout: 3000 }).toString().trim();
+		if (result) return result;
+	} catch {
+		/* not found */
+	}
+	return null;
 }
 
 function parseRipgrepOutput(output: string, query: string, limit: number): FulltextMatch[] {

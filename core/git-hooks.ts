@@ -167,10 +167,16 @@ export function runPreCommitVerify(projectRoot: string): { verdict: "PASS" | "FA
 
 		const changedFiles = changedOutput.split("\n").filter(Boolean);
 
-		// Run typecheck if package.json has typecheck script
-		if (existsSync(join(projectRoot, "package.json"))) {
+		// Run typecheck if package.json has typecheck script, fall back to npx tsc
+		const pkgJsonPath = join(projectRoot, "package.json");
+		if (existsSync(pkgJsonPath)) {
 			try {
-				execSync("npm run typecheck 2>/dev/null", {
+				const pkg = JSON.parse(readFileSync(pkgJsonPath, "utf-8")) as Record<string, unknown>;
+				const scripts = (pkg.scripts as Record<string, string> | undefined) ?? {};
+				const typecheckCmd = scripts.typecheck
+					? "npm run typecheck"
+					: "npx tsc --noEmit";
+				execSync(`${typecheckCmd} 2>/dev/null`, {
 					cwd: projectRoot,
 					encoding: "utf-8",
 					timeout: 60000,

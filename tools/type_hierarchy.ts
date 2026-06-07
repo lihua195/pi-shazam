@@ -35,8 +35,10 @@ export function registerTypeHierarchy(pi: ExtensionAPI): void {
 		execute(graph, params) {
 			const json = params.json ?? false;
 			const name = params.name as string;
-			const direction = (params.direction as string) ?? "both";
-			const result = executeTypeHierarchy(graph, name, direction as any);
+			const rawDir = params.direction as string | undefined;
+			const direction: "both" | "supertypes" | "subtypes" =
+				rawDir === "supertypes" || rawDir === "subtypes" ? rawDir : "both";
+			const result = executeTypeHierarchy(graph, name, direction);
 			return json
 				? JSON.stringify({ schema_version: "1.0", command: "type_hierarchy", status: "ok", result }, null, 2)
 				: formatTypeHierarchy(result, name);

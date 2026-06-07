@@ -15,11 +15,15 @@
 import type { ExtensionAPI, AgentToolResult } from "../types/pi-extension.js";
 import { Type } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
+import { getGraphEdgeCount } from "../core/graph.js";
 import { diffBaseline, loadBaseline } from "../core/cache.js";
-import { isNonSourceFile } from "../core/filter.js";
-import { execSync } from "node:child_process";
-import { readFileSync, existsSync } from "fs";
-import { resolve } from "path";
+import { isNonSourceFile, findOrphans } from "../core/filter.js";
+import { execSync, exec } from "node:child_process";
+import { promisify } from "node:util";
+
+const execAsync = promisify(exec);
+import { readFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
 import { getNextForTool, formatNextSection, truncateOutput } from "../core/output.js";
 import { getLspManager } from "./_context.js";
 import { createTool } from "./_factory.js";
@@ -91,11 +95,10 @@ async function executeVerifyJsonAsync(projectRoot: string, options: VerifyOption
 	const lspOnly = options.lspOnly ?? false;
 	const preCommit = options.preCommit ?? false;
 
-	let edgeCount = 0;
-	for (const [, edges] of graph.outgoing) edgeCount += edges.length;
+	const edgeCount = getGraphEdgeCount(graph);
 
 	const diff = diffBaseline(graph, projectRoot);
-	const orphans = findOrphanSymbols(graph);
+	const orphans = findOrphans(graph);
 	const gitChangedFiles = getGitChangedFiles(projectRoot);
 
 	let lspDiagnostics: LspDiagEntry[] = [];
@@ -156,8 +159,7 @@ async function executeVerifyTextAsync(projectRoot: string, options: VerifyOption
 
 	const symbolCount = graph.symbols.size;
 	const fileCount = graph.fileSymbols.size;
-	let edgeCount = 0;
-	for (const [, edges] of graph.outgoing) edgeCount += edges.length;
+	const edgeCount = getGraphEdgeCount(graph);
 	lines.push(`**Symbols:** ${symbolCount} | **Files:** ${fileCount} | **Edges:** ${edgeCount}`);
 	lines.push("");
 
@@ -221,7 +223,7 @@ async function executeVerifyTextAsync(projectRoot: string, options: VerifyOption
 		lines.push("");
 	}
 
-	const orphans = findOrphanSymbols(graph);
+	const orphans = findOrphans(graph);
 	if (orphans.length > 0) {
 		lines.push("### Potential Orphan Symbols");
 		lines.push(`Found ${orphans.length} symbols with zero incoming references:`);
@@ -375,12 +377,13 @@ async function runSubprocessDiagnostics(projectRoot: string): Promise<LspDiagRes
 	}
 
 	try {
-		const output = execSync(command, {
+		const { stdout } = await execAsync(command, {
 			cwd: projectRoot,
 			encoding: "utf-8",
-			timeout: 30000,
+			timeout: 15000,
 			maxBuffer: 1024 * 1024,
-		}).trim();
+		});
+		const output = stdout.trim();
 		if (output) {
 			for (const line of output.split("\n").slice(0, 100)) {
 				if (line.trim()) {
@@ -465,20 +468,7 @@ function assessRisk(
 	};
 }
 
-function findOrphanSymbols(graph: RepoGraph): { name: string; kind: string; file: string; line: number }[] {
-	const orphans: { name: string; kind: string; file: string; line: number }[] = [];
-	for (const sym of graph.symbols.values()) {
-		if (isNonSourceFile(sym.file)) continue;
-		const incoming = graph.incoming.get(sym.id);
-		if (!incoming || incoming.length === 0) {
-			if (sym.visibility === "exported" && sym.pagerank > 0.01) continue;
-			if (sym.kind === "anonymous_function") continue;
-			if (sym.file.includes("tests/") || sym.file.includes(".test.")) continue;
-			orphans.push({ name: sym.name, kind: sym.kind, file: sym.file, line: sym.line });
-		}
-	}
-	return orphans;
-}
+
 
 // ── Synchronous execute functions (for test compatibility) ──────────────────
 
@@ -492,8 +482,7 @@ export function executeVerify(graph: RepoGraph, _projectRoot: string, options: V
 
 	const symbolCount = graph.symbols.size;
 	const fileCount = graph.fileSymbols.size;
-	let edgeCount = 0;
-	for (const [, edges] of graph.outgoing) edgeCount += edges.length;
+	const edgeCount = getGraphEdgeCount(graph);
 
 	const modeLabel = lspOnly ? " (LSP Only)" : quick ? " (Quick)" : "";
 	lines.push(`## Verify Results${modeLabel}`);
@@ -534,7 +523,7 @@ export function executeVerify(graph: RepoGraph, _projectRoot: string, options: V
 		lines.push("");
 	}
 
-	const orphans = findOrphanSymbols(graph);
+	const orphans = findOrphans(graph);
 	if (orphans.length > 0) {
 		lines.push("### Potential Orphan Symbols");
 		lines.push(`Found ${orphans.length} symbols with zero incoming references:`);
@@ -563,13 +552,12 @@ export function executeVerify(graph: RepoGraph, _projectRoot: string, options: V
 }
 
 export function executeVerifyJson(graph: RepoGraph, projectRoot: string, options: VerifyOptions = {}): string {
-	const orphans = findOrphanSymbols(graph);
+	const orphans = findOrphans(graph);
 	const diff = diffBaseline(graph, projectRoot);
 	const gitChangedFiles = getGitChangedFiles(projectRoot);
 	const risk = assessRisk(graph, diff, orphans, gitChangedFiles, options.preCommit);
 
-	let edgeCount = 0;
-	for (const [, edges] of graph.outgoing) edgeCount += edges.length;
+	const edgeCount = getGraphEdgeCount(graph);
 
 	return JSON.stringify({
 		schema_version: "1.0",

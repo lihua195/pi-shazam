@@ -10,6 +10,7 @@
  */
 
 import type { ExtensionAPI } from "../types/pi-extension.js";
+import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { executeOverview } from "../tools/overview.js";
 import { hasTestFiles, hasHierarchyKinds } from "../core/output.js";
@@ -28,18 +29,18 @@ function getUncommittedChangeCount(projectRoot: string): number {
 		if (!output) return 0;
 		return new Set(output.split("\n").filter(Boolean)).size;
 	} catch {
-		return -1;
+		return 0;
 	}
 }
 
 /**
  * Build proactive recommendations section based on project state.
+ * Accepts an already-scanned graph to avoid redundant re-scanning (fixes #95).
  */
-function buildProactiveRecommendations(projectRoot: string): string {
+function buildProactiveRecommendations(projectRoot: string, graph: RepoGraph): string {
 	const lines: string[] = [];
 
 	try {
-		const graph = scanProject(projectRoot, () => {});
 		const hasTests = hasTestFiles(graph);
 		const hasHierarchy = hasHierarchyKinds(graph);
 		const uncommitted = getUncommittedChangeCount(projectRoot);
@@ -79,11 +80,10 @@ function buildProactiveRecommendations(projectRoot: string): string {
 
 /**
  * Build a session baseline summary section.
- * Captures current project health metrics for diff-aware verification.
+ * Accepts an already-scanned graph to avoid redundant re-scanning (fixes #95).
  */
-function buildSessionBaselineSection(projectRoot: string): string {
+function buildSessionBaselineSection(_projectRoot: string, graph: RepoGraph): string {
 	try {
-		const graph = scanProject(projectRoot, () => {});
 		const branch = execSync("git branch --show-current 2>/dev/null", { encoding: "utf-8", timeout: 3000 }).trim();
 		const commit = execSync("git rev-parse HEAD 2>/dev/null", { encoding: "utf-8", timeout: 3000 }).trim();
 
@@ -104,10 +104,11 @@ function buildSessionBaselineSection(projectRoot: string): string {
  * @returns A formatted overview string prefixed with [pi-shazam] tag
  */
 export function generateOverviewForPrompt(projectRoot: string): string {
+	// Scan once at the top level and pass the graph to all helpers (fixes #95).
 	const graph = scanProject(projectRoot, () => {});
 	const overview = executeOverview(graph, projectRoot);
-	const recommendations = buildProactiveRecommendations(projectRoot);
-	const baselineSection = buildSessionBaselineSection(projectRoot);
+	const recommendations = buildProactiveRecommendations(projectRoot, graph);
+	const baselineSection = buildSessionBaselineSection(projectRoot, graph);
 	const parts = [`[pi-shazam] Project Overview:\n${overview}`, recommendations, baselineSection].filter(Boolean);
 	return parts.join("\n\n");
 }

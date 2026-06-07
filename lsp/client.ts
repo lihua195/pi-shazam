@@ -278,7 +278,10 @@ export class LspClient {
 			workspaceFolders: null,
 		};
 
-		const result = await this.connection.sendRequest<InitializeResult>("initialize", initParams);
+		const result = await this.withTimeout(
+			this.connection.sendRequest<InitializeResult>("initialize", initParams),
+			10000,
+		);
 
 		this._serverCapabilities = ((result as InitializeResult).capabilities as Record<string, unknown>) ?? {};
 
@@ -318,7 +321,7 @@ export class LspClient {
 			throw new Error("LSP client not started");
 		}
 
-		return this.connection.sendRequest(method, params);
+		return this.withTimeout(this.connection.sendRequest(method, params));
 	}
 
 	// ── Protocol methods ───────────────────────────────────────────────────────
@@ -337,7 +340,7 @@ export class LspClient {
 			);
 			return result ?? null;
 		} catch (err) {
-			console.warn("[lsp] definition failed:", err);
+			this._log(`[lsp] definition failed: ${err}`);
 			return null;
 		}
 	}
@@ -357,7 +360,7 @@ export class LspClient {
 			);
 			return result ?? null;
 		} catch (err) {
-			console.warn("[lsp] references failed:", err);
+			this._log(`[lsp] references failed: ${err}`);
 			return null;
 		}
 	}
@@ -374,7 +377,7 @@ export class LspClient {
 			const result = await this.withTimeout(this.connection!.sendRequest<Hover | null>("textDocument/hover", params));
 			return result ?? null;
 		} catch (err) {
-			console.warn("[lsp] hover failed:", err);
+			this._log(`[lsp] hover failed: ${err}`);
 			return null;
 		}
 	}
@@ -395,7 +398,7 @@ export class LspClient {
 			);
 			return result ?? null;
 		} catch (err) {
-			console.warn("[lsp] documentSymbols failed:", err);
+			this._log(`[lsp] documentSymbols failed: ${err}`);
 			return null;
 		}
 	}
@@ -415,7 +418,7 @@ export class LspClient {
 			);
 			return result ?? null;
 		} catch (err) {
-			console.warn("[lsp] workspaceSymbol failed:", err);
+			this._log(`[lsp] workspaceSymbol failed: ${err}`);
 			return null;
 		}
 	}
@@ -436,7 +439,7 @@ export class LspClient {
 			);
 			return result ?? null;
 		} catch (err) {
-			console.warn("[lsp] semanticTokens failed:", err);
+			this._log(`[lsp] semanticTokens failed: ${err}`);
 			return null;
 		}
 	}
@@ -458,24 +461,26 @@ export class LspClient {
 			);
 			return result ?? null;
 		} catch (err) {
-			console.warn("[lsp] foldingRange failed:", err);
+			this._log(`[lsp] foldingRange failed: ${err}`);
 			return null;
 		}
 	}
 
 	/**
-	 * Race a request against the configured per-request timeout.
+	 * Race a request against a per-request timeout.
+	 * Uses this.timeout (default 8000ms) when no custom timeout is provided.
 	 * Returns null (via rejection caught by caller) when timeout fires first.
 	 */
-	private withTimeout<T>(promise: Promise<T>): Promise<T> {
+	private withTimeout<T>(promise: Promise<T>, timeoutMs?: number): Promise<T> {
+		const ms = timeoutMs ?? this.timeout;
 		return new Promise<T>((resolve, reject) => {
 			this._inFlightRequests.set(promise, reject);
 
 			const timer = setTimeout(() => {
 				this._inFlightRequests.delete(promise);
 				void promise.catch(() => {});
-				reject(new Error(`LSP request timed out after ${this.timeout}ms`));
-			}, this.timeout);
+				reject(new Error(`LSP request timed out after ${ms}ms`));
+			}, ms);
 			promise
 				.then((v) => {
 					this._inFlightRequests.delete(promise);
@@ -527,60 +532,75 @@ export class LspClient {
 		// Capture process reference before nulling — the 2s kill timeout
 		// needs it after this.process is set to null below.
 		const proc = this.process;
-
-		// 1. Clean shutdown handshake: await shutdown, then exit, then dispose.
-		if (this.connection) {
-			try {
-				await this.connection.sendRequest("shutdown");
-			} catch (err) {
-				this._log(`LSP close: shutdown request failed: ${err}`);
-			}
-			try {
-				await this.connection.sendNotification("exit");
-			} catch (err) {
-				this._log(`LSP close: exit notification failed: ${err}`);
-			}
-			this.connection.dispose();
-		}
-
-		// 2. Remove only our event listeners (not Node.js internal ones).
-		if (proc) {
-			proc.removeAllListeners("exit");
-			proc.removeAllListeners("error");
-			try {
-				if (proc.stderr) {
-					proc.stderr.removeAllListeners("data");
-				}
-			} catch {
-				// stderr may not be an EventEmitter (e.g., in tests).
-			}
-		}
-
-		// 3. Kill the process if it hasn't exited after the shutdown handshake.
-		if (proc && proc.exitCode === null) {
-			proc.kill();
-		}
-
-		// 4. Cancel all in-flight LSP requests to prevent unhandled rejections.
 		const closeError = new Error("connection closed");
-		for (const [p, reject] of this._inFlightRequests) {
-			void p.catch(() => {});
-			reject(closeError);
-		}
-		this._inFlightRequests.clear();
 
-		this._running = false;
-		this.connection = null;
-		this.process = null;
-		this._openedFiles.clear();
-		this._notifications = [];
-		this._serverCapabilities = {};
+		try {
+			// 1. Clean shutdown handshake: await shutdown, then exit, then dispose.
+			if (this.connection) {
+				try {
+					await this.withTimeout(this.connection.sendRequest("shutdown"), 5000);
+				} catch (err) {
+					this._log(`LSP close: shutdown request failed: ${err}`);
+				}
+				try {
+					await this.connection.sendNotification("exit");
+				} catch (err) {
+					this._log(`LSP close: exit notification failed: ${err}`);
+				}
+				try {
+					this.connection.dispose();
+				} catch (err) {
+					this._log(`LSP close: dispose failed: ${err}`);
+				}
+			}
+
+			// 2. Remove only our event listeners (not Node.js internal ones).
+			if (proc) {
+				proc.removeAllListeners("exit");
+				proc.removeAllListeners("error");
+				try {
+					if (proc.stderr) {
+						proc.stderr.removeAllListeners("data");
+					}
+				} catch {
+					// stderr may not be an EventEmitter (e.g., in tests).
+				}
+			}
+
+			// 3. Kill the process if it hasn't exited after the shutdown handshake.
+			if (proc && proc.exitCode === null) {
+				proc.kill();
+			}
+		} finally {
+			// 4. Cancel all in-flight LSP requests to prevent unhandled rejections.
+			for (const [p, reject] of this._inFlightRequests) {
+				void p.catch(() => {});
+				reject(closeError);
+			}
+			this._inFlightRequests.clear();
+
+			this._running = false;
+			this.connection = null;
+			this.process = null;
+			this._openedFiles.clear();
+			this._notifications = [];
+			this._serverCapabilities = {};
+		}
 	}
 
 	// ── Internal ───────────────────────────────────────────────────────────────
 
 	private _detectLanguage(filePath: string): string {
-		// Simple extension-based detection for didOpen
+		// Extension-based detection for LSP didOpen.
+		//
+		// DESIGN DECISION: Intentionally scoped to 7 languages with well-tested
+		// LSP server coverage. Do NOT extend this list without:
+		//   1. Verifying a working LSP server exists for the language
+		//   2. Testing didOpen/didChange/diagnostics round-trip
+		//   3. Updating the Language Support section in mcp/README.md
+		//
+		// Remaining languages in EXT_TO_LANG (C/C++, Java, C#, Ruby, HTML, CSS)
+		// use tree-sitter parsing only. This is by design — see issue #94.
 		const ext = path.extname(filePath).toLowerCase();
 		const map: Record<string, string> = {
 			".py": "python",
