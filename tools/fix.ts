@@ -200,6 +200,11 @@ function detectFormatters(projectRoot: string): string[] {
 		// package.json not found or invalid — continue
 	}
 
+	// Check .editorconfig (fixes #125)
+	if (existsSync(join(projectRoot, ".editorconfig"))) {
+		formatters.push("editorconfig");
+	}
+
 	return [...new Set(formatters)];
 }
 

@@ -156,13 +156,22 @@ export function executeCodesearch(graph: RepoGraph, query: string, topN?: number
 
 function tokenize(query: string): string[] {
 	const tokens: string[] = [];
+	
 	// Split camelCase
 	const camelTokens = query.replace(/([a-z])([A-Z])/g, "$1 $2").toLowerCase();
 	// Split snake_case and other separators
 	const parts = camelTokens.split(/[\s_\-.:/]+/);
+	
 	for (const p of parts) {
 		if (p.length >= 2) tokens.push(p);
 	}
+	
+	// Also add the whole query as a token for exact matching
+	const wholeQuery = query.toLowerCase().trim();
+	if (wholeQuery.length >= 2 && !tokens.includes(wholeQuery)) {
+		tokens.push(wholeQuery);
+	}
+	
 	return tokens;
 }
 

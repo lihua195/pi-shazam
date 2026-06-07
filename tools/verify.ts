@@ -43,6 +43,7 @@ export function registerVerify(pi: ExtensionAPI): void {
 			quick: Type.Optional(Type.Boolean()),
 			lspOnly: Type.Optional(Type.Boolean()),
 			preCommit: Type.Optional(Type.Boolean()),
+			delta: Type.Optional(Type.Boolean()),
 			maxFiles: Type.Optional(Type.Number()),
 			noCascade: Type.Optional(Type.Boolean()),
 			noSecrets: Type.Optional(Type.Boolean()),
@@ -54,6 +55,7 @@ export function registerVerify(pi: ExtensionAPI): void {
 				quick: (params.quick as boolean) ?? false,
 				lspOnly: (params.lspOnly as boolean) ?? false,
 				preCommit: (params.preCommit as boolean) ?? false,
+				delta: (params.delta as boolean) ?? false,
 				maxFiles: (params.maxFiles as number) ?? 100,
 				noCascade: (params.noCascade as boolean) ?? false,
 				noSecrets: (params.noSecrets as boolean) ?? false,
@@ -81,6 +83,7 @@ export interface VerifyOptions {
 	quick?: boolean;
 	lspOnly?: boolean;
 	preCommit?: boolean;
+	delta?: boolean;
 	maxFiles?: number;
 	noCascade?: boolean;
 	noSecrets?: boolean;
@@ -170,6 +173,10 @@ async function executeVerifyTextAsync(projectRoot: string, options: VerifyOption
 		lines.push("");
 		if (!lspResult.available) {
 			lines.push("[WARN] LSP diagnostics unavailable — type/lint errors not checked.");
+			if (lspResult.errorMessage) {
+				lines.push(`  Reason: ${lspResult.errorMessage}`);
+			}
+			lines.push("  To fix: Install language servers (e.g., typescript-language-server, pyright, gopls, rust-analyzer)");
 			lines.push("");
 		} else if (lspResult.diagnostics.length === 0) {
 			lines.push("No diagnostics found.");
@@ -224,13 +231,24 @@ async function executeVerifyTextAsync(projectRoot: string, options: VerifyOption
 	}
 
 	const orphans = findOrphans(graph);
-	if (orphans.length > 0) {
+	const delta = options.delta ?? false;
+	
+	// Filter orphans based on delta mode (fixes #115)
+	let displayOrphans = orphans;
+	if (delta && diff) {
+		// In delta mode, only show orphans that are new (added symbols with no incoming refs)
+		const addedSymbolNames = new Set((diff.addedSymbols ?? []).map(s => s.name));
+		displayOrphans = orphans.filter(o => addedSymbolNames.has(o.name));
+	}
+	
+	if (displayOrphans.length > 0) {
+		const deltaLabel = delta ? " (new since baseline)" : "";
 		lines.push("### Potential Orphan Symbols");
-		lines.push(`Found ${orphans.length} symbols with zero incoming references:`);
-		for (const orphan of orphans.slice(0, 10)) {
+		lines.push(`Found ${displayOrphans.length} symbols with zero incoming references${deltaLabel}:`);
+		for (const orphan of displayOrphans.slice(0, 10)) {
 			lines.push(`- ${orphan.kind} \`${orphan.name}\` — ${orphan.file}:${orphan.line}`);
 		}
-		if (orphans.length > 10) lines.push(`  ... and ${orphans.length - 10} more`);
+		if (displayOrphans.length > 10) lines.push(`  ... and ${displayOrphans.length - 10} more`);
 		lines.push("");
 	} else {
 		lines.push("### Orphan Symbols: None detected", "");
@@ -284,6 +302,7 @@ interface LspDiagEntry {
 interface LspDiagResult {
 	diagnostics: LspDiagEntry[];
 	available: boolean;
+	errorMessage?: string;
 }
 
 async function runLspDiagnostics(
@@ -333,7 +352,7 @@ async function runLspDiagnostics(
 		}
 	}
 
-	return { diagnostics, available: serversUsed.size > 0 };
+	return { diagnostics, available: serversUsed.size > 0, errorMessage: serversUsed.size === 0 ? "No LSP servers available for detected file types" : undefined };
 }
 
 // ── Subprocess fallback diagnostics ─────────────────────────────────────────

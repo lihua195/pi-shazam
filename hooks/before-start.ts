@@ -103,31 +103,53 @@ function buildSessionBaselineSection(_projectRoot: string, graph: RepoGraph): st
 }
 
 /**
+ * Track whether we've already shown the overview in this session.
+ * For continuation sessions, we skip the full overview to save tokens.
+ */
+let _hasShownOverview = false;
+
+/**
  * Generate a project overview string suitable for system prompt injection.
  *
  * @param projectRoot - Absolute or relative path to the project root
+ * @param isContinuation - Whether this is a continuation of an existing session
  * @returns A formatted overview string prefixed with [pi-shazam] tag
  */
-export function generateOverviewForPrompt(projectRoot: string): string {
+export function generateOverviewForPrompt(projectRoot: string, isContinuation = false): string {
+	// For continuation sessions, skip the full overview (fixes #117, #118)
+	if (isContinuation && _hasShownOverview) {
+		return "[pi-shazam] Session continuation — use shazam_overview for project structure.";
+	}
+
 	// Scan once at the top level and pass the graph to all helpers (fixes #95).
 	const graph = scanProject(projectRoot, () => {});
 	const overview = executeOverview(graph, projectRoot);
 	const recommendations = buildProactiveRecommendations(projectRoot, graph);
 	const baselineSection = buildSessionBaselineSection(projectRoot, graph);
 	const parts = [`[pi-shazam] Project Overview:\n${overview}`, recommendations, baselineSection].filter(Boolean);
+
+	_hasShownOverview = true;
 	return parts.join("\n\n");
+}
+
+/**
+ * Reset the overview shown flag (for testing).
+ */
+export function resetOverviewShown(): void {
+	_hasShownOverview = false;
 }
 
 /**
  * Register the before-start hook on the Pi extension API.
  *
  * On `before_agent_start`, generates a project overview and injects it
- * into the system prompt array.
+ * into the system prompt array. Skips full overview for continuation sessions.
  */
 export function registerBeforeStartHook(pi: ExtensionAPI): void {
 	pi.on("before_agent_start", async (_event, _ctx) => {
 		try {
-			const overviewText = generateOverviewForPrompt(".");
+			// Use module-level flag to detect continuation (fixes #117, #118)
+			const overviewText = generateOverviewForPrompt(".", _hasShownOverview);
 			// Append overview to the system prompt
 			return {
 				systemPrompt: overviewText,

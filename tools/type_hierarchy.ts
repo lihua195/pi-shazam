@@ -32,13 +32,13 @@ export function registerTypeHierarchy(pi: ExtensionAPI): void {
 				Type.Union([Type.Literal("both"), Type.Literal("supertypes"), Type.Literal("subtypes")]),
 			),
 		}),
-		execute(graph, params) {
+		async execute(graph, params) {
 			const json = params.json ?? false;
 			const name = params.name as string;
 			const rawDir = params.direction as string | undefined;
 			const direction: "both" | "supertypes" | "subtypes" =
 				rawDir === "supertypes" || rawDir === "subtypes" ? rawDir : "both";
-			const result = executeTypeHierarchy(graph, name, direction);
+			const result = await executeTypeHierarchy(graph, name, direction);
 			return json
 				? JSON.stringify({ schema_version: "1.0", command: "type_hierarchy", status: "ok", result }, null, 2)
 				: formatTypeHierarchy(result, name);
@@ -60,11 +60,11 @@ interface TypeHierarchyResult {
 	subtypes: TypeHierarchyEntry[];
 }
 
-export function executeTypeHierarchy(
+export async function executeTypeHierarchy(
 	graph: RepoGraph,
 	name: string,
 	direction: "both" | "supertypes" | "subtypes" = "both",
-): TypeHierarchyResult {
+): Promise<TypeHierarchyResult> {
 	// Find the symbol
 	let symbol: Symbol | undefined;
 	for (const sym of graph.symbols.values()) {
@@ -94,16 +94,62 @@ export function executeTypeHierarchy(
 		subtypes: [],
 	};
 
-	// Try LSP typeHierarchy
+	// Try LSP typeHierarchy (fixes #123)
 	const lspManager = getLspManager();
-	if (lspManager && (direction === "both" || direction === "supertypes")) {
+	if (lspManager) {
 		const serverInfo = lspManager.getServerForFile(symbol.file);
 		if (serverInfo) {
 			const client = serverInfo.client;
 			try {
 				if (!client.isFileOpened(symbol.file)) {
 					const content = readFileSync(resolve(serverInfo.workspaceRoot, symbol.file), "utf-8");
-					void client.didOpen(symbol.file, content).catch(() => {});
+					await client.didOpen(symbol.file, content);
+				}
+				
+				// Prepare typeHierarchy request
+				const uri = `file://${resolve(serverInfo.workspaceRoot, symbol.file)}`;
+				const position = { line: symbol.line - 1, character: symbol.col || 0 };
+				
+				// Call textDocument/prepareTypeHierarchy
+				const prepareResult = await client.request('textDocument/prepareTypeHierarchy', {
+					textDocument: { uri },
+					position,
+				});
+				
+				if (prepareResult && Array.isArray(prepareResult) && prepareResult.length > 0) {
+					const item = prepareResult[0] as Record<string, unknown>;
+					
+					// Get supertypes if requested
+					if (direction === "both" || direction === "supertypes") {
+						const supertypes = await client.request('typeHierarchy/supertypes', { item }) as Array<Record<string, unknown>>;
+						if (Array.isArray(supertypes)) {
+							for (const st of supertypes) {
+								result.supertypes.push({
+									name: (st.name as string) || '',
+									kind: (st.kind as string) || 'unknown',
+									file: (st.uri as string)?.replace('file://', '') || '',
+									line: ((st.range as Record<string, unknown>)?.start as Record<string, number>)?.line + 1 || 0,
+								signature: (st.detail as string) || '',
+								});
+							}
+						}
+					}
+					
+					// Get subtypes if requested
+					if (direction === "both" || direction === "subtypes") {
+						const subtypes = await client.request('typeHierarchy/subtypes', { item }) as Array<Record<string, unknown>>;
+						if (Array.isArray(subtypes)) {
+							for (const st of subtypes) {
+								result.subtypes.push({
+									name: (st.name as string) || '',
+									kind: (st.kind as string) || 'unknown',
+									file: (st.uri as string)?.replace('file://', '') || '',
+									line: ((st.range as Record<string, unknown>)?.start as Record<string, number>)?.line + 1 || 0,
+								signature: (st.detail as string) || '',
+								});
+							}
+						}
+					}
 				}
 			} catch {
 				// Fall through to graph-based

@@ -15,6 +15,7 @@ import type { ExtensionAPI } from "../types/pi-extension.js";
 import { scanProject } from "../core/scanner.js";
 import { getGraphEdgeCount } from "../core/graph.js";
 import { diffBaseline } from "../core/cache.js";
+import { findOrphans } from "../core/filter.js";
 import { diffFromBaseline, formatBaselineDiff } from "../core/baseline.js";
 import { execSync, exec } from "node:child_process";
 import { promisify } from "node:util";
@@ -254,27 +255,21 @@ export async function handleWriteResult(toolName: string, projectRoot: string): 
 		lines.push("");
 
 		// ── Orphan analysis ──────────────────────────────────────────────
-		const orphanCount = [...graph.symbols.values()].filter((sym) => {
-			if (sym.visibility === "exported" && sym.pagerank > 0.01) return false;
-			if (sym.kind === "anonymous_function") return false;
-			if (sym.file.includes("tests/") || sym.file.includes(".test.")) return false;
-			const incoming = graph.incoming.get(sym.id);
-			return !incoming || incoming.length === 0;
-		}).length;
+		const orphans = findOrphans(graph);
 
-		if (orphanCount > 0) {
-			lines.push(`[WARN] ${orphanCount} orphan symbols detected`);
+		if (orphans.length > 0) {
+			lines.push(`[WARN] ${orphans.length} orphan symbols detected`);
 		} else {
 			lines.push("[PASS] No orphan symbols");
 		}
 		lines.push("");
 
 		// ── Risk assessment ─────────────────────────────────────────────
-		const totalChanges = changedFiles.length + orphanCount + lspErrors.length;
+		const totalChanges = changedFiles.length + orphans.length + lspErrors.length;
 		let riskLevel: string;
 		if (lspErrors.length > 0) {
 			riskLevel = "HIGH — fix type errors before proceeding";
-		} else if (orphanCount > 10 || totalChanges > 20) {
+		} else if (orphans.length > 10 || totalChanges > 20) {
 			riskLevel = "MEDIUM — review orphans and verify intent";
 		} else {
 			riskLevel = "LOW — changes look contained";
@@ -286,7 +281,7 @@ export async function handleWriteResult(toolName: string, projectRoot: string): 
 		let verdict: "PASS" | "WARN" | "FAIL";
 		if (lspErrors.length > 0) {
 			verdict = "FAIL";
-		} else if (orphanCount > 0 || lspWarnings.length > 0) {
+		} else if (orphans.length > 0 || lspWarnings.length > 0) {
 			verdict = "WARN";
 		} else {
 			verdict = "PASS";

@@ -15,6 +15,13 @@ import { lspDocumentSymbols } from "./lsp_enrich.js";
 import type { DocumentSymbol } from "vscode-languageserver-protocol";
 import { createTool } from "./_factory.js";
 
+/**
+ * Cache for file detail results within a session.
+ * Key: file path, Value: { text, timestamp }
+ */
+const fileDetailCache = new Map<string, { text: string; timestamp: number }>();
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
 export function registerFileDetail(pi: ExtensionAPI): void {
 	createTool(pi, {
 		name: "shazam_file_detail",
@@ -35,6 +42,14 @@ export function registerFileDetail(pi: ExtensionAPI): void {
 			if (!file) {
 				return { content: [{ type: "text", text: "Error: file parameter is required" }] };
 			}
+
+			// Check cache first (fixes #119)
+			const cacheKey = `${file}:${json ? "json" : "text"}`;
+			const cached = fileDetailCache.get(cacheKey);
+			if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+				return { content: [{ type: "text", text: cached.text }] };
+			}
+
 			const graph = scanProject(".");
 
 			// Fetch LSP hierarchy in parallel with graph-based detail
@@ -67,6 +82,10 @@ export function registerFileDetail(pi: ExtensionAPI): void {
 			if (maxTokens && !json) {
 				text = truncateOutput(text.split("\n"), maxTokens as number);
 			}
+
+			// Cache the result
+			fileDetailCache.set(cacheKey, { text, timestamp: Date.now() });
+
 			return {
 				content: [
 					{
@@ -77,6 +96,13 @@ export function registerFileDetail(pi: ExtensionAPI): void {
 			};
 		},
 	});
+}
+
+/**
+ * Clear the file detail cache (for testing).
+ */
+export function clearFileDetailCache(): void {
+	fileDetailCache.clear();
 }
 
 function isDocumentSymbols(
