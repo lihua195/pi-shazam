@@ -1,6 +1,6 @@
 # pi-shazam
 
-> **Pi coding agent native codebase awareness toolkit** — 14 structural analysis tools for AI agents. Also supports MCP (Cursor, Claude Desktop, Windsurf, etc.)
+> **Pi coding agent native codebase awareness toolkit** — 14 structural analysis tools built natively for Pi agent. MCP support available for non-Pi agents (Cursor, Claude Desktop, Windsurf, etc.)
 
 [![npm version](https://img.shields.io/npm/v/pi-shazam)](https://www.npmjs.com/package/pi-shazam)
 [![CI](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml/badge.svg)](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml)
@@ -10,7 +10,7 @@
 
 **pi-shazam** is a native codebase analysis toolkit built for the **Pi coding agent**. It provides 14 structural analysis tools that help AI agents understand project architecture before reading code.
 
-pi-shazam also supports **MCP (Model Context Protocol)**, allowing any compatible AI client to use the same analysis tools. Supported clients include Cursor, Claude Desktop, Windsurf, Qoder, Kimi Code, and more.
+For non-Pi agents, pi-shazam also exposes the same tools via **MCP (Model Context Protocol)**. Supported MCP clients include Cursor, Claude Desktop, Windsurf, Qoder, Kimi Code, and more. **Note: the MCP interface is a compatibility layer — the primary and recommended deployment model is as a native Pi extension.**
 
 ## Core Capabilities
 
@@ -22,15 +22,19 @@ pi-shazam also supports **MCP (Model Context Protocol)**, allowing any compatibl
 
 ## Quick Start
 
-### Pi Agent (Recommended)
+### Pi Agent (Default — Recommended)
+
+**This is the primary installation method.** pi-shazam is designed and optimized for Pi agent first.
 
 ```bash
 pi install npm:pi-shazam
 ```
 
-After installation, 14 analysis tools register as native Pi tools alongside `read`, `write`, and `bash`. Automatic hooks inject project structure into system prompts, verify code after edits, and log tool usage.
+After installation, all 14 analysis tools register as native Pi tools alongside `read`, `write`, and `bash`. Automatic hooks inject project structure into system prompts, verify code after edits, and log tool usage. **Full hook lifecycle (before_agent_start, session_start, session_shutdown, tool_call, tool_result) available only in Pi mode.**
 
-### MCP Clients (Cursor, Claude Desktop, etc.)
+### MCP (For Non-Pi Agents Only)
+
+Use this only if you are **not** using Pi agent. The MCP interface provides the same 14 tools but without Pi-specific hooks and lifecycle integration.
 
 ```json
 {
@@ -43,7 +47,7 @@ After installation, 14 analysis tools register as native Pi tools alongside `rea
 }
 ```
 
-Works with all MCP-compatible clients. Same 14 tools, same analysis engine.
+Compatible with any MCP-capable client. Same analysis engine, JSON-based tool interface.
 
 ## Tools
 
