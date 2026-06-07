@@ -17,13 +17,13 @@ const PROJECT_ROOT = process.argv[2] || ".";
 async function main(): Promise<void> {
 	const server = new McpServer({
 		name: "pi-shazam",
-		version: "0.2.0",
+		version: "0.4.0",
 	});
 
 	// Scan project (builds symbol graph, may take 1-5s for large projects)
 	const graph = scanProject(PROJECT_ROOT);
 
-	// Register all 13 analysis tools
+	// Register all 14 analysis tools
 	registerAllTools(server, graph, PROJECT_ROOT);
 
 	// Start stdio transport

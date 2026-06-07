@@ -67,7 +67,7 @@ Or directly edit `kimi_mcp.json`:
 
 Defaults to the current working directory.
 
-## Available Tools (13)
+## Available Tools (14)
 
 All tools use the `shazam_` prefix for consistency with the Pi extension.
 
@@ -83,6 +83,7 @@ All tools use the `shazam_` prefix for consistency with the Pi extension.
 | `shazam_find_tests`     | Discover test files for a module                                       |
 | `shazam_hotspots`       | Complexity hotspots ranked by blast radius                             |
 | `shazam_verify`         | Post-edit verification (LSP diagnostics + graph analysis)              |
+| `shazam_fix`            | Auto-fix format/lint errors (prettier, eslint, biome)                  |
 | `shazam_type_hierarchy` | Class/interface inheritance chain                                      |
 | `shazam_rename_symbol`  | Safe symbol rename with reference verification                         |
 | `shazam_safe_delete`    | Safe symbol deletion with reference check                              |

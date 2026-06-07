@@ -26,7 +26,7 @@ pi-shazam is a **Pi coding agent package** — the native, first-class experienc
 pi install npm:pi-shazam
 ```
 
-All 13 analysis tools register as native Pi tools. Automatic hooks inject structural overviews into the system prompt, verify code after every edit, and log tool usage for optimization. This is the recommended setup for Pi users.
+All 14 analysis tools register as native Pi tools. Automatic hooks inject structural overviews into the system prompt, verify code after every edit, log tool usage, and guard against risky multi-file edits. This is the recommended setup for Pi users.
 
 ## Also: MCP Server
 
@@ -45,7 +45,7 @@ Supported clients: Cursor, Claude Desktop, Windsurf, Qoder, Kimi Code, and any t
 }
 ```
 
-The same 13 tools, the same analysis engine, the same output format. MCP tools sync with Pi tools in every release.
+The same 14 tools, the same analysis engine, the same output format. MCP tools sync with Pi tools in every release.
 
 ## Tools
 
@@ -83,8 +83,11 @@ These run automatically when installed as a Pi package:
 | `after_write/edit`   | Agent writes/edits   | Auto-verifies changes, reports structural impact                    |
 | `shazam-guide`       | Key lifecycle events | Nudges agent to use shazam tools at the right moments               |
 | `tool-logger`        | Every shazam call    | Logs usage to `~/.pi/hooks/audit/shazam-calls.log` for optimization |
+| `pre-edit-guard`     | Before write/edit    | Detects multi-file edits and suggests `shazam_impact` first          |
 
-Plus two commands: `/shazam-setup` (LSP server detection) and `/shazam-doctor` (health check).
+Plus five commands: `/shazam-setup` (LSP detection), `/shazam-doctor` (health check),
+`/shazam-install-git-hooks` (pre-commit hook), `/shazam-remove-git-hooks` (undo),
+and `/shazam-pre-commit-verify` (internal hook script).
 
 ## Supported Languages
 
@@ -107,6 +110,7 @@ pi-shazam (npm package)
 ├── hooks/
 │   ├── before-start.ts    inject overview into prompt
 │   ├── after-write.ts     auto-verify after edits
+│   ├── pre-edit.ts        pre-edit guard for multi-file edits
 │   ├── shazam-guide.ts    nudge agent to use tools
 │   └── tool-logger.ts     usage analytics
 │

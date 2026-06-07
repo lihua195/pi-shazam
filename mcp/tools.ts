@@ -14,6 +14,7 @@ import { executeCallChain, getFlatReferences, formatFlatReferences } from "../to
 import { executeHover } from "../tools/hover.js";
 import { executeFindTests } from "../tools/find_tests.js";
 import { executeHotspots } from "../tools/hotspots.js";
+import { executeFix } from "../tools/fix.js";
 import { executeVerify } from "../tools/verify.js";
 import { executeTypeHierarchy } from "../tools/type_hierarchy.js";
 import { executeRenameSymbol } from "../tools/rename_symbol.js";
@@ -283,6 +284,22 @@ export function registerAllTools(server: McpServer, graph: RepoGraph, projectRoo
 		withLogging("shazam_safe_delete", async ({ symbol, dryRun }) => {
 			const result = executeSafeDelete(graph, symbol as string, dryRun as boolean);
 			return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+		}),
+	);
+
+	server.registerTool(
+		"shazam_fix",
+		{
+			description:
+				"When shazam_verify reports format or lint errors, use this to auto-fix them. Runs nearest-wins formatters (prettier, biome, eslint --fix, ruff, cargo fmt, gofmt). Format only -- never touches logic. Always run with --dry-run first to preview changes before applying.",
+			inputSchema: z.object({
+				dryRun: z.boolean().optional().default(true).describe("Preview changes without applying"),
+				file: z.string().optional().describe("Scope to a single file"),
+			}),
+		},
+		withLogging("shazam_fix", async ({ dryRun, file }) => {
+			const text = executeFix(graph, projectRoot, { dryRun: dryRun as boolean, file: file as string | undefined });
+			return { content: [{ type: "text", text }] };
 		}),
 	);
 }
