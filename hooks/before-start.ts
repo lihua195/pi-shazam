@@ -13,6 +13,7 @@ import type { ExtensionAPI } from "../types/pi-extension.js";
 import { scanProject } from "../core/scanner.js";
 import { executeOverview } from "../tools/overview.js";
 import { hasTestFiles, hasHierarchyKinds } from "../core/output.js";
+import { createBaseline, clearBaseline, getBaseline, formatBaselineSummary } from "../core/baseline.js";
 import { execSync } from "node:child_process";
 
 /**
@@ -77,6 +78,26 @@ function buildProactiveRecommendations(projectRoot: string): string {
 }
 
 /**
+ * Build a session baseline summary section.
+ * Captures current project health metrics for diff-aware verification.
+ */
+function buildSessionBaselineSection(projectRoot: string): string {
+	try {
+		const graph = scanProject(projectRoot, () => {});
+		const branch = execSync("git branch --show-current 2>/dev/null", { encoding: "utf-8", timeout: 3000 }).trim();
+		const commit = execSync("git rev-parse HEAD 2>/dev/null", { encoding: "utf-8", timeout: 3000 }).trim();
+
+		// Clear any previous baseline and capture current state
+		clearBaseline();
+		createBaseline(graph, 0, 0, branch || "unknown", commit || "unknown");
+
+		return formatBaselineSummary(getBaseline()!);
+	} catch {
+		return "";
+	}
+}
+
+/**
  * Generate a project overview string suitable for system prompt injection.
  *
  * @param projectRoot - Absolute or relative path to the project root
@@ -86,7 +107,9 @@ export function generateOverviewForPrompt(projectRoot: string): string {
 	const graph = scanProject(projectRoot, () => {});
 	const overview = executeOverview(graph, projectRoot);
 	const recommendations = buildProactiveRecommendations(projectRoot);
-	return `[pi-shazam] Project Overview:\n${overview}\n\n${recommendations}`;
+	const baselineSection = buildSessionBaselineSection(projectRoot);
+	const parts = [`[pi-shazam] Project Overview:\n${overview}`, recommendations, baselineSection].filter(Boolean);
+	return parts.join("\n\n");
 }
 
 /**

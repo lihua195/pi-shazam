@@ -1,0 +1,218 @@
+/**
+ * pi-shazam core/baseline — In-memory session baseline for diff-aware verify.
+ *
+ * Captures project health at session start (LSP errors/warnings, orphan
+ * symbols, graph edges) so post-edit verify output can show what changed
+ * rather than just absolute numbers.
+ *
+ * The baseline is stored in-memory (not persisted across sessions) and
+ * resets on branch switch. If LSP is not ready at session start, the
+ * baseline is deferred to the first edit trigger.
+ */
+
+import type { RepoGraph } from "./graph.js";
+
+// ── Baseline data structure ───────────────────────────────────────────────────
+
+export interface SessionBaseline {
+	branch: string;
+	commit: string;
+	timestamp: string;
+	lspErrors: number;
+	lspWarnings: number;
+	orphanSymbols: number;
+	graphEdges: number;
+	symbolCount: number;
+	fileCount: number;
+}
+
+export interface BaselineDiff {
+	lspErrors: number;
+	lspWarnings: number;
+	orphanSymbols: number;
+	graphEdges: number;
+	symbolCount: number;
+	fileCount: number;
+	newOrphans: { name: string; kind: string; file: string; line: number }[];
+	removedEdges: number;
+	addedEdges: number;
+}
+
+// ── Session baseline state (in-memory) ────────────────────────────────────────
+
+let _baseline: SessionBaseline | null = null;
+let _previousOrphans: Map<string, { name: string; kind: string; file: string; line: number }> = new Map();
+
+/**
+ * Get the current session baseline.
+ */
+export function getBaseline(): SessionBaseline | null {
+	return _baseline;
+}
+
+/**
+ * Set the session baseline.
+ */
+export function setBaseline(baseline: SessionBaseline): void {
+	_baseline = baseline;
+}
+
+/**
+ * Clear the session baseline (on branch switch).
+ */
+export function clearBaseline(): void {
+	_baseline = null;
+	_previousOrphans = new Map();
+}
+
+/**
+ * Check if a baseline is available.
+ */
+export function hasBaseline(): boolean {
+	return _baseline !== null;
+}
+
+/**
+ * Create a baseline from the current graph state and LSP data.
+ */
+export function createBaseline(
+	graph: RepoGraph,
+	lspErrors: number,
+	lspWarnings: number,
+	branch: string,
+	commit: string,
+): SessionBaseline {
+	let edgeCount = 0;
+	for (const [, edges] of graph.outgoing) {
+		edgeCount += edges.length;
+	}
+
+	const orphanCount = countOrphans(graph);
+
+	const baseline: SessionBaseline = {
+		branch,
+		commit,
+		timestamp: new Date().toISOString(),
+		lspErrors,
+		lspWarnings,
+		orphanSymbols: orphanCount,
+		graphEdges: edgeCount,
+		symbolCount: graph.symbols.size,
+		fileCount: graph.fileSymbols.size,
+	};
+
+	_baseline = baseline;
+
+	// Cache current orphan set for future diff
+	_previousOrphans = new Map();
+	for (const orphan of findOrphans(graph)) {
+		_previousOrphans.set(orphan.name + orphan.file, orphan);
+	}
+
+	return baseline;
+}
+
+/**
+ * Compute a diff between the current graph and the session baseline.
+ * Returns null if no baseline exists.
+ */
+export function diffFromBaseline(graph: RepoGraph, lspErrors: number, lspWarnings: number): BaselineDiff | null {
+	if (!_baseline) return null;
+
+	let edgeCount = 0;
+	for (const [, edges] of graph.outgoing) {
+		edgeCount += edges.length;
+	}
+
+	const currentOrphans = findOrphans(graph);
+	const currentOrphanCount = currentOrphans.length;
+
+	// Find new orphans (not in previous baseline)
+	const newOrphans = currentOrphans.filter((o) => !_previousOrphans.has(o.name + o.file));
+
+	// Count edge changes
+	const previousEdges = _baseline.graphEdges;
+	const addedEdges = edgeCount > previousEdges ? edgeCount - previousEdges : 0;
+	const removedEdges = edgeCount < previousEdges ? previousEdges - edgeCount : 0;
+
+	return {
+		lspErrors: lspErrors - _baseline.lspErrors,
+		lspWarnings: lspWarnings - _baseline.lspWarnings,
+		orphanSymbols: currentOrphanCount - _baseline.orphanSymbols,
+		graphEdges: edgeCount - _baseline.graphEdges,
+		symbolCount: graph.symbols.size - _baseline.symbolCount,
+		fileCount: graph.fileSymbols.size - _baseline.fileCount,
+		newOrphans: newOrphans.slice(0, 20),
+		removedEdges,
+		addedEdges,
+	};
+}
+
+/**
+ * Format a baseline diff section for text output.
+ */
+export function formatBaselineDiff(diff: BaselineDiff): string {
+	const lines: string[] = [];
+	lines.push("### Changes from Session Baseline");
+	lines.push("");
+
+	const changes: string[] = [];
+	if (diff.lspErrors !== 0) changes.push(`LSP errors: ${diff.lspErrors > 0 ? "+" : ""}${diff.lspErrors}`);
+	if (diff.lspWarnings !== 0) changes.push(`LSP warnings: ${diff.lspWarnings > 0 ? "+" : ""}${diff.lspWarnings}`);
+	if (diff.orphanSymbols !== 0) changes.push(`Orphans: ${diff.orphanSymbols > 0 ? "+" : ""}${diff.orphanSymbols}`);
+	if (diff.graphEdges !== 0) changes.push(`Graph edges: ${diff.graphEdges > 0 ? "+" : ""}${diff.graphEdges}`);
+	if (diff.symbolCount !== 0) changes.push(`Symbols: ${diff.symbolCount > 0 ? "+" : ""}${diff.symbolCount}`);
+
+	if (changes.length > 0) {
+		lines.push(changes.join(" | "));
+	} else {
+		lines.push("No significant changes from baseline.");
+	}
+
+	if (diff.newOrphans.length > 0) {
+		lines.push("");
+		lines.push("### New Orphan Symbols");
+		for (const o of diff.newOrphans) {
+			lines.push(`  - ${o.kind} \`${o.name}\` — ${o.file}:${o.line}`);
+		}
+	}
+
+	lines.push("");
+	return lines.join("\n");
+}
+
+/**
+ * Format a baseline summary section for tool output.
+ */
+export function formatBaselineSummary(baseline: SessionBaseline): string {
+	const lines: string[] = [];
+	lines.push("### Session Baseline (captured at session start)");
+	lines.push("");
+	lines.push(`Branch: ${baseline.branch} | Commit: ${baseline.commit.slice(0, 8)}`);
+	lines.push(`LSP errors: ${baseline.lspErrors} | LSP warnings: ${baseline.lspWarnings}`);
+	lines.push(`Orphans: ${baseline.orphanSymbols} | Graph edges: ${baseline.graphEdges}`);
+	lines.push(`Symbols: ${baseline.symbolCount} | Files: ${baseline.fileCount}`);
+	lines.push("");
+	return lines.join("\n");
+}
+
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+function countOrphans(graph: RepoGraph): number {
+	return findOrphans(graph).length;
+}
+
+function findOrphans(graph: RepoGraph): { name: string; kind: string; file: string; line: number }[] {
+	const orphans: { name: string; kind: string; file: string; line: number }[] = [];
+	for (const sym of graph.symbols.values()) {
+		if (sym.file.includes("node_modules") || sym.file.includes(".git")) continue;
+		const incoming = graph.incoming.get(sym.id);
+		if (!incoming || incoming.length === 0) {
+			if (sym.visibility === "exported" && sym.pagerank > 0.01) continue;
+			if (sym.kind === "anonymous_function") continue;
+			if (sym.file.includes("tests/") || sym.file.includes(".test.")) continue;
+			orphans.push({ name: sym.name, kind: sym.kind, file: sym.file, line: sym.line });
+		}
+	}
+	return orphans;
+}

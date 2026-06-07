@@ -132,18 +132,82 @@ export function executeFileDetail(graph: RepoGraph, file: string): string {
 	lines.push("Kinds: " + [...byKind.entries()].map(([k, v]) => `${v} ${k}`).join(", "));
 	lines.push("");
 
-	// Symbol list
+	// Symbol list with tree-sitter nesting grouping
+	// Group container symbols (class, interface, impl, struct, module, namespace)
+	// and nest their member functions
 	lines.push("### Symbols");
 	lines.push("");
+
+	const CONTAINER_KINDS = new Set(["class", "interface", "struct", "impl", "module", "namespace", "object"]);
+	const containers: { sym: typeof symbols[0]; members: typeof symbols }[] = [];
+	const standalone: typeof symbols = [];
+
 	for (const sym of symbols) {
-		const inc = graph.incoming.get(sym.id);
-		const out = graph.outgoing.get(sym.id);
-		const incCount = inc ? inc.length : 0;
-		const outCount = out ? out.length : 0;
-		lines.push(
-			`- ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} [${sym.visibility}] PR ${sym.pagerank.toFixed(3)} | in:${incCount} out:${outCount}`,
-		);
-		lines.push(`  ${sym.signature.slice(0, 100)}`);
+		if (CONTAINER_KINDS.has(sym.kind)) {
+			// Find members that are within this container's line range
+			const members = symbols.filter((other) => {
+				if (other.id === sym.id) return false;
+				// A member is between the container's start and end lines
+				return other.line >= sym.line && other.endLine <= sym.endLine;
+			});
+			if (members.length > 0) {
+				containers.push({ sym, members });
+			} else {
+				standalone.push(sym);
+			}
+		} else {
+			standalone.push(sym);
+		}
+	}
+
+	// If we have containers with members, show tree-sitter hierarchy
+	if (containers.length > 0) {
+		for (const { sym, members } of containers) {
+			const inc = graph.incoming.get(sym.id);
+			const out = graph.outgoing.get(sym.id);
+			const incCount = inc ? inc.length : 0;
+			const outCount = out ? out.length : 0;
+			lines.push(
+				`- container ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} | in:${incCount} out:${outCount}`,
+			);
+			for (const member of members) {
+				const mInc = graph.incoming.get(member.id);
+				const mOut = graph.outgoing.get(member.id);
+				const mIncCount = mInc ? mInc.length : 0;
+				const mOutCount = mOut ? mOut.length : 0;
+				lines.push(
+					`  └ ${member.kind} \`${member.name}\` L${member.line}-${member.endLine} [${member.visibility}] PR ${member.pagerank.toFixed(3)} | in:${mIncCount} out:${mOutCount}`,
+				);
+			}
+		}
+		// Add standalone symbols (not in any container)
+		if (standalone.length > 0) {
+			lines.push("");
+			lines.push("Other symbols:");
+			for (const sym of standalone) {
+				const inc = graph.incoming.get(sym.id);
+				const out = graph.outgoing.get(sym.id);
+				const incCount = inc ? inc.length : 0;
+				const outCount = out ? out.length : 0;
+				lines.push(
+					`  - ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} [${sym.visibility}] PR ${sym.pagerank.toFixed(3)} | in:${incCount} out:${outCount}`,
+				);
+			}
+		}
+	} else {
+		// Flat list (no containers found)
+		for (const sym of symbols) {
+			const inc = graph.incoming.get(sym.id);
+			const out = graph.outgoing.get(sym.id);
+			const incCount = inc ? inc.length : 0;
+			const outCount = out ? out.length : 0;
+			lines.push(
+				`- ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} [${sym.visibility}] PR ${sym.pagerank.toFixed(3)} | in:${incCount} out:${outCount}`,
+			);
+			if (sym.signature) {
+				lines.push(`  ${sym.signature.slice(0, 100)}`);
+			}
+		}
 	}
 
 	// File-level imports
@@ -157,7 +221,27 @@ export function executeFileDetail(graph: RepoGraph, file: string): string {
 	}
 
 	// Add Next recommendations
-	const nextItems = getNextForTool("file_detail", { topFile: file, topSymbol: symbols[0]?.name });
+	const hasHierarchyTypes = symbols.some((s) =>
+		["class", "interface", "struct", "impl"].includes(s.kind),
+	);
+	const nextItems = getNextForTool("file_detail", {
+		topFile: file,
+		topSymbol: symbols[0]?.name,
+	});
+
+	// Add type_hierarchy recommendation if file has class/interface symbols (Phase 3)
+	if (hasHierarchyTypes) {
+		const typeSym = symbols.find((s) => ["class", "interface", "struct"].includes(s.kind));
+		if (typeSym) {
+			nextItems.push({
+				tool: "type_hierarchy",
+				params: { name: typeSym.name },
+				label: `Explore type hierarchy for ${typeSym.name}`,
+				level: "recommended",
+			});
+		}
+	}
+
 	if (nextItems.length > 0) {
 		lines.push("");
 		lines.push(formatNextSection(nextItems));

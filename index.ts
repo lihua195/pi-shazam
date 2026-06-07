@@ -20,6 +20,7 @@ import { registerBeforeStartHook } from "./hooks/before-start.js";
 import { registerAfterWriteHook } from "./hooks/after-write.js";
 import { registerToolLogger } from "./hooks/tool-logger.js";
 import { registerShazamGuide } from "./hooks/shazam-guide.js";
+import { registerPreEditGuard } from "./hooks/pre-edit.js";
 
 // ── Tool registrations ────────────────────────────────────────────────────
 import { registerOverview } from "./tools/overview.js";
@@ -74,6 +75,7 @@ export default function (pi: ExtensionAPI): void {
 	registerAfterWriteHook(pi);
 	registerToolLogger(pi);
 	registerShazamGuide(pi);
+	registerPreEditGuard(pi);
 
 	// ── /shazam-setup command ───────────────────────────────────────────────
 
