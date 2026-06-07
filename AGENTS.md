@@ -11,7 +11,7 @@
 
 
 > **DEVELOPMENT RULE: All development and maintenance of this project MUST follow
-> the conventions, workflows, and contracts defined in [INSTRUCTION.md](./INSTRUCTION.md).
+> the conventions, workflows, and contracts defined in [INSTRUCTION.md](./docs/INSTRUCTION.md).
 > This includes Pi extension API contracts, architecture layer boundaries, tool
 > registration patterns, content format contracts, release process, and verification
 > gates. INSTRUCTION.md is the single source of truth for how to build and maintain
@@ -228,7 +228,7 @@ mcp/                        ← MCP server for non-Pi clients
 | `semanticTokens`  | `textDocument/semanticTokens/full` | (wired via `lspSemanticTokens`, not yet consumed by tools)       |
 | `foldingRange`    | `textDocument/foldingRange`        | (wired via `lspFoldingRanges`, not yet consumed by tools)        |
 
-> ⚠️ Contract documentation: `CONTRACT.md` is the authoritative source for Pi ExtensionAPI real contract, extracted from `pi-coding-agent@0.78.1` runtime source.
+> Contract documentation: `docs/CONTRACT.md` is the authoritative source for Pi ExtensionAPI real contract, extracted from `pi-coding-agent@0.78.1` runtime source.
 
 ### Registered Tools (LLM-visible)
 
@@ -479,7 +479,7 @@ pi -p "call shazam_overview" 2>&1 | grep -q "Extension error" && echo "FAIL" || 
 
 ### Pre-Publish Contract Check (Mandatory)
 
-Refer to `CONTRACT.md` for the complete contract documentation.
+Refer to `docs/CONTRACT.md` for the complete contract documentation.
 
 ```
 □ grep "pi\.logger\." dist/          # No unprotected direct calls
@@ -492,7 +492,7 @@ Refer to `CONTRACT.md` for the complete contract documentation.
 
 ### Debugging Guide
 
-- **Extension load failure** → Check `CONTRACT.md`, compare with runtime API version
+- **Extension load failure** → Check `docs/CONTRACT.md`, compare with runtime API version
 - **`text.replace is not a function`** → Check if sendMessage content is string
 - **`Cannot read properties of undefined`** → Check if directly accessing pi.logger/pi.typebox/ctx.ui
 - **Tool not appearing** → Check if register* is called in index.ts
@@ -513,9 +513,9 @@ Refer to `CONTRACT.md` for the complete contract documentation.
 - `core/` — Pure analysis, no external I/O beyond filesystem reads
 - `lsp/` — External process management (language servers)
 - `tools/` — Pi tool registration wrappers (one file per tool)
-- `hooks/` — Automatic event handlers (not LLM-callable). See `.agents/skills/pi-hooks/SKILL.md`
-- `mcp/` — MCP server for non-Pi clients. See `.agents/skills/mcp-server/SKILL.md`
-- `tests/` — vitest suite (208 tests). See `.agents/skills/testing/SKILL.md`
+- `hooks/` — Automatic event handlers (not LLM-callable). See `docs/pi-hooks/SKILL.md`
+- `mcp/` — MCP server for non-Pi clients. See `docs/mcp-server/SKILL.md`
+- `tests/` — vitest suite. See `docs/testing/SKILL.md`
 
 ## Important Files
 
@@ -526,7 +526,24 @@ Refer to `CONTRACT.md` for the complete contract documentation.
 - `package.json` — npm manifest, dependencies, `bin` field for MCP entry
 - `tsconfig.json` — TypeScript compiler configuration (must include `mcp/`)
 - `types/pi-extension.d.ts` — self-contained ExtensionAPI type stub
-- `.agents/skills/` — project-level skills: pi-extension, pi-hooks, kimi-code-hooks, mcp-server, release-publish, testing, architecture, sync-discipline
+
+## Docs Directory
+
+Project documentation lives under `docs/`. Each guide covers a specific topic —
+when working on that topic, read the corresponding guide first.
+
+| Guide | Description |
+|-------|-------------|
+| `docs/INSTRUCTION.md` | **Single source of truth** for development, maintenance, and release. Covers Pi ExtensionAPI contract, tool registration, hooks, MCP sync, release process, and all mandatory workflows. Read before any change. |
+| `docs/CONTRACT.md` | Pi ExtensionAPI real contract extracted from runtime source. Authoritative reference for `ExtensionAPI` types, events, and tool registration signatures. |
+| `docs/architecture/SKILL.md` | 4-layer architecture: `core/` (pure analysis), `lsp/` (language servers), `tools/` (Pi/MCP wrappers), `hooks/` (auto event handlers). Layer dependency rules and design decisions. |
+| `docs/pi-extension/SKILL.md` | How to register native Pi tools. Covers `registerTool()`, `createTool()` factory, TypeBox schemas, `customExecute` for async tools, and `index.ts` entry point. |
+| `docs/pi-hooks/SKILL.md` | How to write Pi extension hooks. Covers `pi.on()` events, handler signatures, system prompt injection, `tool_call`/`tool_result` interception, logging patterns. |
+| `docs/mcp-server/SKILL.md` | How to wrap pi-shazam tools as MCP tools. Covers `McpServer`, `StdioServerTransport`, `registerTool` with Zod, `withLogging` wrapper, and Pi/MCP sync discipline. |
+| `docs/testing/SKILL.md` | How to test pi-shazam. Covers vitest setup, mock graph patterns, tool output validation, schema testing, and Pi integration smoke tests. |
+| `docs/release-publish/SKILL.md` | How to release and publish to npm. Covers `npm version`, git tag push, GitHub Release creation, publish CI verification, and post-release Pi install check. |
+| `docs/sync-discipline/SKILL.md` | Rules for keeping Pi tools, MCP tools, hooks, and docs in sync. Checklist for each change type (new tool, changed tool, new hook, deleted feature). |
+| `docs/kimi-code-hooks/SKILL.md` | How to write Kimi Code hooks (shell scripts triggered by lifecycle events). Covers `config.toml` `[[hooks]]` setup, stdin JSON protocol, exit codes, all events. |
 
 ## Key Conventions
 

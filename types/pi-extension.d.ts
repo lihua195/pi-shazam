@@ -1383,8 +1383,8 @@ export interface ProviderConfig {
 /**
  * ExtensionAPI —— 传递给扩展工厂函数的核心接口（扁平纯对象，无嵌套属性）。
  *
- * 提取自 @earendil-works/pi-coding-agent@0.78.1 运行时源码 (loader.js createExtensionAPI)。
- * CONTRACT.md 为权威契约文档。
+ * Extracted from @earendil-works/pi-coding-agent@0.78.1 runtime source (loader.js createExtensionAPI).
+ * docs/CONTRACT.md is the authoritative contract document.
  *
  * 扩展通过此接口：
  * - 订阅 Agent 生命周期事件
