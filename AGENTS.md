@@ -133,15 +133,86 @@ mcp/                        ← MCP server for non-Pi clients
 
 `hooks/` → `tools/` → `core/` + `lsp/`. The `core/` layer has zero Pi or LSP imports. Tools compose core functions and optionally enrich with LSP data. Hooks call tool logic directly and inject results into LLM context via `pi.sendMessage()`.
 
+## Hooks (Automatic Event Handlers)
+
+| Hook | Event | Auto? | Effect | Value |
+|------|-------|-------|--------|-------|
+| `before-start` | `before_agent_start` | YES | Injects project overview + proactive recommendations into system prompt | HIGH — LLM has structural awareness before reading code |
+| `after-write` | `tool_result` (write/edit) | DISABLED | Was: auto-verify after every write. Now: no-op (LLM calls shazam_verify manually) | N/A — disabled to avoid noise |
+| `pre-edit` | `tool_call` (write/edit) | YES | Detects multi-file edits, warns about blast radius | MEDIUM — prevents accidental multi-file breaks |
+| `shazam-guide` | `tool_result` | YES | Suggests related shazam tools based on context | MEDIUM — helps LLM discover tools |
+| `tool-logger` | `tool_call` + `tool_result` | YES | Logs all shazam tool calls to JSONL file | LOW — debugging only, no LLM impact |
+
+### Hook Details
+
+**before-start** (HIGH value):
+- Runs on `before_agent_start` event
+- Scans project with tree-sitter (cached)
+- Generates overview: module map, key files, git history
+- Injects proactive recommendations based on project state
+- Creates session baseline for diff-aware verify
+- Effect: LLM starts with full project awareness
+
+**pre-edit** (MEDIUM value):
+- Runs on `tool_call` for write/edit
+- Tracks files edited in session
+- Warns when editing multiple files or shared modules
+- Effect: Prevents accidental multi-file breaks
+
+**shazam-guide** (MEDIUM value):
+- Runs on `tool_result`
+- Suggests related tools based on context:
+  - After write/edit → suggest `shazam_verify`
+  - After symbol lookup → suggest `shazam_call_chain`
+  - After grep/find → suggest `shazam_codesearch`
+- Effect: Helps LLM discover the right tool
+
+**tool-logger** (LOW value):
+- Runs on `tool_call` + `tool_result`
+- Logs to `~/.pi/hooks/audit/shazam-calls.log`
+- JSONL format with timestamps, duration, result
+- Effect: Debugging only, no impact on LLM
+
+## Tools (LLM-Callable)
+
+### High Value Tools
+
+| Tool | Value | When to Use | Auto-called? |
+|------|-------|-------------|--------------|
+| `shazam_overview` | HIGH | First time in project | YES (via before-start hook) |
+| `shazam_verify` | HIGH | After every edit | NO (LLM calls manually) |
+| `shazam_impact` | HIGH | Before editing 2+ files | NO (LLM calls manually) |
+| `shazam_call_chain` | HIGH | Before changing function signature | NO (LLM calls manually) |
+| `shazam_codesearch` | HIGH | Instead of grep | NO (LLM calls manually) |
+| `shazam_hover` | HIGH | After finding symbol, get type info | NO (LLM calls manually) |
+
+### Medium Value Tools
+
+| Tool | Value | When to Use | Auto-called? |
+|------|-------|-------------|--------------|
+| `shazam_symbol` | MEDIUM | Look up symbol before importing | NO |
+| `shazam_file_detail` | MEDIUM | Before editing unfamiliar file | NO |
+| `shazam_find_tests` | MEDIUM | When adding tests | NO |
+| `shazam_type_hierarchy` | MEDIUM | For OOP/interface types | NO |
+| `shazam_hotspots` | MEDIUM | Find high-risk files | NO |
+| `shazam_fix` | MEDIUM | Auto-fix format/lint errors | NO |
+
+### Low Value Tools
+
+| Tool | Value | Why |
+|------|-------|-----|
+| `shazam_rename_symbol` | LOW | Rarely used, LLM can use IDE or manual rename |
+| `shazam_safe_delete` | LOW | Rarely used, LLM can delete manually |
+
 ## Core Flows
 
 - **Overview injection**: `before_agent_start` event → `core/treesitter` scan (with persistent disk cache) → `core/pagerank` → format summary → inject into `systemPrompt` array
 - **Tool call**: LLM calls tool → `tools/*.execute()` → `core/scanner` (disk cache → in-memory cache → incremental/full scan) → `core/` analysis → optional LSP enrichment via `tools/lsp_enrich.ts` (5s timeout, tree-sitter fallback) → return `AgentToolResult`
-- **Auto-verify**: `tool_call` event (write/edit) → `hooks/after-write` → `core/` diagnostics + LSP `textDocument/publishDiagnostics` → `pi.sendMessage()` with findings
-- **Tool logging**: `tool_call` + `tool_result` events → `hooks/tool-logger` → writes JSONL to `~/.pi/hooks/audit/shazam-calls.log` (same dir as audit-guard)
+- **Auto-verify**: DISABLED — after-write hook is a no-op. LLM calls `shazam_verify` manually when needed.
+- **Tool logging**: `tool_call` + `tool_result` events → `hooks/tool-logger` → writes JSONL to `~/.pi/hooks/audit/shazam-calls.log`
 - **Agent guidance**: `before_agent_start` → `hooks/shazam-guide` → injects tool list into system prompt; `tool_result` (write/edit) → nudges `shazam_verify`; `tool_call` (grep/find) → nudges `shazam_codesearch`
-- **MCP tool calls**: MCP client → JSON-RPC over stdio → `mcp/tools.ts` (wrapped with `withLogging()`) → `core/` analysis → return `{ content: [...] }`
-- **LSP lifecycle**: extension load → `lsp/manager` detects project languages (6 supported: Python, TypeScript, Go, JSON, YAML, Rust) → spawns servers on demand → `lsp/client` handles JSON-RPC via vscode-jsonrpc over stdio → `session_shutdown` kills all
+- **MCP tool calls**: MCP client → JSON-RPC over stdio → `mcp/tools.ts` → `core/` analysis → return `{ content: [...] }`
+- **LSP lifecycle**: extension load → `lsp/manager` detects project languages → spawns servers on demand → `lsp/client` handles JSON-RPC via vscode-jsonrpc over stdio → `session_shutdown` kills all
 
 ## API Surface
 
