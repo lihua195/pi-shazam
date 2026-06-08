@@ -36,12 +36,12 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 
 | Surface | Version | Check |
 |---------|---------|-------|
-| `package.json` | 0.5.4 | `node -e "console.log(require('./package.json').version)"` |
-| MCP server (`mcp/entry.ts`) | 0.5.4 | `grep version mcp/entry.ts` |
-| Global npm install | 0.5.4 | `npm ls -g pi-shazam` |
-| GitHub Release | v0.5.4 | `gh release view v0.5.4` |
-| Git tag | v0.5.4 | `git describe --tags` |
-| npm registry | 0.5.4 | `npm view pi-shazam version` |
+| `package.json` | 0.5.5 | `node -e "console.log(require('./package.json').version)"` |
+| MCP server (`mcp/entry.ts`) | 0.5.5 | `grep version mcp/entry.ts` |
+| Global npm install | 0.5.5 | `npm ls -g pi-shazam` |
+| GitHub Release | v0.5.5 | `gh release view v0.5.4` |
+| Git tag | v0.5.5 | `git describe --tags` |
+| npm registry | 0.5.5 | `npm view pi-shazam version` |
 
 ## Commands
 
