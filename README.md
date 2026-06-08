@@ -119,16 +119,11 @@ Supported Node.js versions: **>= 18.0.0**
 
 ### Community Format/Version Support
 
-- **TypeScript/JavaScript**: `.ts`, `.tsx`, `.mts`, `.cts`, `.js`, `.jsx`, `.mjs`, `.cjs`
-- **Python**: `.py`, `.pyi`, `.pyx`, `.pxd`
-- **Rust**: `.rs`
+- **TypeScript**: `.ts`, `.tsx`, `.mts`, `.cts`
+- **Python**: `.py`, `.pyi`
 - **Go**: `.go`
-- **Java**: `.java`
-- **C/C++**: `.c`, `.cpp`, `.h`, `.hpp`
-- **C#**: `.cs`
-- **Ruby**: `.rb`
-- **Web**: `.css`, `.html`
-- **Data formats**: `.json`, `.yaml`, `.yml`
+- **Rust**: `.rs`
+- **Data formats**: `.json`
 
 ## Architecture
 

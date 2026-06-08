@@ -64,30 +64,13 @@ interface QueryInstance {
 export const EXT_TO_LANG: Record<string, string> = {
 	".py": "python",
 	".pyi": "python",
-	".js": "javascript",
-	".jsx": "javascript",
-	".mjs": "javascript",
-	".cjs": "javascript",
 	".ts": "typescript",
 	".tsx": "tsx",
 	".mts": "typescript",
 	".cts": "typescript",
 	".go": "go",
 	".rs": "rust",
-	".html": "html",
-	".htm": "html",
-	".css": "css",
 	".json": "json",
-	".c": "c",
-	".h": "c",
-	".cpp": "cpp",
-	".cc": "cpp",
-	".cxx": "cpp",
-	".hpp": "cpp",
-	".hh": "cpp",
-	".java": "java",
-	".cs": "c_sharp",
-	".rb": "ruby",
 };
 
 // ── Main adapter class ───────────────────────────────────────────────────────
@@ -107,17 +90,9 @@ export class TreeSitterAdapter {
 	private _initParsers(): void {
 		const grammars: [string, string, string?][] = [
 			["python", "tree-sitter-python", "python"],
-			["javascript", "tree-sitter-javascript", "javascript"],
 			["go", "tree-sitter-go", "go"],
 			["rust", "tree-sitter-rust", "rust"],
-			["html", "tree-sitter-html", "html"],
-			["css", "tree-sitter-css", "css"],
 			["json", "tree-sitter-json", "json"],
-			["c", "tree-sitter-c", "c"],
-			["java", "tree-sitter-java", "java"],
-			["cpp", "tree-sitter-cpp", "cpp"],
-			["c_sharp", "tree-sitter-c-sharp", "c_sharp"],
-			["ruby", "tree-sitter-ruby", "ruby"],
 		];
 
 		for (const [lang, _pkg, _prop] of grammars) {
