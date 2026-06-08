@@ -285,7 +285,12 @@ All tools follow the same pattern:
 - **Changing LSP protocol**: Modify `lsp/client.ts` → verify `lsp/manager.ts` lifecycle still works → test with at least 2 different language servers
 - **Changing tool output format**: Update the specific `tools/*.ts` formatter → verify JSON envelope schema
 - **Adding a new hook**: Create `hooks/<name>.ts` with a `register*` function that calls `pi.on(...)` → import and call in `index.ts` default export. Hooks subscribe to lifecycle events (`tool_execution_start`, `before_agent_start`, etc.) and do not return tools to the LLM. Add to hooks/ tree in `AGENTS.md`.
-- **Adding a tool (MCP sync)**: After adding/changing/deleting a Pi tool → add/update/remove the matching `registerTool` in `mcp/tools.ts` → update `mcp/README.md` tool table → sync Pi tool description changes to MCP tool descriptions. MCP and Pi tools must stay in sync in the same PR. Update `README.md` if user-facing tool list or usage changed.
+- **Adding a tool (MCP sync) [CRITICAL]**: After adding/changing/deleting a Pi tool → add/update/remove the matching `registerTool` in `mcp/tools.ts` → update `mcp/README.md` tool table → sync Pi tool description changes to MCP tool descriptions. MCP and Pi tools MUST stay in sync in the same PR. **Important**: MCP tools have SEPARATE definitions (using Zod) from Pi tools (using TypeBox). When changing:
+  - Tool name: update `server.registerTool("shazam_*", ...)` in mcp/tools.ts
+  - Tool description: update `description: "..."` in mcp/tools.ts
+  - Tool parameters: update `inputSchema: z.object({...})` in mcp/tools.ts
+  - Update `README.md` if user-facing tool list or usage changed
+  - Run `./scripts/release.sh` to ensure everything is synced and deployed
 
 ## Issue Fix Workflow (Task Flow)
 
@@ -401,19 +406,42 @@ git branch -d fix/issue-<NUM>
 
 ## Release & Publish Workflow
 
-### Publishing Method: GitHub Actions (Mandatory)
+### Quick Release (Recommended)
+
+Use the automated release script:
+
+```bash
+./scripts/release.sh patch  # or minor, major
+```
+
+This script handles everything:
+1. Bumps version in package.json
+2. Syncs version to all surfaces (mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md)
+3. Builds and tests
+4. Commits and tags
+5. Pushes to GitHub
+6. Creates GitHub Release (triggers npm publish)
+7. Updates local Pi extension (`pi update`)
+8. Updates global npm install
+9. Verifies all installations
+
+### Manual Publishing (If Needed)
 
 **DO NOT use `npm publish` directly.** Local npm tokens expire easily. Publishing is done via GitHub Actions workflow `.github/workflows/publish.yml`.
 
-Publishing workflow:
+Manual workflow:
 
 1. After development is complete and tests pass, commit code to branch
 2. `npm version patch` (or `minor`/`major`) → automatically creates git tag
-3. `git push origin <branch> --tags`
-4. Create PR → merge to main
+3. Sync version to mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md
+4. `git push origin <branch> --tags`
 5. Create GitHub Release (`gh release create vX.Y.Z`)
 6. Release publish event automatically triggers `.github/workflows/publish.yml`
-   - Can also trigger manually: `gh workflow run publish.yml --ref main -f tag=latest`
+7. After npm publish, run:
+   ```bash
+   npm install -g pi-shazam@latest --legacy-peer-deps
+   pi update
+   ```
 
 ### What the Publish CI Does
 

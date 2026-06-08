@@ -1,0 +1,150 @@
+#!/bin/bash
+# pi-shazam release script — ensures local Pi and MCP are always in sync
+#
+# Usage: ./scripts/release.sh [patch|minor|major]
+#
+# This script:
+# 1. Bumps version in package.json
+# 2. Syncs version to all surfaces (mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md)
+# 3. Builds and tests
+# 4. Commits and tags
+# 5. Pushes to GitHub
+# 6. Creates GitHub Release (triggers npm publish)
+# 7. Updates local Pi extension
+# 8. Updates global npm install
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log() {
+    echo -e "${GREEN}[release]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[warn]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[error]${NC} $1"
+    exit 1
+}
+
+# Parse arguments
+BUMP_TYPE="${1:-patch}"
+if [[ ! "$BUMP_TYPE" =~ ^(patch|minor|major)$ ]]; then
+    error "Usage: $0 [patch|minor|major]"
+fi
+
+# Step 1: Check working directory is clean
+log "Step 1: Checking working directory..."
+if [[ -n $(git status --porcelain) ]]; then
+    error "Working directory not clean. Commit or stash changes first."
+fi
+
+# Step 2: Run tests
+log "Step 2: Running tests..."
+npm run typecheck || error "Type check failed"
+npm test || error "Tests failed"
+
+# Step 3: Bump version
+log "Step 3: Bumping version ($BUMP_TYPE)..."
+NEW_VERSION=$(npm version "$BUMP_TYPE" --no-git-tag-version)
+NEW_VERSION="${NEW_VERSION#v}" # Remove 'v' prefix
+log "New version: $NEW_VERSION"
+
+# Step 4: Sync version to all surfaces
+log "Step 4: Syncing version to all surfaces..."
+
+# mcp/entry.ts
+sed -i "s/version: \"[0-9]*\.[0-9]*\.[0-9]*\"/version: \"$NEW_VERSION\"/" mcp/entry.ts
+
+# AGENTS.md
+sed -i "s/[0-9]*\.[0-9]*\.[0-9]* — synced across all surfaces/$NEW_VERSION — synced across all surfaces/" AGENTS.md
+sed -i "s/| \`package.json\` | [0-9]*\.[0-9]*\.[0-9]*/| \`package.json\` | $NEW_VERSION/" AGENTS.md
+sed -i "s/| MCP server (\`mcp\/entry.ts\`) | [0-9]*\.[0-9]*\.[0-9]*/| MCP server (\`mcp\/entry.ts\`) | $NEW_VERSION/" AGENTS.md
+sed -i "s/| Global npm install | [0-9]*\.[0-9]*\.[0-9]*/| Global npm install | $NEW_VERSION/" AGENTS.md
+sed -i "s/| GitHub Release | v[0-9]*\.[0-9]*\.[0-9]*/| GitHub Release | v$NEW_VERSION/" AGENTS.md
+sed -i "s/| Git tag | v[0-9]*\.[0-9]*\.[0-9]*/| Git tag | v$NEW_VERSION/" AGENTS.md
+sed -i "s/| npm registry | [0-9]*\.[0-9]*\.[0-9]*/| npm registry | $NEW_VERSION/" AGENTS.md
+
+# docs/INSTRUCTION.md
+sed -i "s/version: \"[0-9]*\.[0-9]*\.[0-9]*\"/version: \"$NEW_VERSION\"/" docs/INSTRUCTION.md
+
+log "Version synced to: package.json, mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md"
+
+# Step 5: Build
+log "Step 5: Building..."
+npm run build || error "Build failed"
+
+# Step 6: Commit and tag
+log "Step 6: Committing and tagging..."
+git add -A
+git commit -m "chore: bump version to $NEW_VERSION"
+git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
+
+# Step 7: Push to GitHub
+log "Step 7: Pushing to GitHub..."
+git push origin main --tags
+
+# Step 8: Create GitHub Release (triggers npm publish)
+log "Step 8: Creating GitHub Release..."
+gh release create "v$NEW_VERSION" \
+    --title "v$NEW_VERSION" \
+    --notes "Release v$NEW_VERSION
+
+See CHANGELOG for details." \
+    --verify-tag
+
+log "GitHub Release created. npm publish will be triggered automatically."
+
+# Step 9: Wait for npm publish
+log "Step 9: Waiting for npm publish (watching GitHub Actions)..."
+sleep 5
+
+# Get the latest workflow run
+RUN_ID=$(gh run list --workflow=publish.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+if [[ -n "$RUN_ID" ]]; then
+    gh run watch "$RUN_ID" || warn "Could not watch workflow. Check manually: gh run list --workflow=publish.yml"
+fi
+
+# Step 10: Update local installations
+log "Step 10: Updating local installations..."
+
+# Update global npm
+log "Updating global npm..."
+npm install -g pi-shazam@"$NEW_VERSION" --legacy-peer-deps 2>&1 | tail -3
+
+# Update Pi extension
+log "Updating Pi extension..."
+pi update 2>&1 | tail -5
+
+# Step 11: Verify
+log "Step 11: Verifying installations..."
+
+echo ""
+echo "=== Verification ==="
+echo -n "Global npm: "
+npm ls -g pi-shazam 2>/dev/null | grep pi-shazam || echo "FAILED"
+
+echo -n "Pi extension: "
+cat ~/.pi/agent/npm/node_modules/pi-shazam/package.json 2>/dev/null | grep '"version"' || echo "FAILED"
+
+echo -n "npm registry: "
+npm view pi-shazam version
+
+echo ""
+log "Release v$NEW_VERSION complete!"
+log ""
+log "Next steps:"
+log "  - Test MCP: pi-shazam-mcp"
+log "  - Test Pi: pi -p 'call shazam_overview briefly'"
+log "  - Check GitHub: gh release view v$NEW_VERSION"
