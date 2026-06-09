@@ -119,9 +119,12 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 │   └── safe_delete.ts      ← Prerequisite: safety gate before removing (verify zero refs first)
 └── hooks/                  ← Automatic (not LLM-visible)
     ├── before-start.ts     ← Inject overview into system prompt
+    ├── safety.ts           ← Destructive command confirmation + pre-commit gate
     ├── pre-edit.ts         ← Pre-edit guard: detect multi-file edits, suggest shazam_impact
-    ├── tool-logger.ts      ← Log shazam calls to ~/.pi/hooks/audit/shazam-calls.log
-    └── shazam-guide.ts     ← Inject shazam usage guidance into system prompt
+    ├── shazam-guide.ts     ← Auto-format + contextual tool suggestions
+    ├── stop-verify.ts      ← Remind to verify before ending turn
+    ├── failure-recovery.ts ← Detect consecutive failures, suggest alternatives
+    └── tool-logger.ts      ← Log shazam calls to ~/.pi/hooks/audit/shazam-calls.log
 mcp/                        ← MCP server for non-Pi clients
 ├── entry.ts                ← McpServer + StdioServerTransport init
 ├── tools.ts                ← 14 MCP tool registrations wrapping core
@@ -137,8 +140,11 @@ mcp/                        ← MCP server for non-Pi clients
 | Hook | Event | Auto? | Effect | Value |
 |------|-------|-------|--------|-------|
 | `before-start` | `before_agent_start` | YES | Injects project overview + proactive recommendations into system prompt | HIGH — LLM has structural awareness before reading code |
+| `safety` | `tool_call` (bash) | YES | Destructive command confirmation + pre-commit gate | HIGH — prevents data loss and unverified commits |
 | `pre-edit` | `tool_call` (write/edit) | YES | Detects multi-file edits, warns about blast radius | MEDIUM — prevents accidental multi-file breaks |
-| `shazam-guide` | `tool_result` | YES | Suggests related shazam tools based on context | MEDIUM — helps LLM discover tools |
+| `shazam-guide` | `tool_result` | YES | Auto-format + suggests related shazam tools | HIGH — auto-formats code, helps LLM discover tools |
+| `stop-verify` | `turn_end` | YES | Reminds to verify before ending turn | HIGH — prevents unverified edits |
+| `failure-recovery` | `tool_result` | YES | Detects consecutive failures, suggests alternatives | MEDIUM — prevents LLM loops |
 | `tool-logger` | `tool_call` + `tool_result` | YES | Logs all shazam tool calls to JSONL file | LOW — debugging only, no LLM impact |
 
 ### Hook Details
@@ -151,19 +157,40 @@ mcp/                        ← MCP server for non-Pi clients
 - Creates session baseline for diff-aware verify
 - Effect: LLM starts with full project awareness
 
+**safety** (HIGH value):
+- Runs on `tool_call` for bash commands
+- Destructive command detection: shows interactive confirmation dialog for dangerous commands (rm -rf, dd, mkfs, etc.)
+- Pre-commit gate: blocks git commit if shazam_verify was not run recently
+- Uses Pi's `ctx.ui.confirm()` and `ctx.ui.select()` for user interaction
+- Effect: Prevents data loss and unverified commits
+
 **pre-edit** (MEDIUM value):
 - Runs on `tool_call` for write/edit
 - Tracks files edited in session
 - Warns when editing multiple files or shared modules
 - Effect: Prevents accidental multi-file breaks
 
-**shazam-guide** (MEDIUM value):
+**shazam-guide** (HIGH value):
 - Runs on `tool_result`
+- Auto-format: detects file type and runs native formatter (ruff, prettier, gofmt, rustfmt)
+- Falls back to suggesting `shazam_fix` if no native formatter found
 - Suggests related tools based on context:
-  - After write/edit → suggest `shazam_verify`
   - After symbol lookup → suggest `shazam_call_chain`
   - After grep/find → suggest `shazam_codesearch`
-- Effect: Helps LLM discover the right tool
+- Effect: Auto-formats code, helps LLM discover the right tool
+
+**stop-verify** (HIGH value):
+- Runs on `turn_end` event
+- Checks if there were unverified file edits
+- Sends reminder to run `shazam_verify` before ending turn
+- Effect: Prevents unverified edits from being committed
+
+**failure-recovery** (MEDIUM value):
+- Runs on `tool_result` with `isError` flag
+- Tracks consecutive failures per tool
+- After 3 failures: suggests alternative approaches
+- After 5 failures: suggests reorienting with `shazam_overview`
+- Effect: Prevents LLM loops where it keeps trying the same failing approach
 
 **tool-logger** (LOW value):
 - Runs on `tool_call` + `tool_result`

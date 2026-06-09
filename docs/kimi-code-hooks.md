@@ -187,7 +187,7 @@ Tool-specific `tool_input` shapes:
 }
 ```
 
-## 当前 Hooks 配置（优化后）
+## 当前 Hooks 配置（v0.6.4 优化后）
 
 | 事件 | Matcher | 脚本 | 用途 | 优化来源 |
 |------|---------|------|------|---------|
@@ -196,24 +196,42 @@ Tool-specific `tool_input` shapes:
 | `PreToolUse` | `Bash\|WriteFile\|StrReplaceFile\|ReadFile` | `shazam-guide.sh` | **上下文感知**：根据命令模式建议shazam工具 | 对标 Pi shazam-guide |
 | `PostToolUse` | `Bash\|WriteFile\|StrReplaceFile` | `watchdog.sh` | **看门狗**：重复失败检测 + 多文件编辑追踪 + 审计日志 | 对标 Pi pre-edit + tool-logger |
 | `PostToolUseFailure` | `Bash` | `watchdog.sh` | 失败计数和模式检测 | 新增 |
+| `PostToolUse` | `WriteFile\|StrReplaceFile` | `auto-fix.sh` | **自动格式化**：检测配置并运行 prettier/ruff/gofmt/rustfmt | 对标 Pi shazam-guide auto-format |
+| `PreToolUse` | `Bash` | `pre-commit-shazam.sh` | **Pre-commit gate**：阻断 git commit 除非 shazam_verify 通过 | 对标 Pi safety pre-commit |
+| `Stop` | — | `stop-verify.sh` | **验证提醒**：提醒在结束前运行 shazam_verify | 对标 Pi stop-verify |
+| `StopFailure` | — | `stop-failure.sh` | **失败恢复**：记录失败模式并建议替代方案 | 对标 Pi failure-recovery |
 | `SessionEnd` | — | `session-end.sh` | **会话摘要**：统计、失败模式、未提交提醒 | 对标 Pi baseline |
 
-### 对标 Pi 扩展 Hooks
+### 对标 Pi 扩展 Hooks（v0.6.4 更新）
 
 | Pi Hook | Kimi-Code 对应 | 关键差异 |
 |---------|---------------|---------|
 | `before-start.ts` | `radar-session.sh` | Pi 用 tree-sitter 扫描；Kimi-Code 用文件检测 + package.json 解析 |
+| `safety.ts` (destructive) | `check-destructive.sh` | Pi 用 `ctx.ui.confirm()` 交互式对话框；Kimi-Code 用 exit 2 直接阻断 |
+| `safety.ts` (pre-commit) | `pre-commit-shazam.sh` | Pi 用 `ctx.ui.select()` 选择；Kimi-Code 用 exit 2 阻断 |
 | `pre-edit.ts` | `watchdog.sh` (multi-edit) | Pi 用内存 Map 追踪；Kimi-Code 用 temp 文件持久化 |
-| `shazam-guide.ts` | `shazam-guide.sh` | Pi 在 tool_call/tool_result 事件中通知；Kimi-Code 在 PreToolUse/PostToolUse 中通知 |
+| `shazam-guide.ts` (auto-format) | `auto-fix.sh` | Pi 在 `tool_result` 后自动运行；Kimi-Code 在 `PostToolUse` 后运行 |
+| `stop-verify.ts` | `stop-verify.sh` | Pi 用 `turn_end` 事件；Kimi-Code 用 `Stop` 事件 |
+| `failure-recovery.ts` | `stop-failure.sh` | Pi 用内存计数器；Kimi-Code 用磁盘文件 |
 | `tool-logger.ts` | `watchdog.sh` (audit) | Pi 用 JSONL + 调用时长；Kimi-Code 用简单日志 |
 
-### 优化点（相比旧版）
+### Pi 独有优势
 
-1. **radar-session.sh**: 新增项目分析（语言、包管理器、测试框架、依赖、CI）；resume 检测（紧凑输出）；条件化 shazam 推荐
-2. **shazam-guide.sh**: 从静态工具列表改为上下文感知建议；PostToolUse 多文件编辑检测
-3. **watchdog.sh**: 合并 post-bash.sh + audit-log.sh；新增多文件编辑追踪
-4. **session-end.sh**: 新增失败模式分析、未提交变更提醒、编辑统计
-5. **删除**: shazam-start.sh（静态列表）、post-bash.sh（合并入 watchdog）、audit-log.sh（合并入 watchdog）
+| 功能 | Pi 实现 | Kimi-Code 限制 |
+|------|---------|---------------|
+| **交互式确认对话框** | `ctx.ui.confirm()` + `ctx.ui.select()` | 只能 exit 2 阻断，无用户选择 |
+| **内存状态追踪** | Map 持久化在 Node.js 进程中 | 需要磁盘文件存储状态 |
+| **Auto-format 集成** | 直接调用 `execSync()` 运行 formatter | 需要 shell 脚本调用 |
+| **Turn-end 事件** | `turn_end` 事件精确检测 | `Stop` 事件可能不够精确 |
+
+### 优化点（v0.6.4 新增）
+
+1. **safety.ts**: 新增危险命令交互式确认 + Pre-commit gate
+2. **shazam-guide.ts**: 新增自动格式化功能（ruff/prettier/gofmt/rustfmt/biome）
+3. **stop-verify.ts**: 新增 turn-end 验证提醒
+4. **failure-recovery.ts**: 新增连续失败检测和替代方案建议
+5. **auto-fix.sh**: 新增自动格式化脚本
+6. **pre-commit-shazam.sh**: 新增 Pre-commit gate 脚本
 
 ## 状态持久化
 
