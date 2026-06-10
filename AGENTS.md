@@ -28,19 +28,6 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 - **External dependency**: Language servers (pyright, tsserver, rust-analyzer, gopls) are user-installed; pi-shazam manages process lifecycle
 - **Release artifact**: npm package with `dist/` compiled output
 
-## Current Version
-
-**0.8.0** — synced across all surfaces:
-
-| Surface                     | Version | Check                                                      |
-| --------------------------- | ------- | ---------------------------------------------------------- |
-| `package.json`              | 0.8.0   | `node -e "console.log(require('./package.json').version)"` |
-| MCP server (`mcp/entry.ts`) | 0.9.0   | `grep version mcp/entry.ts`                                |
-| Global npm install          | 0.8.0   | `npm ls -g pi-shazam`                                      |
-| GitHub Release              | v0.8.0  | `gh release view v0.8.0`                                   |
-| Git tag                     | v0.8.0  | `git describe --tags`                                      |
-| npm registry                | 0.8.0   | `npm view pi-shazam version`                               |
-
 ## Commands
 
 | Command                          | Purpose                                                                                          |
@@ -769,3 +756,5 @@ Before committing or creating a PR, verify ALL of the following:
 - [ ] CHANGELOG.md updated if this is a release commit
 - [ ] `tree-sitter-javascript` grammar loaded if `.js`/`.jsx`/`.mjs`/`.cjs` extensions added to `EXT_TO_LANG`
 - [ ] All code comments, JSDoc, commit messages in English (no Chinese)
+- [ ] `docs/kimi-code-hooks.md` updated if kimi-code shell hooks need to reflect pi-shazam changes
+- [ ] Kimi-code hooks (`~/.A1/ai/.kimi-code/hooks/`) reviewed for stale tool names, missing tools, or broken detection logic after pi-shazam upgrades

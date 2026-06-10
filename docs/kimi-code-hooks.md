@@ -270,3 +270,52 @@ fi
 
 exit 0
 ```
+
+## 维护工作
+
+### 何时需要更新
+
+每当 pi-shazam 升级（新增/重命名/删除工具、变更 hooks 行为、新增语言支持）后，**必须**检查以下 kimi-code shell hooks 是否需要同步更新：
+
+| Hook 脚本 | 需要检查的内容 | 触发条件 |
+|-----------|---------------|---------|
+| `mcp-reference.sh` | 工具列表是否完整、工具名是否正确（MCP 格式 `shazam_` 前缀） | 新增/重命名/删除工具 |
+| `shazam-guide.sh` | 是否缺少新工具的触发建议 | 新增工具 |
+| `auto-fix.sh` | formatter 命令是否与 `tools/fix.ts` 一致 | `tools/fix.ts` 变更 |
+| `radar-session.sh` | 工具描述是否准确、推荐列表是否完整 | 工具描述变更 |
+| `stop-verify.sh` | 审计日志路径是否正确 | 日志路径变更 |
+| `pre-commit-shazam.sh` | 检查逻辑是否有效 | 验证流程变更 |
+| `watchdog.sh` | 编辑追踪是否正确 | 工具名或工作流变更 |
+| `session-end.sh` | 会话统计是否完整 | 审计格式变更 |
+| `check-destructive.sh` | 危险模式是否需要新增 | 新危险命令发现 |
+| `stop-failure.sh` | 恢复建议是否仍然合理 | 工具集变更 |
+
+**同步原则**：
+
+- MCP hook 使用 `mcp__pi-shazam__shazam_<name>` 调用格式
+- 所有工具名在 shell hooks 中必须带 `shazam_` 前缀
+- `npx` 命令必须加 `--yes` 防止交互式安装卡死
+- Biome 命令是 `npx --yes @biomejs/biome check --write`，不是 `npx biome format --write`
+- POSIX grep：用 `[[:space:]]` 代替 `\s`，用 `[0-9]` 代替 `\d`
+- 编辑追踪用 `~/.kimi-code/watchdog/edits_<session_prefix>` 文件
+- MCP 调用无法被 bash-audit.log 检测——不能用它来验证 shazam_verify 是否被调用
+
+### 当前 Hook 版本映射
+
+| pi-shazam 版本 | kimi-code hooks 版本 | 备注 |
+|---------------|---------------------|------|
+| v0.9.0 | v1（2026-06-10） | 新增 JS 支持、修复工具名前缀、添加 hover/hotspots/fix 建议、修复编辑计数 bug |
+| v0.8.0 | v0（2026-06-08） | 初始创建 |
+
+### 检查清单
+
+升级 pi-shazam 后：
+
+1. [ ] 检查 `mcp-reference.sh` 工具列表是否完整
+2. [ ] 检查 `shazam-guide.sh` 是否覆盖所有工具的触发模式
+3. [ ] 检查 `auto-fix.sh` formatter 命令是否与 `tools/fix.ts` 一致
+4. [ ] 检查 `radar-session.sh` 工具描述是否准确
+5. [ ] 检查 `stop-verify.sh` 编辑检测是否正确
+6. [ ] 检查 `pre-commit-shazam.sh` 检查逻辑是否有效
+7. [ ] 运行 `bash -n` 语法检查所有脚本
+8. [ ] 更新本文档中的版本映射表
