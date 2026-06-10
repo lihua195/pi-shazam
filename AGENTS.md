@@ -1,14 +1,12 @@
 # pi-shazam
 
 > **IMPORTANT: LANGUAGE RULE**
-> 
-> **All source code, code comments, JSDoc, commit messages, PR titles/descriptions, 
+>
+> **All source code, code comments, JSDoc, commit messages, PR titles/descriptions,
 > GitHub Issue content, and GitHub Release notes MUST be written in English.**
-> 
+>
 > No Chinese or any other non-English language in any artifact that goes into the repository.
 > This is a hard requirement for this project.
-
-
 
 > **DEVELOPMENT RULE: All development and maintenance of this project MUST follow
 > the conventions, workflows, and contracts defined in [INSTRUCTION.md](./docs/INSTRUCTION.md).
@@ -25,32 +23,32 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 
 - **Runtime**: TypeScript on Node.js ≥18, ES2022 target, NodeNext module resolution, ESM (`"type": "module"`)
 - **Package**: npm `pi-shazam`, entry `dist/index.js` (default export function receiving `ExtensionAPI`)
-- **Primary user flow**: LLM calls analysis tools (`overview`, `impact`, `codequery`, etc.) to understand code structure, change impact, and call chains before making edits
+- **Primary user flow**: LLM calls analysis tools (`overview`, `impact`, `codesearch`, etc.) to understand code structure, change impact, and call chains before making edits
 - **Architecture**: 4 layers — `core/` (parsing, graph, ranking), `lsp/` (language server management), `tools/` (Pi tool wrappers), `hooks/` (automatic verification)
 - **External dependency**: Language servers (pyright, tsserver, rust-analyzer, gopls) are user-installed; pi-shazam manages process lifecycle
 - **Release artifact**: npm package with `dist/` compiled output
 
 ## Current Version
 
-**0.7.1** — synced across all surfaces:
+**0.8.0** — synced across all surfaces:
 
-| Surface | Version | Check |
-|---------|---------|-------|
-| `package.json` | 0.8.0 | `node -e "console.log(require('./package.json').version)"` |
-| MCP server (`mcp/entry.ts`) | 0.8.0 | `grep version mcp/entry.ts` |
-| Global npm install | 0.8.0 | `npm ls -g pi-shazam` |
-| GitHub Release | v0.8.0 | `gh release view v0.7.1` |
-| Git tag | v0.8.0 | `git describe --tags` |
-| npm registry | 0.8.0 | `npm view pi-shazam version` |
+| Surface                     | Version | Check                                                      |
+| --------------------------- | ------- | ---------------------------------------------------------- |
+| `package.json`              | 0.8.0   | `node -e "console.log(require('./package.json').version)"` |
+| MCP server (`mcp/entry.ts`) | 0.8.0   | `grep version mcp/entry.ts`                                |
+| Global npm install          | 0.8.0   | `npm ls -g pi-shazam`                                      |
+| GitHub Release              | v0.8.0  | `gh release view v0.8.0`                                   |
+| Git tag                     | v0.8.0  | `git describe --tags`                                      |
+| npm registry                | 0.8.0   | `npm view pi-shazam version`                               |
 
 ## Commands
 
-| Command                          | Purpose                                                                    |
-| -------------------------------- | -------------------------------------------------------------------------- |
-| `npm install --legacy-peer-deps` | Install dependencies (legacy-peer-deps required for tree-sitter)           |
-| `npm run build`                  | Compile TS → `dist/`                                                       |
-| `npm run typecheck`              | `tsc --noEmit` — type validation without emit                              |
-| `npm run dev`                    | `tsc --watch` — incremental compilation                                    |
+| Command                          | Purpose                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `npm install --legacy-peer-deps` | Install dependencies (legacy-peer-deps required for tree-sitter)                                 |
+| `npm run build`                  | Compile TS → `dist/`                                                                             |
+| `npm run typecheck`              | `tsc --noEmit` — type validation without emit                                                    |
+| `npm run dev`                    | `tsc --watch` — incremental compilation                                                          |
 | `npm publish`                    | **DO NOT use directly** — Publishing is done via GitHub Actions (see Release & Publish workflow) |
 
 ## Development Environment
@@ -88,12 +86,17 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 ```
 index.ts                    ← Pi extension entry, default export(pi: ExtensionAPI)
 ├── core/                   ← Pure analysis logic, no Pi dependency
-│   ├── treesitter.ts       ← AST parsing + symbol extraction (14 languages)
+│   ├── treesitter.ts       ← AST parsing + symbol extraction (5 languages)
+│   ├── treesitter-queries.ts ← Tree-sitter query patterns for all languages
 │   ├── graph.ts            ← Symbol dependency graph (imports, calls, references)
 │   ├── pagerank.ts         ← PageRank symbol importance scoring
 │   ├── scanner.ts          ← Project file scanning + graph building
 │   ├── encoding.ts         ← UTF-8 → GBK → GB2312 adaptive encoding
-│   └── cache.ts            ← Graph baseline save/diff + persistent V2 graph cache
+│   ├── cache.ts            ← Graph baseline save/diff + persistent V2 graph cache
+│   ├── baseline.ts         ← In-memory session baseline for diff-aware verify
+│   ├── filter.ts           ← Shared file filtering (source vs config/generated)
+│   ├── output.ts           ← Standardized tool output formatting + Next rules
+│   └── git-hooks.ts        ← Git pre-commit hook install/remove/verify
 ├── lsp/                    ← Language server process management
 │   ├── manager.ts          ← Server lifecycle (spawn, stdio, health, shutdown)
 │   ├── client.ts           ← LSP protocol communication (JSON-RPC over stdio via vscode-jsonrpc)
@@ -102,6 +105,7 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 ├── tools/                  ← One file per registerTool call
 │   ├── _context.ts         ← Tool-level shared LspManager holder (replaces core/lsp-global.ts)
 │   ├── _factory.ts         ← createTool() registration factory (json/maxTokens, scanProject, envelope, truncation)
+│   ├── definitions.ts      ← Shared tool definitions (names, descriptions, param schemas)
 │   ├── lsp_enrich.ts       ← Tool-layer LSP enrichment wrappers (workspace/symbol, documentSymbol, semanticTokens, foldingRange) with 5s timeout + null fallback
 │   ├── overview.ts         ← Scenario trigger: use first in unfamiliar projects (module map, deps, git history, routes)
 │   ├── impact.ts           ← Prerequisite: required before editing 2+ files or shared modules
@@ -137,19 +141,20 @@ mcp/                        ← MCP server for non-Pi clients
 
 ## Hooks (Automatic Event Handlers)
 
-| Hook | Event | Auto? | Effect | Value |
-|------|-------|-------|--------|-------|
-| `before-start` | `before_agent_start` | YES | Injects project overview + proactive recommendations into system prompt | HIGH — LLM has structural awareness before reading code |
-| `safety` | `tool_call` (bash) | YES | Destructive command confirmation + pre-commit gate | HIGH — prevents data loss and unverified commits |
-| `pre-edit` | `tool_call` (write/edit) | YES | Detects multi-file edits, warns about blast radius | MEDIUM — prevents accidental multi-file breaks |
-| `shazam-guide` | `tool_result` | YES | Auto-format + suggests related shazam tools | HIGH — auto-formats code, helps LLM discover tools |
-| `stop-verify` | `turn_end` | YES | Reminds to verify before ending turn | HIGH — prevents unverified edits |
-| `failure-recovery` | `tool_result` | YES | Detects consecutive failures, suggests alternatives | MEDIUM — prevents LLM loops |
-| `tool-logger` | `tool_call` + `tool_result` | YES | Logs all shazam tool calls to JSONL file | LOW — debugging only, no LLM impact |
+| Hook               | Event                       | Auto? | Effect                                                                  | Value                                                   |
+| ------------------ | --------------------------- | ----- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
+| `before-start`     | `before_agent_start`        | YES   | Injects project overview + proactive recommendations into system prompt | HIGH — LLM has structural awareness before reading code |
+| `safety`           | `tool_call` (bash)          | YES   | Destructive command confirmation + pre-commit gate                      | HIGH — prevents data loss and unverified commits        |
+| `pre-edit`         | `tool_call` (write/edit)    | YES   | Detects multi-file edits, warns about blast radius                      | MEDIUM — prevents accidental multi-file breaks          |
+| `shazam-guide`     | `tool_result`               | YES   | Auto-format + suggests related shazam tools                             | HIGH — auto-formats code, helps LLM discover tools      |
+| `stop-verify`      | `turn_end`                  | YES   | Reminds to verify before ending turn                                    | HIGH — prevents unverified edits                        |
+| `failure-recovery` | `tool_result`               | YES   | Detects consecutive failures, suggests alternatives                     | MEDIUM — prevents LLM loops                             |
+| `tool-logger`      | `tool_call` + `tool_result` | YES   | Logs all shazam tool calls to JSONL file                                | LOW — debugging only, no LLM impact                     |
 
 ### Hook Details
 
 **before-start** (HIGH value):
+
 - Runs on `before_agent_start` event
 - Scans project with tree-sitter (cached)
 - Generates overview: module map, key files, git history
@@ -158,6 +163,7 @@ mcp/                        ← MCP server for non-Pi clients
 - Effect: LLM starts with full project awareness
 
 **safety** (HIGH value):
+
 - Runs on `tool_call` for bash commands
 - Destructive command detection: shows interactive confirmation dialog for dangerous commands (rm -rf, dd, mkfs, etc.)
 - Pre-commit gate: blocks git commit if shazam_verify was not run recently
@@ -165,12 +171,14 @@ mcp/                        ← MCP server for non-Pi clients
 - Effect: Prevents data loss and unverified commits
 
 **pre-edit** (MEDIUM value):
+
 - Runs on `tool_call` for write/edit
 - Tracks files edited in session
 - Warns when editing multiple files or shared modules
 - Effect: Prevents accidental multi-file breaks
 
 **shazam-guide** (HIGH value):
+
 - Runs on `tool_result`
 - Auto-format: detects file type and runs native formatter (ruff, prettier, gofmt, rustfmt)
 - Falls back to suggesting `shazam_fix` if no native formatter found
@@ -180,12 +188,14 @@ mcp/                        ← MCP server for non-Pi clients
 - Effect: Auto-formats code, helps LLM discover the right tool
 
 **stop-verify** (HIGH value):
+
 - Runs on `turn_end` event
 - Checks if there were unverified file edits
 - Sends reminder to run `shazam_verify` before ending turn
 - Effect: Prevents unverified edits from being committed
 
 **failure-recovery** (MEDIUM value):
+
 - Runs on `tool_result` with `isError` flag
 - Tracks consecutive failures per tool
 - After 3 failures: suggests alternative approaches
@@ -193,6 +203,7 @@ mcp/                        ← MCP server for non-Pi clients
 - Effect: Prevents LLM loops where it keeps trying the same failing approach
 
 **tool-logger** (LOW value):
+
 - Runs on `tool_call` + `tool_result`
 - Logs to `~/.pi/hooks/audit/shazam-calls.log`
 - JSONL format with timestamps, duration, result
@@ -202,32 +213,32 @@ mcp/                        ← MCP server for non-Pi clients
 
 ### High Value Tools
 
-| Tool | Value | When to Use | Auto-called? |
-|------|-------|-------------|--------------|
-| `shazam_overview` | HIGH | First time in project | YES (via before-start hook) |
-| `shazam_verify` | HIGH | After every edit | NO (LLM calls manually) |
-| `shazam_impact` | HIGH | Before editing 2+ files | NO (LLM calls manually) |
-| `shazam_call_chain` | HIGH | Before changing function signature | NO (LLM calls manually) |
-| `shazam_codesearch` | HIGH | Instead of grep | NO (LLM calls manually) |
-| `shazam_hover` | HIGH | After finding symbol, get type info | NO (LLM calls manually) |
+| Tool                | Value | When to Use                         | Auto-called?                |
+| ------------------- | ----- | ----------------------------------- | --------------------------- |
+| `shazam_overview`   | HIGH  | First time in project               | YES (via before-start hook) |
+| `shazam_verify`     | HIGH  | After every edit                    | NO (LLM calls manually)     |
+| `shazam_impact`     | HIGH  | Before editing 2+ files             | NO (LLM calls manually)     |
+| `shazam_call_chain` | HIGH  | Before changing function signature  | NO (LLM calls manually)     |
+| `shazam_codesearch` | HIGH  | Instead of grep                     | NO (LLM calls manually)     |
+| `shazam_hover`      | HIGH  | After finding symbol, get type info | NO (LLM calls manually)     |
 
 ### Medium Value Tools
 
-| Tool | Value | When to Use | Auto-called? |
-|------|-------|-------------|--------------|
-| `shazam_symbol` | MEDIUM | Look up symbol before importing | NO |
-| `shazam_file_detail` | MEDIUM | Before editing unfamiliar file | NO |
-| `shazam_find_tests` | MEDIUM | When adding tests | NO |
-| `shazam_type_hierarchy` | MEDIUM | For OOP/interface types | NO |
-| `shazam_hotspots` | MEDIUM | Find high-risk files | NO |
-| `shazam_fix` | MEDIUM | Auto-fix format/lint errors | NO |
+| Tool                    | Value  | When to Use                     | Auto-called? |
+| ----------------------- | ------ | ------------------------------- | ------------ |
+| `shazam_symbol`         | MEDIUM | Look up symbol before importing | NO           |
+| `shazam_file_detail`    | MEDIUM | Before editing unfamiliar file  | NO           |
+| `shazam_find_tests`     | MEDIUM | When adding tests               | NO           |
+| `shazam_type_hierarchy` | MEDIUM | For OOP/interface types         | NO           |
+| `shazam_hotspots`       | MEDIUM | Find high-risk files            | NO           |
+| `shazam_fix`            | MEDIUM | Auto-fix format/lint errors     | NO           |
 
 ### Low Value Tools
 
-| Tool | Value | Why |
-|------|-------|-----|
-| `shazam_rename_symbol` | LOW | Rarely used, LLM can use IDE or manual rename |
-| `shazam_safe_delete` | LOW | Rarely used, LLM can delete manually |
+| Tool                   | Value | Why                                           |
+| ---------------------- | ----- | --------------------------------------------- |
+| `shazam_rename_symbol` | LOW   | Rarely used, LLM can use IDE or manual rename |
+| `shazam_safe_delete`   | LOW   | Rarely used, LLM can delete manually          |
 
 ## Core Flows
 
@@ -307,7 +318,7 @@ All tools follow the same pattern:
 
 - **Adding a new tool**: Create `tools/<name>.ts` with `register*` function using `createTool(pi, { name, label, description, params, execute })` from `tools/_factory.ts` → import and call in `index.ts` → the factory auto-handles json/maxTokens params, scanProject, content envelope, and truncation → for complex async tools, use `customExecute` instead of `execute` → append Next recommendation rules to `NEXT_RULES` in `core/output.ts` (no switch to edit) → choose one of 5 description styles: Prerequisite, Scenario trigger, Consequence hint, Action binding, or Anti-pattern warning → sync the tool table in `AGENTS.md`, add full docs to `SKILL.md`, and update `README.md` if user-facing tool list changed
 - **Adding a Next recommendation**: Append a `NextRule` object to `NEXT_RULES` in `core/output.ts`. Each rule: `{ forTools, condition(ctx, graph?), recommendation(ctx) }`. Rules evaluate against context + optional RepoGraph (for graph-aware filters like `hasTestFiles`, `hasHierarchyKinds`).
-- **Adding a new language**: Add grammar to `core/treesitter.ts` EXT_TO_LANG map → add tree-sitter query in queries section → add LSP server config in `lsp/servers.ts`
+- **Adding a new language**: Add grammar to `core/treesitter.ts` EXT_TO_LANG map → add tree-sitter query in `core/treesitter-queries.ts` → add LSP server config in `lsp/servers.ts`
 - **Changing graph algorithm**: Modify `core/pagerank.ts` or `core/graph.ts` → verify all tools that consume `RepoGraph` still produce correct output
 - **Changing LSP protocol**: Modify `lsp/client.ts` → verify `lsp/manager.ts` lifecycle still works → test with at least 2 different language servers
 - **Changing tool output format**: Update the specific `tools/*.ts` formatter → verify JSON envelope schema
@@ -380,13 +391,13 @@ gh issue close <NUM> -r completed -c "Fixed in PR #<PR_NUM>."
 
 ### Branch Naming Convention
 
-| Pattern | Usage |
-|---------|-------|
-| `fix/issue-<NUM>` | Single issue fix |
+| Pattern             | Usage                                |
+| ------------------- | ------------------------------------ |
+| `fix/issue-<NUM>`   | Single issue fix                     |
 | `fix/issue-<A>-<B>` | Multiple related issues (2-5 issues) |
-| `feat/<name>` | New feature |
-| `refactor/<name>` | Refactoring |
-| `docs/<name>` | Documentation only |
+| `feat/<name>`       | New feature                          |
+| `refactor/<name>`   | Refactoring                          |
+| `docs/<name>`       | Documentation only                   |
 
 ### Commit Message Convention
 
@@ -405,12 +416,12 @@ Optional detailed body explaining the fix.
 The CI workflow runs on both `push` to `main` and `pull_request` to `main`.
 Do NOT merge until all jobs pass:
 
-| Job | What It Checks |
-|-----|---------------|
-| `typecheck` | `npx tsc --noEmit` — zero type errors |
-| `test` | `npm test` — all tests pass (ubuntu + macos) |
-| `build` | `npm run build` — `dist/` output exists |
-| `security` | `npm audit --omit=dev` — informational |
+| Job         | What It Checks                               |
+| ----------- | -------------------------------------------- |
+| `typecheck` | `npx tsc --noEmit` — zero type errors        |
+| `test`      | `npm test` — all tests pass (ubuntu + macos) |
+| `build`     | `npm run build` — `dist/` output exists      |
+| `security`  | `npm audit --omit=dev` — informational       |
 
 ### Anti-Patterns
 
@@ -454,7 +465,8 @@ After creating a release, update the release notes with:
 4. **Full Changelog** link
 
 Example:
-```markdown
+
+````markdown
 # v0.6.0
 
 ## What's Changed
@@ -476,9 +488,11 @@ Example:
 npm install -g pi-shazam@latest --legacy-peer-deps
 pi install npm:pi-shazam@latest
 ```
+````
 
 **Full Changelog**: https://github.com/gjczone/pi-shazam/compare/v0.5.5...v0.6.0
-```
+
+````
 
 #### CHANGELOG.md
 
@@ -503,9 +517,10 @@ Use the automated release script:
 
 ```bash
 ./scripts/release.sh patch  # or minor, major
-```
+````
 
 This script handles everything:
+
 1. Bumps version in package.json
 2. Syncs version to all surfaces (mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md)
 3. Builds and tests
@@ -528,6 +543,7 @@ This script handles everything:
 3. Commit and push CHANGELOG.md changes
 
 **Checklist before declaring release done:**
+
 - [ ] GitHub Release has detailed notes (not just "See CHANGELOG")
 - [ ] `CHANGELOG.md` has a `[X.Y.Z]` entry with all changes listed
 - [ ] `CHANGELOG.md` changes committed and pushed
@@ -575,11 +591,11 @@ Manual workflow:
 
 ### After Every Change (Mandatory)
 
-| Step | Command             | What it checks |
-| ---- | ------------------- | -------------- |
-| 1    | `npm run typecheck` | Type safety    |
-| 2    | `npm test`          | 208 tests      |
-| 3    | `npm run build`     | Compile output |
+| Step | Command                                | What it checks            |
+| ---- | -------------------------------------- | ------------------------- |
+| 1    | `npm run typecheck`                    | Type safety               |
+| 2    | `npm test`                             | 224 tests                 |
+| 3    | `npm run build`                        | Compile output            |
 | 4    | `pi -p "call shazam_overview briefly"` | Pi integration smoke test |
 
 ### Pi Integration Testing
@@ -633,7 +649,7 @@ Refer to `docs/INSTRUCTION.md` §1 for the complete contract documentation.
 - **Extension load failure** → Check `docs/INSTRUCTION.md` §1, compare with runtime API version
 - **`text.replace is not a function`** → Check if sendMessage content is string
 - **`Cannot read properties of undefined`** → Check if directly accessing pi.logger/pi.typebox/ctx.ui
-- **Tool not appearing** → Check if register* is called in index.ts
+- **Tool not appearing** → Check if register\* is called in index.ts
 
 ## First Places to Inspect
 
@@ -641,6 +657,8 @@ Refer to `docs/INSTRUCTION.md` §1 for the complete contract documentation.
 - `core/treesitter.ts` — language support, symbol extraction entry
 - `core/graph.ts` — how symbols become a dependency graph
 - `core/scanner.ts` — project scanning + graph building
+- `core/output.ts` — standardized tool output formatting + Next recommendation rules
+- `core/git-hooks.ts` — git pre-commit hook integration
 - `lsp/client.ts` — LSP JSON-RPC implementation
 - `tools/_factory.ts` — createTool() factory: eliminates per-tool boilerplate
 - `tools/overview.ts` — representative tool using the factory (others follow same shape)
@@ -648,7 +666,7 @@ Refer to `docs/INSTRUCTION.md` §1 for the complete contract documentation.
 
 ## Key Directories
 
-- `core/` — Pure analysis, no external I/O beyond filesystem reads
+- `core/` — Pure analysis logic + git hook integration (no Pi/LSP imports)
 - `lsp/` — External process management (language servers)
 - `tools/` — Pi tool registration wrappers (one file per tool)
 - `hooks/` — Automatic event handlers (not LLM-callable). See `docs/INSTRUCTION.md` §3.9
@@ -658,6 +676,8 @@ Refer to `docs/INSTRUCTION.md` §1 for the complete contract documentation.
 ## Important Files
 
 - `index.ts` — extension entry point and registration coordinator
+- `core/output.ts` — standardized tool output formatting + Next recommendation rules
+- `core/git-hooks.ts` — git pre-commit hook install/remove/verify
 - `SKILL.md` — Pi agent skill file documenting all 14 tools for LLM discovery
 - `AGENTS.md` — this file: architecture, conventions, workflows
 - `README.md` — user-facing: Pi + MCP setup, tool list, language support
@@ -670,10 +690,10 @@ Refer to `docs/INSTRUCTION.md` §1 for the complete contract documentation.
 Project documentation lives under `docs/`. Each guide covers a specific topic —
 when working on that topic, read the corresponding guide first.
 
-| Guide | Description |
-|-------|-------------|
-| `docs/INSTRUCTION.md` | **Single source of truth** for all development, maintenance, and release. Covers Pi ExtensionAPI contract (§1), architecture layers and design principles (§2), development workflow including tool/hook/MCP creation (§3), release & publish process (§4), tech stack management (§5), testing patterns and verification gates (§6), key files reference (§7). Read before any change. |
-| `docs/kimi-code-hooks.md` | How to write Kimi Code hooks (shell scripts triggered by lifecycle events). Covers `config.toml` `[[hooks]]` setup, stdin JSON protocol, exit codes, all 15 lifecycle events. Use when adding hooks to Kimi Code's config.toml (external system, not pi-shazam). |
+| Guide                     | Description                                                                                                                                                                                                                                                                                                                                                                             |
+| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/INSTRUCTION.md`     | **Single source of truth** for all development, maintenance, and release. Covers Pi ExtensionAPI contract (§1), architecture layers and design principles (§2), development workflow including tool/hook/MCP creation (§3), release & publish process (§4), tech stack management (§5), testing patterns and verification gates (§6), key files reference (§7). Read before any change. |
+| `docs/kimi-code-hooks.md` | How to write Kimi Code hooks (shell scripts triggered by lifecycle events). Covers `config.toml` `[[hooks]]` setup, stdin JSON protocol, exit codes, all 15 lifecycle events. Use when adding hooks to Kimi Code's config.toml (external system, not pi-shazam).                                                                                                                        |
 
 ## Key Conventions
 
