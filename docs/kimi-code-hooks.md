@@ -187,31 +187,33 @@ Tool-specific `tool_input` shapes:
 }
 ```
 
-## 当前 Hooks 配置（v0.6.4 优化后）
+## 当前 Hooks 配置（v0.9.0 优化后）
 
 | 事件 | Matcher | 脚本 | 用途 | 优化来源 |
 |------|---------|------|------|---------|
+| `UserPromptSubmit` | — | `session-context.sh` | **会话上下文一次性注入**：工作区雷达 + MCP 工具参考，首次提示时注入 | 对标 Pi before-start（替代废弃的 SessionStart） |
 | `PreToolUse` | `Bash` | `check-destructive.sh` | 阻断 rm -rf / dd / mkfs 等危险命令 | 保留 |
-| `SessionStart` | — | `radar-session.sh` | **工作区雷达**：git状态、项目分析、条件化shazam推荐 | 对标 Pi before-start |
 | `PreToolUse` | `Bash\|WriteFile\|StrReplaceFile\|ReadFile` | `shazam-guide.sh` | **上下文感知**：根据命令模式建议shazam工具 | 对标 Pi shazam-guide |
 | `PostToolUse` | `Bash\|WriteFile\|StrReplaceFile` | `watchdog.sh` | **看门狗**：重复失败检测 + 多文件编辑追踪 + 审计日志 | 对标 Pi pre-edit + tool-logger |
 | `PostToolUseFailure` | `Bash` | `watchdog.sh` | 失败计数和模式检测 | 新增 |
 | `PostToolUse` | `WriteFile\|StrReplaceFile` | `auto-fix.sh` | **自动格式化**：检测配置并运行 prettier/ruff/gofmt/rustfmt | 对标 Pi shazam-guide auto-format |
-| `PreToolUse` | `Bash` | `pre-commit-shazam.sh` | **Pre-commit gate**：阻断 git commit 除非 shazam_verify 通过 | 对标 Pi safety pre-commit |
-| `Stop` | — | `stop-verify.sh` | **验证提醒**：提醒在结束前运行 shazam_verify | 对标 Pi stop-verify |
+| `PreToolUse` | `Bash` | `pre-commit-shazam.sh` | **Pre-commit gate**：阻断 git commit 前运行 ruff/tsc 检查 | 对标 Pi safety pre-commit |
+| `Stop` | — | `stop-verify.sh` | **验证提醒**：有编辑时提醒运行 shazam_verify（支持 verified 信号） | 对标 Pi stop-verify |
 | `StopFailure` | — | `stop-failure.sh` | **失败恢复**：记录失败模式并建议替代方案 | 对标 Pi failure-recovery |
-| `SessionEnd` | — | `session-end.sh` | **会话摘要**：统计、失败模式、未提交提醒 | 对标 Pi baseline |
+| `SessionEnd` | — | `session-end.sh` | **会话摘要**：统计、失败模式、未提交提醒，清理临时文件 | 对标 Pi baseline |
 
-### 对标 Pi 扩展 Hooks（v0.6.4 更新）
+> **v0.9.0 变更**：移除 `SessionStart` 和 `SubagentStart` 事件——kimi-code 这些事件属于 observation-only，stdout 被丢弃不会注入对话。改用 `UserPromptSubmit` + `session-context.sh`，通过标记文件实现每会话一次性注入。
+
+### 对标 Pi 扩展 Hooks（v0.9.0 更新）
 
 | Pi Hook | Kimi-Code 对应 | 关键差异 |
 |---------|---------------|---------|
-| `before-start.ts` | `radar-session.sh` | Pi 用 tree-sitter 扫描；Kimi-Code 用文件检测 + package.json 解析 |
+| `before-start.ts` | `session-context.sh` (UserPromptSubmit) | Pi 用 `before_agent_start` event；Kimi-Code 用 `UserPromptSubmit` + 一次性标记 |
 | `safety.ts` (destructive) | `check-destructive.sh` | Pi 用 `ctx.ui.confirm()` 交互式对话框；Kimi-Code 用 exit 2 直接阻断 |
-| `safety.ts` (pre-commit) | `pre-commit-shazam.sh` | Pi 用 `ctx.ui.select()` 选择；Kimi-Code 用 exit 2 阻断 |
+| `safety.ts` (pre-commit) | `pre-commit-shazam.sh` | Pi 用 `ctx.ui.select()` 选择 + shazam_verify 门禁；Kimi-Code 仅 ruff/tsc（MCP 调用无法检测） |
 | `pre-edit.ts` | `watchdog.sh` (multi-edit) | Pi 用内存 Map 追踪；Kimi-Code 用 temp 文件持久化 |
 | `shazam-guide.ts` (auto-format) | `auto-fix.sh` | Pi 在 `tool_result` 后自动运行；Kimi-Code 在 `PostToolUse` 后运行 |
-| `stop-verify.ts` | `stop-verify.sh` | Pi 用 `turn_end` 事件；Kimi-Code 用 `Stop` 事件 |
+| `stop-verify.ts` | `stop-verify.sh` | Pi 用 `turn_end` 事件；Kimi-Code 用 `Stop` 事件 + verified 文件信号 |
 | `failure-recovery.ts` | `stop-failure.sh` | Pi 用内存计数器；Kimi-Code 用磁盘文件 |
 | `tool-logger.ts` | `watchdog.sh` (audit) | Pi 用 JSONL + 调用时长；Kimi-Code 用简单日志 |
 
