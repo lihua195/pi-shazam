@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.1] - 2026-06-10
+
+### Bug Fixes
+
+- **fix(#233): safety.ts ESM crash — require() undefined in ESM context** (#234)
+  - Replaced `require("node:fs")`, `require("node:path")`, `require("node:os")` with shared `hooks/verify-state.ts` module
+  - Pre-commit gate's `hasRecentVerify()` was dead code — always returned false due to caught ReferenceError
+
+- **fix(#233): stop-verify stale reminders — edited files never cleared after verify** (#234)
+  - Clear edited files tracker when `shazam_verify` succeeds
+  - Reset verify flag on new post-verify edits so reminders re-trigger
+
+- **fix(#233): divergent verify detection between safety.ts and stop-verify.ts** (#234)
+  - Unified into shared `hooks/verify-state.ts` module with single source of truth
+
+- **fix(#233): tool-logger _starts Map never cleaned on session boundaries** (#234)
+  - Added `session_start`/`session_shutdown` handlers to clear orphaned entries
+  - Reset `_writeFailed` flag on successful write (was permanently disabling logging)
+
+- **fix(#233): pre-edit path duplication — ./src/foo.ts and src/foo.ts tracked separately** (#234)
+  - Added `normalizeEditedPath()` using `path.resolve()` to canonicalize paths
+
+### Refactoring
+
+- **refactor(#233): remove redundant clearBaseline() call in before-start.ts** (#234)
+  - `createBaseline()` immediately reassigns both `_baseline` and `_previousOrphans`
+
+- **refactor(#233): remove unnecessary optional chaining where types guarantee presence** (#234)
+  - `ctx.ui.notify()` and `ctx.ui.confirm()` — both `ui` and methods are non-optional on their types
+
+### Documentation
+
+- **docs(#233): INSTRUCTION.md hook table listed 4 hooks, actual count is 7** (#234)
+  - Added safety.ts, stop-verify.ts, failure-recovery.ts to the table
+  - Fixed pre-publish grep pattern (replaced ghost `registerAfterWrite` with actual hook names)
+
+- **docs(#233): update AGENTS.md architecture tree and event columns** (#234)
+  - Added verify-state.ts to hooks architecture tree
+  - Updated stop-verify event column to include `tool_result` + `tool_call` + `turn_end`
+
+### Other
+
+- **docs(#233): fix stale JSDoc in shazam-guide.ts** (#234)
+  - Updated tool_call descriptions to match current implementation
+
+- **docs(#233): document handler ordering contract for before_agent_start** (#234)
+  - Added comments in index.ts and before-start.ts explaining required registration order
+
 ## [0.9.0] - 2026-06-10
 
 ### Features & Enhancements
