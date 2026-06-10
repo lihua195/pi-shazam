@@ -300,6 +300,28 @@ exit 0
 - 编辑追踪用 `~/.kimi-code/watchdog/edits_<session_prefix>` 文件
 - MCP 调用无法被 bash-audit.log 检测——不能用它来验证 shazam_verify 是否被调用
 
+### shazam_verify 信号机制
+
+MCP 工具调用不会写入 bash-audit.log，因此 stop-verify.sh 使用**文件信号机制**来检测 shazam_verify 是否已运行：
+
+1. `mcp-reference.sh` 在 SubagentStart 时注入一条规则，格式为：
+   ```
+   VERIFY SIGNAL: after running shazam_verify, signal completion:
+     mkdir -p ~/.kimi-code/watchdog && echo done > ~/.kimi-code/watchdog/verified_<prefix>
+   ```
+   其中 `<prefix>` 是当前 session_id 的前 12 位（由 hook 脚本从 stdin JSON 实时计算）
+
+2. LLM 跑完 `shazam_verify` 后，执行上述 Bash 命令创建标记文件
+
+3. `stop-verify.sh` 在 Stop 事件时检查：
+   - 无编辑 → 跳过
+   - 有编辑 + 无 `verified_<prefix>` 标记 → 提醒
+   - 有编辑 + 有 `verified_<prefix>` 标记 → 跳过
+
+4. `session-end.sh` 在 SessionEnd 时清理 `verified_<prefix>` 文件
+
+**容错**：如果 LLM 忘记创建标记，stop-verify.sh 仍会触发提醒（"if you already ran it, ignore this"），不会遗漏验证。
+
 ### 当前 Hook 版本映射
 
 | pi-shazam 版本 | kimi-code hooks 版本 | 备注 |
