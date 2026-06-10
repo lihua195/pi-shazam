@@ -35,7 +35,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 | Surface                     | Version | Check                                                      |
 | --------------------------- | ------- | ---------------------------------------------------------- |
 | `package.json`              | 0.8.0   | `node -e "console.log(require('./package.json').version)"` |
-| MCP server (`mcp/entry.ts`) | 0.8.0   | `grep version mcp/entry.ts`                                |
+| MCP server (`mcp/entry.ts`) | 0.9.0   | `grep version mcp/entry.ts`                                |
 | Global npm install          | 0.8.0   | `npm ls -g pi-shazam`                                      |
 | GitHub Release              | v0.8.0  | `gh release view v0.8.0`                                   |
 | Git tag                     | v0.8.0  | `git describe --tags`                                      |
