@@ -100,7 +100,7 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 │   ├── file_detail.ts      ← Scenario trigger: shows structure not syntax before first edit
 │   ├── call_chain.ts       ← Consequence hint: without this you ship bugs from missed callers
 │   ├── symbol.ts           ← Scenario trigger: look up symbol before importing/calling (mode=state)
-│   ├── verify.ts           ← Action binding: run after every write/edit (PASS/WARN/FAIL)
+│   ├── verify.ts           ← Action binding: run after every write/edit with LSP codeAction fixes (PASS/WARN/FAIL)
 │   ├── fix.ts              ← Action binding: auto-fix format/lint when verify reports errors
 │   ├── hotspots.ts         ← Consequence hint: without this you optimize the wrong files
 │   ├── hover.ts            ← Action binding: get type signatures + docs after finding a symbol
@@ -129,15 +129,15 @@ mcp/                        ← MCP server for non-Pi clients
 
 ## Hooks (Automatic Event Handlers)
 
-| Hook               | Event                       | Auto? | Effect                                                                  | Value                                                   |
-| ------------------ | --------------------------- | ----- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
-| `before-start`     | `before_agent_start`        | YES   | Injects project overview + proactive recommendations into system prompt | HIGH — LLM has structural awareness before reading code |
-| `safety`           | `tool_call` (bash)          | YES   | Destructive command confirmation + pre-commit gate                      | HIGH — prevents data loss and unverified commits        |
-| `pre-edit`         | `tool_call` (write/edit)    | YES   | Detects multi-file edits, warns about blast radius                      | MEDIUM — prevents accidental multi-file breaks          |
-| `shazam-guide`     | `tool_result`               | YES   | Auto-format + suggests related shazam tools                             | HIGH — auto-formats code, helps LLM discover tools      |
-| `stop-verify`      | `tool_result` + `tool_call` + `turn_end` | YES | Reminds to verify before ending turn, resets on new edits          | HIGH — prevents unverified edits                        |
-| `failure-recovery` | `tool_result`               | YES   | Detects consecutive failures, suggests alternatives                     | MEDIUM — prevents LLM loops                             |
-| `tool-logger`      | `tool_call` + `tool_result` | YES   | Logs all shazam tool calls to JSONL file                                | LOW — debugging only, no LLM impact                     |
+| Hook               | Event                                    | Auto? | Effect                                                                  | Value                                                   |
+| ------------------ | ---------------------------------------- | ----- | ----------------------------------------------------------------------- | ------------------------------------------------------- |
+| `before-start`     | `before_agent_start`                     | YES   | Injects project overview + proactive recommendations into system prompt | HIGH — LLM has structural awareness before reading code |
+| `safety`           | `tool_call` (bash)                       | YES   | Destructive command confirmation + pre-commit gate                      | HIGH — prevents data loss and unverified commits        |
+| `pre-edit`         | `tool_call` (write/edit)                 | YES   | Detects multi-file edits, warns about blast radius                      | MEDIUM — prevents accidental multi-file breaks          |
+| `shazam-guide`     | `tool_result`                            | YES   | Auto-format + suggests related shazam tools                             | HIGH — auto-formats code, helps LLM discover tools      |
+| `stop-verify`      | `tool_result` + `tool_call` + `turn_end` | YES   | Reminds to verify before ending turn, resets on new edits               | HIGH — prevents unverified edits                        |
+| `failure-recovery` | `tool_result`                            | YES   | Detects consecutive failures, suggests alternatives                     | MEDIUM — prevents LLM loops                             |
+| `tool-logger`      | `tool_call` + `tool_result`              | YES   | Logs all shazam tool calls to JSONL file                                | LOW — debugging only, no LLM impact                     |
 
 ### Hook Details
 
@@ -258,22 +258,22 @@ mcp/                        ← MCP server for non-Pi clients
 
 ### Registered Tools (LLM-visible)
 
-| Tool                    | Style            | Description                                                                                    |
-| ----------------------- | ---------------- | ---------------------------------------------------------------------------------------------- |
-| `shazam_overview`       | Scenario trigger | When you first enter a project — see structure, deps, git history before reading a single file |
-| `shazam_impact`         | Prerequisite     | Required before editing 2+ files or any shared/exported module                                 |
-| `shazam_codesearch`     | Anti-pattern     | Don't reach for grep — this ranks results by relevance with BM25                               |
-| `shazam_symbol`         | Scenario trigger | When you need to look up a symbol before importing or calling it                               |
-| `shazam_hover`          | Action binding   | After finding a symbol, get its full type signature and documentation                          |
-| `shazam_file_detail`    | Scenario trigger | When about to edit an unfamiliar file — shows structure, not just syntax                       |
-| `shazam_call_chain`     | Consequence hint | Without this you ship bugs — traces ALL upstream callers and downstream callees                |
-| `shazam_verify`         | Action binding   | After every write or edit — confirm no errors (PASS/WARN/FAIL)                                 |
-| `shazam_find_tests`     | Scenario trigger | When adding tests — discover test files and coverage for a module                              |
-| `shazam_hotspots`       | Consequence hint | Without this you optimize the wrong files — ranked by blast radius                             |
-| `shazam_fix`            | Action binding   | When verify reports format/lint errors — auto-fix with nearest-wins formatters                 |
-| `shazam_type_hierarchy` | Scenario trigger | When working with OOP types — see the full inheritance chain                                   |
-| `shazam_rename_symbol`  | Prerequisite     | Safety gate before renaming — verify references first, then rename                             |
-| `shazam_safe_delete`    | Prerequisite     | Safety gate before removal — verify zero incoming references first                             |
+| Tool                    | Style            | Description                                                                                                        |
+| ----------------------- | ---------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `shazam_overview`       | Scenario trigger | When you first enter a project — see structure, deps, git history before reading a single file                     |
+| `shazam_impact`         | Prerequisite     | Required before editing 2+ files or any shared/exported module                                                     |
+| `shazam_codesearch`     | Anti-pattern     | Don't reach for grep — this ranks results by relevance with BM25                                                   |
+| `shazam_symbol`         | Scenario trigger | When you need to look up a symbol before importing or calling it                                                   |
+| `shazam_hover`          | Action binding   | After finding a symbol, get its full type signature, documentation, and signatureHelp for function call context    |
+| `shazam_file_detail`    | Scenario trigger | When about to edit an unfamiliar file — shows structure, not just syntax; also shows reference counts via codeLens |
+| `shazam_call_chain`     | Consequence hint | Without this you ship bugs — traces ALL upstream callers and downstream callees                                    |
+| `shazam_verify`         | Action binding   | After every write or edit — confirm no errors (PASS/WARN/FAIL)                                                     |
+| `shazam_find_tests`     | Scenario trigger | When adding tests — discover test files and coverage for a module                                                  |
+| `shazam_hotspots`       | Consequence hint | Without this you optimize the wrong files — ranked by blast radius                                                 |
+| `shazam_fix`            | Action binding   | When verify reports format/lint errors — auto-fix with nearest-wins formatters                                     |
+| `shazam_type_hierarchy` | Scenario trigger | When working with OOP types — see the full inheritance chain                                                       |
+| `shazam_rename_symbol`  | Prerequisite     | Safety gate before renaming — verify references first, then rename                                                 |
+| `shazam_safe_delete`    | Prerequisite     | Safety gate before removal — verify zero incoming references first                                                 |
 
 All tools follow the same pattern:
 

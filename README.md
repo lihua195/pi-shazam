@@ -59,21 +59,21 @@ Compatible with any MCP-capable client. Same analysis engine, JSON-based tool in
 | `shazam_impact`         | Change impact analysis: affected files, symbols, tests                             |
 | `shazam_codesearch`     | BM25 symbol search — ranked alternative to grep                                    |
 | `shazam_symbol`         | Symbol definition, signature, callers, callees                                     |
-| `shazam_hover`          | Type signatures and JSDoc — rich info from LSP                                     |
-| `shazam_file_detail`    | All symbols in a file: signatures, PageRank, call counts, LSP hierarchy            |
+| `shazam_hover`          | Type signatures, JSDoc, signatureHelp for function call context                    |
+| `shazam_file_detail`    | File structure: symbols, PageRank, call counts, LSP hierarchy, codeLens refs       |
 | `shazam_call_chain`     | Full upstream/downstream call graph                                                |
 | `shazam_find_tests`     | Find test files covering a module                                                  |
 | `shazam_hotspots`       | Files ranked by complexity — where bugs hurt most                                  |
-| `shazam_type_hierarchy` | Class/interface inheritance chain                                                  |
+| `shazam_type_hierarchy` | Class/interface inheritance chain + implementation locations                       |
 
 ### Write & Verify
 
-| Tool                   | What It Does                                                                 |
-| ---------------------- | ---------------------------------------------------------------------------- |
-| `shazam_verify`        | Post-edit verification: LSP diagnostics + risk assessment + orphan detection |
-| `shazam_fix`           | Auto-fix format issues (prettier, biome, eslint, ruff, gofmt)                |
-| `shazam_rename_symbol` | Safe project-wide rename — verify references first                           |
-| `shazam_safe_delete`   | Delete with zero-reference confirmation                                      |
+| Tool                   | What It Does                                                                |
+| ---------------------- | --------------------------------------------------------------------------- |
+| `shazam_verify`        | Post-edit verification: LSP diagnostics + codeAction fixes + risk + orphans |
+| `shazam_fix`           | Auto-fix format issues (prettier, biome, eslint, ruff, gofmt)               |
+| `shazam_rename_symbol` | Safe project-wide rename — verify references first                          |
+| `shazam_safe_delete`   | Delete with zero-reference confirmation                                     |
 
 ## Platform Support
 
