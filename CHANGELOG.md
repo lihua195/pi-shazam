@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.4] - 2026-06-13
+
+### Bug Fixes
+
+- **fix(#243,#244): findOrphans skips side-effect modules and .d.ts ambient files** (#245)
+  - Side-effect modules: symbols in files that appear in any other file's `fileImports` list are now excluded from orphan detection. A `import './polyfill'` creates only a file-level edge, no symbol bindings — previously all of the file's internal symbols were falsely reported as orphans.
+  - `.d.ts` files: all symbols in ambient declaration files are now excluded. Tree-sitter emits them as regular `interface` / `function` / `type` with `visibility=public`, but their consumers are via global scope or type-only imports — invisible to symbol-level static analysis.
+
+### Tests
+
+- Added 3 new tests (side-effect skip, negative case, .d.ts skip). Full suite: 271 passed (was 268).
+
 ## [0.9.3] - 2026-06-13
 
 ### Bug Fixes
