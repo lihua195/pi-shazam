@@ -58,12 +58,18 @@ export const TOOL_DEFINITIONS: Record<string, ToolDefinition> = {
 		typeboxParams: Type.Object({
 			query: Type.String(),
 			target: Type.Optional(Type.Union([Type.Literal("symbol"), Type.Literal("code")])),
+			mode: Type.Optional(Type.Union([Type.Literal("literal"), Type.Literal("regex"), Type.Literal("smart")])),
 			topN: Type.Optional(Type.Number()),
 			maxTokens: Type.Optional(Type.Number()),
 		}),
 		zodParams: z.object({
 			query: z.string().describe("Search query text"),
 			target: z.enum(["symbol", "code"]).optional().default("symbol").describe("symbol or code"),
+			mode: z
+				.enum(["literal", "regex", "smart"])
+				.optional()
+				.default("literal")
+				.describe("Search mode for target=code: literal (exact), regex (tokenized), smart (auto-detect NL)"),
 			topN: z.number().optional().describe("Max results to return"),
 		}),
 	},
