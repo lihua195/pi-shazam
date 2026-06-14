@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.1] - 2026-06-14
+
+### Bug Fixes
+
+- **fix(#264,#266): commit gate checks verify PASS/FAIL and gives clear instructions** (#268)
+  - `hooks/verify-state.ts`: added verdict tracking (PASS/FAIL) to `markVerifyCalled()`, new `hasRecentPassingVerify()` function
+  - `hooks/stop-verify.ts`: extracts text from verify result content blocks for verdict parsing
+  - `hooks/safety.ts`: pre-commit gate now uses `hasRecentPassingVerify()` with detailed rejection message
+
+- **fix(#265): assessRisk uses orphan delta instead of absolute count** (#269)
+  - `tools/verify.ts`: `assessRisk()` now computes orphan delta from session baseline via `diffFromBaseline()`
+  - Uses `newOrphanCount` for threshold checks instead of `internalOrphans.length`
+  - Falls back to absolute count when no session baseline exists
+
+- **fix(#260,#261): exclude vendor/minified files from impact blast radius and hotspots** (#273)
+  - `core/filter.ts`: added patterns for `vendor/`, `*.min.*`, `*.generated.*`, `*.bundle.*` to `NON_SOURCE_FILE_PATTERNS`
+  - `tools/impact.ts`: filters `affectedFiles` with `isNonSourceFile()` in both `executeImpact()` and `executeImpactJson()`
+
+- **fix(#267): add --direction parameter to call_chain** (#270)
+  - `tools/call_chain.ts`: added `direction` parameter (`incoming`|`outgoing`|`both`, default `both`)
+  - `tools/definitions.ts`, `mcp/tools.ts`: updated schemas and MCP handler
+
+- **fix(#263): add smart tokenization fallback for natural language codesearch queries** (#272)
+  - `tools/codesearch.ts`: added `mode` parameter (`literal`|`regex`|`smart`)
+  - When literal search returns < 3 results and query looks like natural language, auto-falls back to tokenized regex search
+  - `tools/definitions.ts`, `mcp/tools.ts`: updated schemas
+
+- **fix(#262): exclude TypeScript interfaces and type aliases from orphan detection** (#271)
+  - `core/filter.ts`: `findOrphans()` now skips `interface` and `type_alias` symbols (pure type-level, no runtime callers)
+
 ## [0.10.0] - 2026-06-14
 
 ### Features & Enhancements
