@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.5] - 2026-06-14
+
+### Bug Fixes
+
+- **fix(#289): MCP tool params silently dropped** (#294)
+  - `shazam_impact`: now forwards `withSymbols` and `compact` params
+  - `shazam_codesearch`: now forwards `topN` param
+  - `shazam_hotspots`: now forwards `topN` param + added to Zod schema
+- **fix(#292): hooks bugs** (#294)
+  - `pre-edit.ts`: `_tentativeFiles` now cleaned on success
+  - `issue-guard.ts`: only clears pending impact flag on success
+- **fix: `execSync` → `execFileSync` in `before-start.ts`** (#294)
+- **fix: biome command `format` → `check` in `shazam-guide.ts`** (#293)
+- **fix: ruff detection now checks `[tool.ruff]` in pyproject.toml** (#293)
+- **fix: `sudo rm -rf /` safety bypass in kimi-code hooks**
+- **fix: fork bomb detection added to kimi-code hooks**
+
+### Documentation
+
+- **fix(#290): SKILL.md parameter docs updated for 6 tools** (#294)
+- **fix(#291): docs/INSTRUCTION.md stale references fixed** (#294)
+- **fix: mcp-reference.sh injection content corrected** (#293)
+
+### Refactoring
+
+- **fix: translate 4 Chinese comments to English** (#293)
+- **fix: remove stale JSDoc in shazam-guide.ts and pre-edit.ts** (#293)
+
 ## [0.10.4] - 2026-06-14
 
 ### Security Fixes
