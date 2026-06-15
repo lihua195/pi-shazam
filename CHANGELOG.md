@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-06-15
+
+### Features & Enhancements
+
+- **enhance(#311): tools/ safety and usability improvements** (#314)
+  - **rename_symbol**: Added backup-before-write rollback mechanism — if any file write fails during rename, all already-written files are rolled back to their backup content (atomic operation)
+  - **impact**: Replaced single-hop edge traversal with BFS + `--depth` parameter (default 3). Deep call chains (A→B→C→D) now correctly surface all affected files
+  - **call_chain**: Added `MAX_DISPLAY_REFS = 50` automatic output truncation to prevent token explosion on heavily-referenced symbols
+  - **safe_delete**: Added dynamic reference warning when zero static refs found — warns about eval(), dynamic import(), Reflect API limitations
+
+- **enhance(#313): CI and test coverage improvements** (#316)
+  - Added 26 MCP integration tests covering full scan → analyze → format pipeline using project codebase as fixture
+  - Added 11 performance benchmark tests with synthetic project generation and time budgets (scanProject, PageRank, codesearch)
+  - Added `integration` and `benchmark` CI jobs with appropriate timeouts
+
+### Bug Fixes
+
+- **fix(#312): hooks/ and entry layer fixes** (#315)
+  - **before-start**: Added file count pre-check (>5000 source files → skip sync scan, return placeholder). Prevents 5-10s agent startup blocking on large projects
+  - **safety**: Replaced `lower.includes()` substring matching with regex + whitespace normalization. Now catches `rm  -rf` (extra spaces), `rm -r -f` (split flags), `rm\t-rf` (tabs)
+  - **shazam-guide**: Switched all 5 `execFileSync` calls to async `promisify(execFile)`. Function was declared `async` but used sync execution — now truly async
+  - **index**: Added `lspManager.shutdown()` on LSP initialization timeout to clean up orphaned language server processes
+
+### Skipped Findings (False Positives Verified)
+
+- **#25 verify concurrency lock**: Node.js is single-threaded, no CPU contention risk from concurrent async calls
+- **#48 MCP parameter validation**: Zod schemas in `definitions.ts` already validate via MCP SDK `inputSchema`
+- **#27 ripgrep availability**: `codesearch.ts` already has `findRipgrep()` with fallback to builtin JS search
+
 ## [0.10.7] - 2026-06-15
 
 ### Bug Fixes
