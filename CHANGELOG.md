@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-06-15
+
+### Bug Fixes
+
+- **fix(#309): core/ robustness — atomic cache write, husky detection** (#317)
+  - **cache**: `saveGraphCache` now writes to `.tmp` file first, then uses `renameSync` for atomic cache updates. Process crash mid-write no longer corrupts the cache.
+  - **git-hooks**: `installPreCommitHook` now detects `.husky/` directory and `lefthook.yml`/`lefthook.yaml` before overwriting. Throws with user-friendly instructions when a hook manager is detected.
+
+- **fix(#310): LSP reliability — request cancellation, async reads, adaptive timeout** (#318)
+  - **lsp/client**: Added `CancellationTokenSource` for all LSP requests. On timeout, sends `$/cancelRequest` to the server. Replaced all 15 `withTimeout(sendRequest(...))` patterns with `_sendRequest(...)` helper.
+  - **core/encoding**: Added `readFileAdaptiveAsync()` using `fs.promises.readFile` and `fs.promises.stat`. Same encoding fallback logic (UTF-8 → GBK → GB2312).
+  - **tools/lsp_enrich**: `ensureFileOpened()` now uses async file reading. Added adaptive timeout: 10s for first request per file, 5s for subsequent.
+
+### Skipped Findings (False Positives Verified)
+
+- **#9 PageRank dangling mass**: Already redistributes dangling node mass uniformly
+- **#8 PageRank convergence**: Already has parameterized `maxIter=50` and `tol=1e-6` with early-break
+- **#19 LSP server command path**: Already has 3-tier search (project-local, PATH, user home)
+
 ## [0.11.0] - 2026-06-15
 
 ### Features & Enhancements
