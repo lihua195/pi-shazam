@@ -56,7 +56,7 @@ Compatible with any MCP-capable client. Same analysis engine, JSON-based tool in
 | Tool                    | What It Does                                                                       |
 | ----------------------- | ---------------------------------------------------------------------------------- |
 | `shazam_overview`       | Project structure, top-10 core files by PageRank, key dependencies, recent commits |
-| `shazam_impact`         | Change impact analysis: affected files, symbols, tests                             |
+| `shazam_impact`         | Change impact analysis (BFS depth tracking, default 3): affected files, symbols, tests |
 | `shazam_codesearch`     | BM25 symbol search + ripgrep full-text search (target=symbol/code) — ranked alternative to grep                                    |
 | `shazam_symbol`         | Symbol definition, signature, callers, callees                                     |
 | `shazam_hover`          | Type signatures, JSDoc, signatureHelp for function call context                    |
