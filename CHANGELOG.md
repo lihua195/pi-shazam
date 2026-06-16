@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.13.0] - 2026-06-17
+
+### Features & Enhancements
+
+- **enhance(#327): P1 correctness batch** (#328)
+  - **core/scanner**: use `statSync` (follows symlinks) instead of `lstatSync`; add symlink cycle detection via visited-realpath set
+  - **core/filter**: allowlist `.github/.husky/.vscode/.claude` in `isTrackableEditedPath`
+  - **tools/codesearch**: `builtinRegexSearch` now performs real regex matching with graceful literal fallback
+  - **tools/overview**: use `params.project` instead of hardcoded `"."` for project root
+  - **tools/definitions**: add TypeBox bounds on `depth` (1-10) and `topN` (1-50); clamp at runtime as defense-in-depth
+  - **tools/fix**: validate `file` parameter does not escape project root
+  - **tools/verify**: replace `execAsync(command)` with `execFileAsync(program, args)` to remove shell injection surface
+  - **lsp/client**: null-check connection in `_sendRequest`, dispose `CancellationTokenSource`, track `_openedFiles` in `didClose`, remove dead `MAX_NOTIFICATIONS_PER_URI`
+  - **mcp/entry**: `await shutdown()` before `process.exit(0)` in SIGTERM/SIGINT handlers
+  - **hooks/issue-guard**: scope `isError` trigger to bash + `gh`/`npm test` only
+
+### Bug Fixes
+
+- **fix(#326): rename_symbol safety gate no longer blocks after preview** (#329)
+  - Added `hooks/rename-state.ts` — session-scoped set of symbols reviewed via `shazam_call_chain`
+  - `tools/call_chain.ts` records reviewed symbols on successful execution
+  - `tools/rename_symbol.ts` gates `dryRun=false` on `hasCallChainChecked(symbol)` — infinite preview loop eliminated
+
+### Refactoring
+
+- **refactor(#324): shared bash command tokenizer** (#328)
+  - New `hooks/_bash-utils.ts` with `tokenizeCommand` (now handles bash `'\''` escape) and `extractCommandFromEvent`
+  - Deleted duplicate implementations in `hooks/safety.ts` and `hooks/issue-guard.ts`
+  - 12 unit tests covering edge cases
+- **refactor(#325): shared impact BFS** (#329)
+  - Extracted `computeImpactBfs()` in `tools/impact.ts`; `graph.incoming` / `graph.outgoing` now appear exactly once
+  - Text and JSON formatters share traversal output; fixed latent negative `affectedFileCount` bug
+- **refactor(#327): dead-code cleanup** (#328)
+  - Deleted unused exports from `core/{baseline,encoding,cache}` and dead `executeCheck`/`executeReady` from `tools/verify.ts`
+  - `tools/rename_symbol.ts`: log rollback failures instead of swallowing
+  - `lsp/manager.ts`: removed dead assignment
+  - `mcp/tools.ts`: added inline `redact()` with secret patterns for audit log
+  - Simplified `[rRfF]` regex to `[rf]` in `hooks/safety.ts` (input already lowercased)
+
+### Other
+
+- **docs**: AGENTS.md hooks tree synced with `hooks/_bash-utils.ts` and `hooks/rename-state.ts`
+- **kimi-code plugin**: updated `mcp-reference.sh` CORE RULES to require `shazam_call_chain` before `shazam_rename_symbol`
+
 ## [0.12.0] - 2026-06-15
 
 ### Bug Fixes
