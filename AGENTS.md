@@ -22,7 +22,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 ## Project Snapshot
 
 - **Runtime**: TypeScript on Node.js ≥18, ES2022 target, NodeNext module resolution, ESM (`"type": "module"`)
-- **Package**: npm `pi-shazam` (v0.13.0), entry `dist/index.js` (default export function receiving `ExtensionAPI`)
+- **Package**: npm `pi-shazam` (v0.13.1), entry `dist/index.js` (default export function receiving `ExtensionAPI`)
 - **Primary user flow**: LLM calls analysis tools (`overview`, `impact`, `codesearch`, etc.) to understand code structure, change impact, and call chains before making edits
 - **Architecture**: 4 layers — `core/` (parsing, graph, ranking), `lsp/` (language server management), `tools/` (Pi tool wrappers), `hooks/` (automatic verification)
 - **External dependency**: Language servers (pyright, tsserver, rust-analyzer, gopls) are user-installed; pi-shazam manages process lifecycle
@@ -83,6 +83,9 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 │   ├── baseline.ts         ← In-memory session baseline for diff-aware verify
 │   ├── filter.ts           ← Shared file filtering (source vs config/generated)
 │   ├── output.ts           ← Standardized tool output formatting + Next rules
+│   ├── redact.ts            ← Shared secret redaction for audit logs
+│   ├── formatters.ts        ← Shared formatter/linter detection
+│   ├── audit-log.ts         ← Unified audit log rotation policy
 │   └── git-hooks.ts        ← Git pre-commit hook install/remove/verify
 ├── lsp/                    ← Language server process management
 │   ├── manager.ts          ← Server lifecycle (spawn, stdio, health, shutdown)
@@ -487,6 +490,9 @@ Refer to `docs/INSTRUCTION.md` §1 for the complete contract documentation.
 - `core/treesitter.ts` — language support, symbol extraction entry
 - `core/graph.ts` — how symbols become a dependency graph
 - `core/scanner.ts` — project scanning + graph building
+- `core/redact.ts` — shared secret redaction
+- `core/formatters.ts` — formatter detection
+- `core/audit-log.ts` — audit log rotation
 - `core/output.ts` — standardized tool output formatting + Next recommendation rules
 - `core/git-hooks.ts` — git pre-commit hook integration
 - `lsp/client.ts` — LSP JSON-RPC implementation

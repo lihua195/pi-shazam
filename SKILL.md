@@ -207,7 +207,7 @@ Required safety gate before renaming any symbol. This is a WRITE operation.
 
 ### shazam_safe_delete
 
-Required safety gate before removing any symbol. This is a WRITE operation.
+Required safety gate before removing any symbol. READ-ONLY safety check; returns deletion guidance, does not delete.
 
 **Parameters**: `{ symbol: string, dryRun? }`
 

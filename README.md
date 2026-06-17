@@ -91,7 +91,7 @@ Compatible with any MCP-capable client. Same analysis engine, JSON-based tool in
 | `issue-guard`      | `tool_call` (bash) + `tool_result` | Detects `gh issue create`, blocks edits until `shazam_impact` runs                   |
 | `agent-context-guard` | `tool_call` (agent)       | Blocks agent spawn without structural context for review tasks                              |
 
-**Auto-format support**: ruff (Python), prettier (JS/TS/JSON/MD), gofmt (Go), rustfmt (Rust), biome (JS/TS)
+**Auto-format support**: ruff (Python), prettier (JS/TS/JSON/MD), eslint (JS/TS), gofmt (Go), rustfmt (Rust), biome (JS/TS)
 
 Additional commands: `/shazam-setup`, `/shazam-doctor`, `/shazam-install-git-hooks`, `/shazam-remove-git-hooks`, `/shazam-pre-commit-verify`
 
@@ -186,6 +186,9 @@ pi-shazam (npm package)
     ├── baseline.ts                     In-memory session baseline
     ├── filter.ts                       Shared file filtering (source vs config/generated)
     ├── output.ts                       Standardized tool output formatting
+    ├── redact.ts                   Shared secret redaction
+    ├── formatters.ts               Formatter/linter detection
+    ├── audit-log.ts                Audit log rotation
     └── git-hooks.ts                    Git pre-commit hook management
 ```
 

@@ -255,6 +255,9 @@ index.ts                    <- Pi extension entry, default export(pi: ExtensionA
   │   ├── encoding.ts       <- UTF-8 -> GBK -> GB2312 adaptive encoding
   │   ├── filter.ts         <- File filtering (gitignore, binary, size)
   │   ├── output.ts         <- Output formatting, Next recommendations, truncation
+  │   ├── redact.ts         <- Shared secret redaction
+  │   ├── formatters.ts     <- Shared formatter/linter detection
+  │   ├── audit-log.ts      <- Unified audit log rotation policy
   │   └── cache.ts          <- Graph baseline save/diff + persistent V2 graph cache
   ├── lsp/                  <- Language server process management
   │   ├── manager.ts        <- Server lifecycle (spawn, stdio, health, shutdown)
