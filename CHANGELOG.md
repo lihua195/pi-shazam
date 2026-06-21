@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.1] - 2026-06-21
+
+### Features & Enhancements
+
+- **feat: Language availability awareness** — `core/treesitter.ts` now tracks parser load status per language. `tools/overview.ts` and `hooks/before-start.ts` inject parser availability warnings into LLM context when a project uses languages whose tree-sitter grammar failed to load. Prevents "silent failures" where graph-based tools return empty for valid files.
+- **refactor: Contextual parser warnings** — `getProjectParserWarnings(filePaths)` only alerts for languages the project actually uses. Pure TypeScript projects never see Dart warnings. Mixed projects only see warnings for their own unavailable languages.
+
+### Bug Fixes
+
+- **fix: release.sh automation** — Auto-extract CHANGELOG.md section for GitHub Release notes (replaces placeholder "See CHANGELOG for details"). Auto-delete merged remote temporary branches (Step 8.5). Added Dart to overview language list.
+
+### Documentation
+
+- **docs(OPS.md)**: Phase 7 Self-Improvement Retrospective — companion file audit table + process retrospective checklist. Rule: fix OPS.md gaps in the same release.
+
 ## [0.14.0] - 2026-06-21
 
 ### Features & Enhancements
