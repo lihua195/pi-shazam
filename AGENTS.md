@@ -117,6 +117,39 @@ Reasoning effort is set to xhigh. Please think carefully through the task, valid
 
 - Python: ALL operations MUST go through `uv` — installing, running, syncing, building. NEVER invoke `python`, `pip`, `venv`, or `virtualenv` directly. If a command needs Python, wrap it with `uv run`. If dependencies need installing, use `uv sync`. If a virtual environment is needed, `uv` manages it automatically.
 
+## 9) Open Source Issue Reply Guidelines
+
+pi-shazam is an open-source project. When replying to issues filed by external (non-owner) users:
+
+- **Tone**: Warm, appreciative, and welcoming. This is someone giving us free time and feedback — treat them as a valued contributor, not a ticket number.
+- **Language**: Reply in English (open-source convention). Use the user's name or GitHub handle.
+- **Structure**: Acknowledge the issue → state what was done → mention the fix version → thank them.
+- **For bug reports**: Thank them for finding it, confirm the root cause briefly, link the fixing PR, mention the version it will ship in.
+- **For feature requests**: Thank them for the idea, explain whether/how it will be implemented, mention any known limitations (e.g., dependency constraints).
+- **Never**: Be dismissive, blame the user, leave an issue unacknowledged for more than 48 hours, or close without explanation.
+- **Template for bug fix**:
+  ```
+  Hi @{user}, thank you for reporting this!
+
+  Root cause: [brief explanation]
+
+  Fixed in PR #{pr_number}, shipped in v{version}.
+  Please upgrade: `pi install npm:pi-shazam@latest`
+
+  Feel free to reopen if you still see the issue after updating.
+  ```
+- **Template for feature request**:
+  ```
+  Hi @{user}, great suggestion!
+
+  Implemented in PR #{pr_number}, shipping in v{version}.
+
+  Known limitation: [if any, explain briefly]
+  Full support will be available when [condition, e.g., dependency upgrades].
+
+  Thanks for helping us improve!
+  ```
+
 <general-project-rules>
 
 # pi-shazam
@@ -192,7 +225,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 ```
 index.ts                    ← Pi extension entry, default export(pi: ExtensionAPI)
 ├── core/                   ← Pure analysis logic, no Pi dependency
-│   ├── treesitter.ts       ← AST parsing + symbol extraction (6 languages)
+│   ├── treesitter.ts       ← AST parsing + symbol extraction (7 languages)
 │   ├── treesitter-queries.ts ← Tree-sitter query patterns for all languages
 │   ├── graph.ts            ← Symbol dependency graph (imports, calls, references)
 │   ├── pagerank.ts         ← PageRank symbol importance scoring
@@ -204,12 +237,13 @@ index.ts                    ← Pi extension entry, default export(pi: Extension
 │   ├── output.ts           ← Standardized tool output formatting + Next rules
 │   ├── redact.ts           ← Shared secret redaction for audit logs
 │   ├── formatters.ts       ← Shared formatter/linter detection
+│   ├── git-utils.ts        ← Shared git helpers (repo detect, safe exec, stderr suppress)
 │   ├── audit-log.ts        ← Unified audit log rotation policy
 │   └── git-hooks.ts        ← Git pre-commit hook install/remove/verify
 ├── lsp/                    ← Language server process management
 │   ├── manager.ts          ← Server lifecycle (spawn, stdio, health, shutdown)
 │   ├── client.ts           ← LSP protocol communication (JSON-RPC over stdio via vscode-jsonrpc)
-│   ├── servers.ts          ← Language→server config table (6 languages: Python, TypeScript, Go, JSON, YAML, Rust)
+│   ├── servers.ts          ← Language→server config table (7 languages: Python, TypeScript, Go, JSON, YAML, Rust, Dart)
 │   └── setup.ts            ← /shazam-setup command: detect + install guidance
 ├── tools/                  ← One file per registerTool call
 │   ├── _context.ts         ← Tool-level shared LspManager holder (replaces core/lsp-global.ts)

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.0] - 2026-06-21
+
+### Features & Enhancements
+
+- **feat(#349): Add Dart (Flutter) language support** — `.dart` extension mapping, `@sengac/tree-sitter-dart` grammar, Dart tree-sitter queries (function/class/import/call), Dart LSP server config (`dart language-server`), 12s LSP timeout. Tree-sitter grammar requires >=0.24 (graceful fallback with 0.22.4); LSP fully functional.
+
+### Bug Fixes
+
+- **fix(#350): Graceful handling of non-git directories** — Extension no longer crashes or pollutes UI when working directory is not a git repository. Added `core/git-utils.ts` with `isGitRepo()`, `isProjectDir()`, `safeGitExec()`. Non-project dirs (no git, no marker files) skip scanProject. Git stderr suppressed on all calls. Per-process git availability cache.
+
+### Documentation
+
+- **docs: README.md** — Add "100% Vibe Coding" badge (built with Pi + DeepSeek-V4-Pro). Update language count 6→7.
+- **docs: AGENTS.md** — Add §9 Open Source Issue Reply Guidelines for third-party contributors. Update architecture tree (add `core/git-utils.ts`). Update language count.
+- **docs: OPS.md** — Add §1.0 General .md Sync Check step.
+
 ## [0.13.2] - 2026-06-21
 
 ### Other

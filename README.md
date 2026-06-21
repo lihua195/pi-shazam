@@ -6,6 +6,8 @@
 [![CI](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml/badge.svg)](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+> **100% Vibe Coding** — This entire project (core analysis engine, 14 tools, hooks, LSP integration, MCP server, CI/CD, documentation) was built using [Pi coding agent](https://pi.dev) powered primarily by **DeepSeek-V4-Pro**. Zero hand-written code. Every line, every test, every architecture decision — generated and refined by AI, verified by automated CI.
+
 ## What It Does
 
 **pi-shazam** is a native codebase analysis toolkit built for the **Pi coding agent**. It provides 14 structural analysis tools that help AI agents understand project architecture before reading code.
@@ -14,9 +16,9 @@ For non-Pi agents, pi-shazam also exposes the same tools via **MCP (Model Contex
 
 ## Core Capabilities
 
-- **Tree-sitter parsing** — 6 programming languages (Python, TypeScript, JavaScript, Go, Rust, JSON), full symbol dependency graph
+- **Tree-sitter parsing** — 7 programming languages (Python, TypeScript, JavaScript, Go, Rust, Dart, JSON), full symbol dependency graph
 - **PageRank ranking** — Identify core files and key symbols
-- **LSP integration** — Type checking, diagnostics, type hierarchy (6 languages)
+- **LSP integration** — Type checking, diagnostics, type hierarchy (7 languages)
 - **Incremental analysis** — Baseline comparison, focus on changes
 - **Smart verification** — Post-edit verification with PASS/WARN/FAIL verdict
 
@@ -133,6 +135,7 @@ Supported Node.js versions: **>= 18.0.0**
 - **Python**: `.py`, `.pyi`
 - **Go**: `.go`
 - **Rust**: `.rs`
+- **Dart**: `.dart` (Flutter supported)
 - **Data formats**: `.json`
 
 ## Architecture
@@ -213,6 +216,7 @@ npm run build        # tsc → dist/
 | Python                | pyright-langserver / pylsp | Supported |
 | Go                    | gopls                      | Supported |
 | Rust                  | rust-analyzer              | Supported |
+| Dart (Flutter)        | dart language-server       | Supported |
 | YAML                  | yaml-language-server       | Supported |
 | JSON                  | vscode-json-languageserver | Supported |
 
