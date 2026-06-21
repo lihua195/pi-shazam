@@ -6,7 +6,7 @@
 [![CI](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml/badge.svg)](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **100% Vibe Coding** — This entire project (core analysis engine, 14 tools, hooks, LSP integration, MCP server, CI/CD, documentation) was built using [Pi coding agent](https://pi.dev) powered primarily by **DeepSeek-V4-Pro**. Zero hand-written code. Every line, every test, every architecture decision — generated and refined by AI, verified by automated CI.
+> **100% Vibe Coding** — This entire project (core analysis engine, 14 tools, hooks, LSP integration, MCP server, CI/CD, documentation) was built using [Pi coding agent](https://pi.dev) powered primarily by **DeepSeek-V4-Pro**, **MiMo-V2.5-Pro**, and **Qwen3.7-Max**. Zero hand-written code. Every line, every test, every architecture decision — generated and refined by AI, verified by automated CI.
 
 ## What It Does
 
@@ -224,11 +224,4 @@ When LSP servers are unavailable, tools automatically fall back to tree-sitter m
 
 ## License
 
-MIT
-
-## Links
-
-- [npm](https://www.npmjs.com/package/pi-shazam)
-- [GitHub](https://github.com/gjczone/pi-shazam)
-- [Pi Agent](https://pi.dev)
-- [MCP Protocol](https://modelcontextprotocol.io)
+MIT — see [LICENSE](LICENSE) file.
