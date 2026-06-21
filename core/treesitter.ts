@@ -105,6 +105,39 @@ export function getParserStatus(): Map<string, ParserStatusInfo> {
 	return new Map(_parserStatus);
 }
 
+/**
+ * 根据项目实际使用的文件，返回只对当前项目相关的不可用 parser 警告。
+ *
+ * 纯 TypeScript 项目不会看到 Dart 警告，Python + TS 全栈项目也不会——
+ * 只有项目中确实存在某语言的源文件且该 parser 不可用时才警告。
+ * 避免“无差别广播”导致的噪音。
+ *
+ * @param filePaths - 项目中的文件相对路径列表（如 graph.fileSymbols.keys()）
+ * @returns 仅包含项目实际用到但 parser 不可用的语言
+ */
+export function getProjectParserWarnings(filePaths: Iterable<string>): [string, ParserStatusInfo][] {
+	// 检测项目中实际使用了哪些语言
+	const projectLangs = new Set<string>();
+	for (const filePath of filePaths) {
+		const dotIdx = filePath.lastIndexOf(".");
+		if (dotIdx < 0) continue;
+		const ext = filePath.slice(dotIdx).toLowerCase();
+		const lang = EXT_TO_LANG[ext];
+		if (lang) projectLangs.add(lang);
+	}
+
+	// 只返回项目中用到且 parser 不可用的语言
+	const status = getParserStatus();
+	const warnings: [string, ParserStatusInfo][] = [];
+	for (const lang of projectLangs) {
+		const info = status.get(lang);
+		if (info && info.status === "unavailable") {
+			warnings.push([lang, info]);
+		}
+	}
+	return warnings;
+}
+
 export class TreeSitterAdapter {
 	private parsers = new Map<string, ParserInstance>();
 	private queries = new Map<string, Map<string, QueryInstance>>();

@@ -10,7 +10,7 @@ import { isNonSourceFile } from "../core/filter.js";
 import { getNextForTool, formatNextSection } from "../core/output.js";
 import { createTool } from "./_factory.js";
 import { buildEnvelope } from "./_factory.js";
-import { EXT_TO_LANG, getParserStatus } from "../core/treesitter.js";
+import { EXT_TO_LANG, getProjectParserWarnings } from "../core/treesitter.js";
 import { existsSync, readFileSync } from "node:fs";
 import { safeGitExec } from "../core/git-utils.js";
 import { join } from "node:path";
@@ -120,10 +120,9 @@ function _buildOverviewText(graph: RepoGraph, projectRoot: string, filter?: stri
 		);
 
 		// Parser 可用性警告（follow-up to #349）：
-		// 当某些语言的 tree-sitter parser 加载失败时，向 LLM 明确报告，
-		// 避免工具返回空结果时 LLM 不知道原因。
-		const parserStatus = getParserStatus();
-		const unavailable = [...parserStatus.entries()].filter(([, v]) => v.status === "unavailable");
+		// 只对项目中实际存在且 parser 不可用的语言发出警告。
+		// 纯 TS 项目不会看到 Dart 警告，避免无差别广播噪音。
+		const unavailable = getProjectParserWarnings(graph.fileSymbols.keys());
 		if (unavailable.length > 0) {
 			lines.push("");
 			lines.push("### Parser Availability Warning");

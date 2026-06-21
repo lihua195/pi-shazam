@@ -26,7 +26,7 @@ import { executeOverview } from "../tools/overview.js";
 import { hasTestFiles, hasHierarchyKinds } from "../core/output.js";
 import { createBaseline, getBaseline, formatBaselineSummary } from "../core/baseline.js";
 import { safeGitExec, isProjectDir } from "../core/git-utils.js";
-import { getParserStatus } from "../core/treesitter.js";
+import { getProjectParserWarnings } from "../core/treesitter.js";
 import { readdirSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { SKIP_DIRS } from "../core/filter.js";
@@ -165,12 +165,11 @@ function buildSessionBaselineSection(_projectRoot: string, graph: RepoGraph): st
 
 /**
  * 构建 parser 可用性警告段落，注入 system prompt。
- * 当某些语言的 tree-sitter parser 加载失败时，向 LLM 明确报告，
- * 避免"静默失败"——工具返回空结果但 LLM 不知道原因。
+ * 只对项目中实际存在且 parser 不可用的语言发出警告。
+ * 纯 TS 项目不会看到 Dart 警告，避免无差别广播噪音。
  */
-function buildParserWarningSection(): string {
-	const status = getParserStatus();
-	const unavailable = [...status.entries()].filter(([, v]) => v.status === "unavailable");
+function buildParserWarningSection(graph: RepoGraph): string {
+	const unavailable = getProjectParserWarnings(graph.fileSymbols.keys());
 	if (unavailable.length === 0) return "";
 
 	const lines: string[] = [];
@@ -230,7 +229,7 @@ export function generateOverviewForPrompt(projectRoot: string, isContinuation = 
 	const overview = executeOverview(graph, projectRoot);
 	const recommendations = buildProactiveRecommendations(projectRoot, graph);
 	const baselineSection = buildSessionBaselineSection(projectRoot, graph);
-	const parserWarning = buildParserWarningSection();
+	const parserWarning = buildParserWarningSection(graph);
 	const parts = [
 		`[pi-shazam] Project Overview:\n${overview}`,
 		recommendations,
