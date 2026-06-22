@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.16.0] - 2026-06-23
+
+### Security
+
+- **fix(#380): shazam_lookup path traversal guard** — user-supplied `name`/`file` params now validated with `validatePathInProject` before reaching `statSync` or LSP `didOpen`/`readFileAdaptiveAsync`; `LspManager.getServerForFile` adds projectRoot prefix check as defense-in-depth
+
+- **fix(#383): safety hook RCE blocklist expansion** — 7 new HIGH_RISK_PATTERNS: `eval`, `source`/`.`, `curl|sh`, `wget|bash`, `base64|sh`, backtick substitution, process substitution `<(...)`; prevents prompt-injected arbitrary code execution bypassing the confirmation dialog
+
+### Bug Fixes
+
+- **fix(#381): LSP CTS cancellation not wired (#376 regression)** — `withEnrichTimeout` now accepts optional `CancellationTokenSource`; on timeout, `cts.cancel()` fires so the underlying LSP request frees server resources. All 7 callers create and dispose a CTS.
+- **fix(#381): ensureFileOpened crash-recovery gap** — `ensureFileOpened` now calls `ctx.trackOpenedFile(language, filePath)` after didOpen, so files opened via lookup/hover/rename survive LSP crash recovery
+- **fix(#381): initialize connection! race** — `initialize()` caches `this.connection` into a local `conn` variable before the `await`, eliminating the non-null assertion race with `_cleanupAfterCrash`
+- **fix(#382): collectDiagnostics O(N^2) performance** — `_notifications` changed from array to `Map<string, PublishDiagnosticsParams>`; notification arrival uses `.set()` (O(1) upsert); `collectDiagnostics` iterates Map entries instead of reverse-loop with unshift
+- **fix(#384): rename_symbol non-atomic write** — `writeFileSync` replaced with `atomicWriteFile` (tmp+rename) for both write and rollback paths, preventing source corruption on SIGKILL/OOM
+- **fix(#384): rename_symbol hardcoded scanProject root** — `scanProject(".")` now uses `params.project || process.cwd()`; `validatePathInProject` passes consistent projectRoot
+- **fix(#385): Tree interface missing delete()** — `Tree` interface adds `delete?(): void`, removing `as any` cast in `lookup.ts` and `as unknown as` cast in `scanner.ts`
+
+### Housekeeping
+
+- **fix(#386): Chinese comments translated to English** — 16 source files translated to comply with LANGUAGE RULE (English-only hard requirement); `types/pi-extension.d.ts` preserved as upstream stubs
+- **fix(#387): silent catch blocks eliminated** — 28 catch blocks across 14 files now log with `console.warn` before returning fallback; 3 `.catch(() => {})` replaced with logged catch; decorative `└` (U+2514) in tool output replaced with ASCII `-`
+- **fix(#388): P3 cleanup** — decorative Unicode `─`/`→` in comments replaced with ASCII `-`/`->`; go.mod filter over-exclusion fixed; dead `validatePathInProject` check removed; `Array.includes` -> `Set.has` for O(1) dedup in impact.ts; `setTimeout` in manager shutdown now cleared; `!!!`/`!` replaced with `[HIGH]`/`[MED]` in safety.ts; 4 new secret patterns added to redact.ts (GitLab PAT, Google API key, SendGrid API key, Twilio API key)
+
 ## [0.15.3] - 2026-06-22
 
 ### Bug Fixes
