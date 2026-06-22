@@ -328,7 +328,9 @@ Before committing or creating a PR, verify ALL of the following:
 - [ ] README.md updated if user-facing features or tool list changed
 - [ ] CHANGELOG.md updated if this is a release commit
 - [ ] All code comments, JSDoc, commit messages in English (no Chinese)
-- [ ] Completion report follows format: 做了什么 → 结果 → 已确认 → 需要你决策 → 待跟进
-- [ ] User-facing communication: address as 老板, explain in business terms, default to Chinese
+- [ ] Completion report: 做了什么 → 结果 → 已确认 → 需要你决策 → 待跟进
+- [ ] Address user as 老板, default to Chinese, explain in business terms, don't dump code
+- [ ] Code comments explain business purpose + implementation logic + edge cases
+- [ ] No empty catch blocks — handle or propagate every error
 
 </general-project-rules>
