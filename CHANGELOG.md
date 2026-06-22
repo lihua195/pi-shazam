@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.1] - 2026-06-22
+
+### Bug Fixes
+
+- **fix(#362): JSON envelope command names after tool consolidation** — `shazam_impact` flat mode JSON now uses correct envelope (`shazam_impact` instead of bare JSON); `shazam_overview` hotspots JSON envelope uses `shazam_overview` instead of old `shazam_hotspots`
+- **fix(#362): mutually exclusive `--files`/`--symbol` in impact** — passing both now returns a clear error instead of silently dropping `--files`
+- **fix(#362): empty files array in impact** — `--files []` now returns an error instead of showing misleading empty results
+- **fix(#362): MCP impact depth unclamped** — MCP handler for `shazam_impact` now clamps depth to [1,10] matching Pi tool behavior
+- **fix(#362): MCP lookup no file path detection** — `shazam_lookup` MCP handler now detects file paths and dispatches to file detail
+- **fix(#362): MCP impact missing error for no params** — returns clear error when neither `--symbol` nor `--files` is passed
+- **fix(#362): MCP changes missing JSON support** — `shazam_changes` MCP handler now supports `{ json: true }`
+- **fix(#362): GBK encoding crash in hover/type hierarchy** — `_getHoverInfo` and `_getTypeHierarchy` now use `readFileAdaptive` (UTF-8 → GBK → GB2312 fallback) instead of hardcoded `readFileSync("utf-8")`
+- **fix(#362): duplicate deps section titles** — Python/Rust/Go dependency sections now use language-specific titles (`### Key Python/Rust/Go Dependencies`)
+- **fix(#362): verify text mode missing verdict** — `shazam_verify` text output now shows `### Verdict: PASS/WARN/FAIL` (including lspOnly mode)
+- **fix(#362): PageRank decimal inconsistency** — all PageRank values now use `.toFixed(4)` across overview, lookup, and hotspots output
+- **fix(#362): `executeCallChainJson` missing rename state record** — now calls `recordCallChain()` matching `executeCallChain` behavior
+- **fix(#362): MCP entry hardcoded version** — version now reads from `package.json` at startup, preventing stale version display
+- **fix(#362): MCP entry double shutdown** — added reentrancy guard to prevent `transport.onclose` and `stdin.end` from triggering overlapping LSP shutdown
+
+### Performance
+
+- **perf(#362): parallel hover lookups** — `shazam_lookup` now fetches hover info for all symbol matches concurrently via `Promise.all` instead of serial `for...of` + `await`
+- **perf(#362): reuse fileStats in overview** — `_computeHotspots` now accepts precomputed `fileStats` from `_buildOverviewText`, avoiding duplicate graph traversal
+
+### Robustness
+
+- **robust(#362): split TypeHierarchy error handling** — LSP `prepareTypeHierarchy`, `typeHierarchy/supertypes`, and `typeHierarchy/subtypes` now have independent try/catch blocks so partial results are preserved when one request fails
+- **robust(#362): use lsp_enrich layer for hover** — `_getHoverInfo` now uses `ensureFileOpened` from shared LSP infrastructure instead of manual `didOpen`, benefiting from mtime tracking and proper timeout handling
+
+### Documentation
+
+- **docs(#362): expanded file path detection** — `_isFilePath` regex now recognizes `.yaml`, `.yml`, `.css`, `.scss`, `.less`, `.sh`, `.bash`, `.toml`, `.html`, `.htm`, `.md`
+- **docs(#362): improved error messages** — filter empty result suggests removing `--filter`; symbol not found suggests `shazam_overview`; compact mode output now includes count header
+
+### Housekeeping
+
+- **chore(#362): remove dead code** — `_extractContextLines` (unused return value), `contextLines` field from `HoverInfo`, and stale `describe.skip` test blocks referencing deleted module files
+
 ## [0.15.0] - 2026-06-22
 
 ### Refactoring
