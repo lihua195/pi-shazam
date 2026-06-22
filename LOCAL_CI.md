@@ -32,11 +32,11 @@ npm run typecheck
 ### 3. Format Check
 
 ```bash
-npx prettier --check "*.ts" "core/*.ts" "tools/*.ts" "hooks/*.ts" "lsp/*.ts" "mcp/*.ts" "tests/*.ts"
+npx prettier --check "*.ts" "core/*.ts" "tools/*.ts" "hooks/*.ts" "lsp/*.ts" "mcp/*.ts" "tests/*.ts" "types/*.d.ts"
 ```
 
 **Pass**: no output, exit code 0.
-**Common fix**: `npx prettier --write "*.ts" "core/*.ts" "tools/*.ts" "hooks/*.ts" "lsp/*.ts" "mcp/*.ts" "tests/*.ts"`
+**Common fix**: `npx prettier --write "*.ts" "core/*.ts" "tools/*.ts" "hooks/*.ts" "lsp/*.ts" "mcp/*.ts" "tests/*.ts" "types/*.d.ts"`
 
 ### 4. Full Test Suite
 

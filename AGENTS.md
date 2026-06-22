@@ -179,7 +179,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 ## Project Snapshot
 
 - **Runtime**: TypeScript on Node.js ≥18, ES2022 target, NodeNext module resolution, ESM (`"type": "module"`)
-- **Package**: npm `pi-shazam` (v0.14.2), entry `dist/index.js` (default export function receiving `ExtensionAPI`)
+- **Package**: npm `pi-shazam` (v0.15.1), entry `dist/index.js` (default export function receiving `ExtensionAPI`)
 - **Primary user flow**: LLM calls analysis tools (`overview`, `lookup`, `impact`, etc.) to understand code structure, change impact, and call chains before making edits
 - **Architecture**: 4 layers — `core/` (parsing, graph, ranking), `lsp/` (language server management), `tools/` (Pi tool wrappers), `hooks/` (automatic verification)
 - **External dependency**: Language servers (pyright, tsserver, rust-analyzer, gopls) are user-installed; pi-shazam manages process lifecycle

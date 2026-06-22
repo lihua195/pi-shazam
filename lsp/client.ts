@@ -1022,6 +1022,7 @@ export class LspClient {
 			".json5": "json5",
 			".yaml": "yaml",
 			".yml": "yaml",
+			".dart": "dart",
 		};
 		return map[ext] ?? "plaintext";
 	}

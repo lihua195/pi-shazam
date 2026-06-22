@@ -16,8 +16,8 @@ Before bumping the version, ensure ALL documentation is up to date with the chan
 ### 1.0 General .md Sync Check
 
 - [ ] Scan ALL changed files in this release and cross-check against the .md file list below
-- [ ] If language count changed: update README.md, AGENTS.md, SKILL.md, mcp/README.md
-- [ ] If new tool/hook/command added: update AGENTS.md tables, SKILL.md, mcp/README.md
+- [ ] If language count changed: update README.md, AGENTS.md, SKILL.md, mcp/README.md, docs/kimi-code-hooks.md
+- [ ] If new tool/hook/command added: update AGENTS.md tables, SKILL.md, mcp/README.md, docs/kimi-code-hooks.md
 - [ ] If project description/philosophy changed: update README.md intro
 - [ ] If community interaction policy changed: update AGENTS.md
 

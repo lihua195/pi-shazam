@@ -248,7 +248,7 @@ The `pi.typebox` property does NOT exist at runtime. The Pi runtime resolves
 ```
 index.ts                    <- Pi extension entry, default export(pi: ExtensionAPI)
   ├── core/                 <- Pure analysis logic, no Pi dependency
-  │   ├── treesitter.ts     <- AST parsing + symbol extraction (6 languages)
+  │   ├── treesitter.ts     <- AST parsing + symbol extraction (7 languages)
   │   ├── graph.ts          <- Symbol dependency graph (imports, calls, references)
   │   ├── pagerank.ts       <- PageRank symbol importance scoring
   │   ├── scanner.ts        <- Project file scanning + graph building
@@ -262,17 +262,19 @@ index.ts                    <- Pi extension entry, default export(pi: ExtensionA
   ├── lsp/                  <- Language server process management
   │   ├── manager.ts        <- Server lifecycle (spawn, stdio, health, shutdown)
   │   ├── client.ts         <- LSP protocol communication (JSON-RPC via vscode-jsonrpc)
-  │   ├── servers.ts        <- Language->server config table (6 languages)
+  │   ├── servers.ts        <- Language->server config table (7 languages)
   │   └── setup.ts          <- /shazam-setup command: detect + install guidance
   ├── tools/                <- One file per registerTool call
   │   ├── _context.ts       <- Tool-level shared LspManager holder
   │   ├── _factory.ts       <- createTool() registration factory
   │   ├── lsp_enrich.ts     <- Tool-layer LSP enrichment wrappers
+  │   ├── definitions.ts   <- Shared tool definitions (names, descriptions, schemas)
   │   ├── overview.ts       <- Project structure summary + hotspot ranking
   │   ├── impact.ts         <- File-level change impact + call chain analysis
   │   ├── lookup.ts         <- Symbol/hover/file-detail/type-hierarchy lookup
   │   ├── verify.ts         <- Post-edit diagnostics gate
   │   ├── format.ts         <- Auto-fix lint/format
+  │   ├── changes.ts       <- Git change summary with risk level
   │   ├── find_tests.ts     <- Test file discovery
   │   ├── rename_symbol.ts  <- Symbol rename
   │   └── safe_delete.ts    <- Safe symbol deletion

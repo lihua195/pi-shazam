@@ -149,7 +149,8 @@ pi-shazam (npm package)
 │   ├── verify-state.ts                 Shared verify tracking state for safety + stop-verify
 │   ├── impact-state.ts                 Shared impact tracking state for issue-guard + pre-edit
 │   ├── issue-guard.ts                  Detect gh issue create, set pending impact flag
-│   └── agent-context-guard.ts          Block agent spawn without structural context
+│   ├── rename-state.ts                Session-scoped rename review state
+│   └── _bash-utils.ts                 Shared bash command utilities
 │
 ├── tools/                              Pi tool wrappers (tools → core + lsp)
 │   ├── definitions.ts                  Shared tool definitions (names, descriptions, schemas)
@@ -168,11 +169,11 @@ pi-shazam (npm package)
 ├── lsp/                                Language server management
 │   ├── manager.ts                      Server lifecycle (spawn, stdio, health, shutdown)
 │   ├── client.ts                       LSP protocol via vscode-jsonrpc
-│   ├── servers.ts                      Language → server config (6 languages)
+│   ├── servers.ts                      Language → server config (7 languages)
 │   └── setup.ts                        /shazam-setup command
 │
 └── core/                               Pure analysis engine (zero dependencies)
-    ├── treesitter.ts                   AST parsing + symbol extraction (6 languages)
+    ├── treesitter.ts                   AST parsing + symbol extraction (7 languages)
     ├── treesitter-queries.ts           Tree-sitter query patterns
     ├── graph.ts                        Symbol dependency graph
     ├── pagerank.ts                     PageRank symbol importance scoring

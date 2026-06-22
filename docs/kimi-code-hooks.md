@@ -216,6 +216,8 @@ Tool-specific `tool_input` shapes:
 | `shazam-guide.ts` (auto-format) | `auto-fix.sh`                           | Pi 在 `tool_result` 后自动运行；Kimi-Code 在 `PostToolUse` 后运行                            |
 | `stop-verify.ts`                | `stop-verify.sh`                        | Pi 用 `turn_end` 事件；Kimi-Code 用 `Stop` 事件 + verified 文件信号                          |
 | `failure-recovery.ts`           | `stop-failure.sh`                       | Pi 用内存计数器 + error-type 分析；Kimi-Code 读取 watchdog bash-fail.log 做 error 模式匹配   |
+| `issue-guard.ts`                | 暂无等价实现                            | Pi 检测 `gh issue create` 命令并设 pending impact flag；Kimi-Code 无此检测能力              |
+| `agent-context-guard.ts`        | 暂无等价实现                            | Pi 阻断无结构上下文的 agent 生成；Kimi-Code 无此阻断机制                                    |
 | `tool-logger.ts`                | `watchdog.sh` (audit)                   | Pi 用 JSONL + 调用时长；Kimi-Code 用简单日志                                                 |
 
 ### Pi 独有优势
