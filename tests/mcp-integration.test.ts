@@ -97,7 +97,7 @@ describe("MCP integration: hotspots pipeline", () => {
 		const jsonText = executeHotspotsJson(graph, 5);
 		const parsed = JSON.parse(jsonText);
 		expect(parsed.schema_version).toBe("1.0");
-		expect(parsed.command).toBe("hotspots");
+		expect(parsed.command).toBe("overview");
 		expect(parsed.status).toBe("ok");
 		expect(parsed.result.hotspots).toBeDefined();
 		expect(Array.isArray(parsed.result.hotspots)).toBe(true);
@@ -123,56 +123,6 @@ describe("MCP integration: hotspots pipeline", () => {
 		const rankedLines = text.split("\n").filter((l: string) => /^\d+\./.test(l));
 		expect(rankedLines).not.toContainEqual(expect.stringMatching(/package-lock\.json/));
 		expect(rankedLines).not.toContainEqual(expect.stringMatching(/node_modules/));
-	});
-});
-
-// ── Integration: codesearch → MCP envelope ───────────────────────────────
-
-// codesearch removed in #362
-describe.skip("MCP integration: codesearch pipeline", () => {
-	it("should produce valid results from BM25 symbol search", async () => {
-		const { executeCodesearch } = await import("../tools/codesearch.js");
-		const results = executeCodesearch(graph, "scanProject");
-		expect(Array.isArray(results)).toBe(true);
-		expect(results.length).toBeGreaterThan(0);
-		// Top result should be the exact match
-		expect(results[0]!.sym.name).toBe("scanProject");
-		expect(results[0]!.score).toBeGreaterThan(0);
-	});
-
-	it("should produce valid MCP content when results are serialized", async () => {
-		const { executeCodesearch } = await import("../tools/codesearch.js");
-		const results = executeCodesearch(graph, "pagerank");
-		const jsonText = JSON.stringify(results, null, 2);
-		const envelope = { content: [{ type: "text" as const, text: jsonText }] };
-		assertMcpEnvelope(envelope);
-	});
-
-	it("should handle camelCase token splitting", async () => {
-		const { executeCodesearch } = await import("../tools/codesearch.js");
-		const results = executeCodesearch(graph, "executeOverview");
-		expect(results.length).toBeGreaterThan(0);
-		const names = results.map((r) => r.sym.name);
-		expect(names).toContain("executeOverview");
-	});
-
-	it("should handle fulltext search on project files", async () => {
-		const { executeFulltextSearch } = await import("../tools/codesearch.js");
-		const results = executeFulltextSearch("registerTool", 10, ".");
-		expect(Array.isArray(results)).toBe(true);
-		expect(results.length).toBeGreaterThan(0);
-		// Results should reference actual files
-		expect(results[0]!.text).toContain("registerTool");
-	});
-
-	it("should return empty results for non-matching queries", async () => {
-		const { executeCodesearch } = await import("../tools/codesearch.js");
-		const results = executeCodesearch(graph, "zzz_nonexistent_symbol_xyz");
-		expect(Array.isArray(results)).toBe(true);
-		// Should either be empty or have very low-scoring matches
-		for (const r of results) {
-			expect(r.sym.name.toLowerCase()).not.toBe("zzz_nonexistent_symbol_xyz");
-		}
 	});
 });
 
@@ -244,8 +194,8 @@ describe("MCP integration: file_detail pipeline", () => {
 
 // ── Integration: call_chain → MCP envelope ───────────────────────────────
 
-describe("MCP integration: call_chain pipeline", () => {
-	it("should produce valid text from call_chain", async () => {
+describe("MCP integration: impact call_chain pipeline", () => {
+	it("should produce valid text from impact call_chain", async () => {
 		const { executeCallChain } = await import("../tools/impact.js");
 		const text = executeCallChain(graph, "scanProject", 1);
 		expect(typeof text).toBe("string");

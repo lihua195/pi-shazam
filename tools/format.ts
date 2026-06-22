@@ -15,6 +15,7 @@ import { join, resolve as pathResolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { getNextForTool, formatNextSection } from "../core/output.js";
 import { isNonSourceFile } from "../core/filter.js";
+import { detectFormatters } from "../core/formatters.js";
 
 export function registerFormat(pi: ExtensionAPI): void {
 	createTool(pi, {
@@ -216,8 +217,6 @@ interface FormatIssue {
 	kind: string;
 	description: string;
 }
-
-import { detectFormatters } from "../core/formatters.js";
 
 /**
  * Parse .editorconfig file to extract indent_style and indent_size.

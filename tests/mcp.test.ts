@@ -24,14 +24,7 @@ describe("MCP: tool schemas", () => {
 		expect(() => schema.parse({})).toThrow();
 	});
 
-	it("codesearch schema should require query string", () => {
-		const schema = z.object({ query: z.string(), target: z.enum(["symbol", "code"]).optional() });
-		expect(() => schema.parse({ query: "search" })).not.toThrow();
-		expect(() => schema.parse({ query: "search", target: "code" })).not.toThrow();
-		expect(() => schema.parse({})).toThrow();
-	});
-
-	it("symbol schema should accept name with optional mode and file", () => {
+	it("lookup schema should accept name with optional mode and file", () => {
 		const schema = z.object({
 			name: z.string(),
 			mode: z.enum(["state"]).optional(),
@@ -41,13 +34,13 @@ describe("MCP: tool schemas", () => {
 		expect(() => schema.parse({ name: "Status", mode: "state" })).not.toThrow();
 	});
 
-	it("file_detail schema should require file path", () => {
+	it("lookup file_detail schema should require file path", () => {
 		const schema = z.object({ file: z.string() });
 		expect(() => schema.parse({ file: "index.ts" })).not.toThrow();
 		expect(() => schema.parse({})).toThrow();
 	});
 
-	it("call_chain schema should accept symbol with optional depth, flat, and direction", () => {
+	it("impact call_chain schema should accept symbol with optional depth, flat, and direction", () => {
 		const schema = z.object({
 			symbol: z.string(),
 			depth: z.number().int().min(1).max(10).optional(),
@@ -61,11 +54,6 @@ describe("MCP: tool schemas", () => {
 		expect(() => schema.parse({ symbol: "main", direction: "outgoing" })).not.toThrow();
 	});
 
-	it("hover schema should accept name with optional file", () => {
-		const schema = z.object({ name: z.string(), file: z.string().optional() });
-		expect(() => schema.parse({ name: "myFunc" })).not.toThrow();
-	});
-
 	it("find_tests schema should accept optional sourceFile and module", () => {
 		const schema = z.object({
 			sourceFile: z.string().optional(),
@@ -75,11 +63,6 @@ describe("MCP: tool schemas", () => {
 		expect(() => schema.parse({ sourceFile: "index.ts" })).not.toThrow();
 	});
 
-	it("hotspots schema should accept empty object", () => {
-		const schema = z.object({});
-		expect(() => schema.parse({})).not.toThrow();
-	});
-
 	it("verify schema should accept optional boolean flags", () => {
 		const schema = z.object({
 			quick: z.boolean().optional(),
@@ -87,15 +70,6 @@ describe("MCP: tool schemas", () => {
 		});
 		expect(() => schema.parse({})).not.toThrow();
 		expect(() => schema.parse({ quick: true })).not.toThrow();
-	});
-
-	it("type_hierarchy schema should require name with optional direction", () => {
-		const schema = z.object({
-			name: z.string(),
-			direction: z.enum(["both", "supertypes", "subtypes"]).optional(),
-		});
-		expect(() => schema.parse({ name: "MyClass" })).not.toThrow();
-		expect(() => schema.parse({ name: "MyClass", direction: "subtypes" })).not.toThrow();
 	});
 
 	it("rename_symbol schema should require symbol and newName", () => {
@@ -119,14 +93,14 @@ describe("MCP: tool output format", () => {
 		expect(text.length).toBeGreaterThan(0);
 	});
 
-	it("hotspots returns text content", async () => {
+	it("overview hotspots returns text content", async () => {
 		const { executeHotspots } = await import("../tools/overview.js");
 		const result = executeHotspots(getGraph());
 		expect(typeof result).toBe("string");
 		expect(result.length).toBeGreaterThan(0);
 	});
 
-	it("call_chain returns text content for valid symbol", async () => {
+	it("impact call_chain returns text content for valid symbol", async () => {
 		const { executeCallChain } = await import("../tools/impact.js");
 		const result = executeCallChain(getGraph(), "index.ts", 1);
 		expect(typeof result).toBe("string");

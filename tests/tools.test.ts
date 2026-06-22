@@ -82,42 +82,6 @@ describe("Tool: impact", () => {
 	});
 });
 
-// codesearch removed in #362
-describe.skip("Tool: codesearch", () => {
-	it("should search symbols by keyword", async () => {
-		const { executeCodesearch } = await import("../tools/codesearch.js");
-		const result = executeCodesearch(getGraph(), "scan");
-		expect(result).toBeDefined();
-		expect(Array.isArray(result)).toBe(true);
-		expect(result.length).toBeGreaterThan(0);
-		expect(result[0]).toHaveProperty("sym");
-		expect(result[0]).toHaveProperty("score");
-		expect(result[0]!.score).toBeGreaterThan(0);
-	});
-
-	it("should support fulltext search with explicit projectRoot (issue #251)", async () => {
-		const { executeFulltextSearch } = await import("../tools/codesearch.js");
-		const { mkdtempSync, writeFileSync, rmSync } = await import("node:fs");
-		const { join: pathJoin } = await import("node:path");
-		const { tmpdir } = await import("node:os");
-
-		// Create a temp directory with a known file
-		const tmpDir = mkdtempSync(pathJoin(tmpdir(), "shazam-test-251-"));
-		try {
-			writeFileSync(pathJoin(tmpDir, "sample.ts"), "export function uniqueShazamTestFn() { return 42; }\n");
-
-			// Search with explicit projectRoot should find the known function
-			const results = executeFulltextSearch("uniqueShazamTestFn", 10, tmpDir);
-			expect(results).toBeDefined();
-			expect(Array.isArray(results)).toBe(true);
-			expect(results.length).toBeGreaterThan(0);
-			expect(results[0]!.text).toContain("uniqueShazamTestFn");
-		} finally {
-			rmSync(tmpDir, { recursive: true, force: true });
-		}
-	});
-});
-
 describe("Tool: symbol", () => {
 	it("should return symbol details", async () => {
 		const { executeSymbol } = await import("../tools/lookup.js");
@@ -155,21 +119,6 @@ describe("Tool: call_chain", () => {
 			const formatted = mod.formatFlatReferences(refs, "scanProject");
 			expect(typeof formatted).toBe("string");
 			expect(formatted.length).toBeGreaterThan(0);
-		}
-	});
-});
-
-// hover merged into lookup (async LSP, not exported synchronously)
-describe.skip("Tool: hover", () => {
-	it("should return hover info for a symbol", async () => {
-		const { executeHover } = await import("../tools/hover.js");
-		const graph = getGraph();
-		const sym = [...graph.symbols.values()].find((s) => s.name === "scanProject");
-		if (sym) {
-			const result = await executeHover(graph, sym.name);
-			expect(result).toBeDefined();
-			expect(result.name).toBe("scanProject");
-			expect(result.kind).toBeDefined();
 		}
 	});
 });
