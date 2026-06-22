@@ -248,6 +248,9 @@ export async function executeVerifyTextAsync(projectRoot: string, options: Verif
 	}
 
 	if (lspOnly) {
+		const lspVerdict = lspResult.diagnostics.some((d) => d.severity === "error") ? "FAIL" : "PASS";
+		lines.push("### Verdict: " + lspVerdict);
+		lines.push("");
 		lines.push("[lspOnly mode — graph analysis skipped]");
 		lines.push("");
 		return lines.join("\n");
@@ -329,6 +332,20 @@ export async function executeVerifyTextAsync(projectRoot: string, options: Verif
 				lines.push(`- ${internalOrphans.length} internal orphan symbol(s) — review for dead code`);
 			lines.push("");
 		}
+	}
+
+	// Compute verdict for non-preCommit non-lspOnly mode
+	let verdict = "PASS";
+	if (lspResult.diagnostics.some((d) => d.severity === "error")) {
+		verdict = "FAIL";
+	} else if (!lspResult.available && !quick && !lspOnly) {
+		verdict = "WARN";
+	} else if (risk.level === "high") {
+		verdict = "WARN";
+	}
+	if (!preCommit) {
+		lines.push("### Verdict: " + verdict);
+		lines.push("");
 	}
 
 	const nextItems = getNextForTool("verify", { riskLevel: risk.level, orphanCount: orphans.length });
@@ -729,7 +746,6 @@ export function executeVerify(graph: RepoGraph, projectRoot: string, options: Ve
 	lines.push("");
 
 	if (quick) lines.push("[Quick mode — skipped deep analysis]\n");
-
 	const nextItems = getNextForTool("verify", { riskLevel: risk.level, orphanCount: orphans.length });
 	if (nextItems.length > 0) {
 		lines.push("");

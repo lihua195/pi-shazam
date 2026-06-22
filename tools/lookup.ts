@@ -17,11 +17,12 @@ import type { RepoGraph, Symbol } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { getNextForTool, formatNextSection, truncateOutput } from "../core/output.js";
 import { getLspManager } from "./_context.js";
-import { lspDocumentSymbols, lspCodeLens, lspImplementation } from "./lsp_enrich.js";
+import { lspDocumentSymbols, lspCodeLens, lspImplementation, ensureFileOpened } from "./lsp_enrich.js";
 import type { DocumentSymbol } from "vscode-languageserver-protocol";
 import { createTool } from "./_factory.js";
 import { buildEnvelope } from "./_factory.js";
-import { statSync, readFileSync } from "node:fs";
+import { statSync } from "node:fs";
+import { readFileAdaptive } from "../core/encoding.js";
 import { resolve } from "node:path";
 import { TreeSitterAdapter } from "../core/treesitter.js";
 import { uriToPath } from "../lsp/client.js";
@@ -159,7 +160,7 @@ async function _executeLookupAsync(
 ): Promise<string> {
 	const matches = _findSymbols(graph, name, file);
 	if (matches.length === 0) {
-		return `Symbol not found: ${name}`;
+		return `Symbol not found: \`${name}\`.\n\nCheck spelling, or use \`shazam_overview\` to browse the project structure.`;
 	}
 
 	const uniqueFiles = [...new Set(matches.map((m) => m.file))];
@@ -199,15 +200,19 @@ async function _executeLookupAsync(
 	);
 	lines.push("");
 
-	for (const e of namedMatches) {
-		const s = e.sym;
+	// Hover info — fetch in parallel for all matches
+		const hoverResults = await Promise.all(namedMatches.map((e) => _getHoverInfo(e.sym)));
+
+		for (let i = 0; i < namedMatches.length; i++) {
+			const e = namedMatches[i]!;
+			const s = e.sym;
 		lines.push(`${s.kind} \`${s.name}\` — ${s.file}:${s.line}-${e.endLine} [${s.visibility}]`);
 		if (e.container) lines.push(`  container: ${e.container}`);
 		lines.push(`  PageRank: ${s.pagerank.toFixed(4)}`);
 		lines.push(`  signature: ${s.signature}`);
 
 		// Hover info (inline, from hover.ts)
-		const hoverInfo = await _getHoverInfo(s);
+			const hoverInfo = hoverResults[i]!;
 		if (hoverInfo.lspHover) {
 			lines.push(`  hover: ${hoverInfo.lspHover.split("\n")[0]!.slice(0, 120)}`);
 		} else if (hoverInfo.docstring) {
@@ -297,15 +302,11 @@ async function _getHoverInfo(symbol: Symbol): Promise<HoverInfo> {
 	const lspManager = getLspManager();
 
 	if (lspManager) {
-		const serverInfo = await lspManager.getServerForFile(symbol.file);
-		if (serverInfo) {
-			const client = serverInfo.client;
-			try {
-				if (!client.isFileOpened(symbol.file)) {
-					const content = readFileSync(resolve(serverInfo.workspaceRoot, symbol.file), "utf-8");
-					await client.didOpen(symbol.file, content);
-				}
-				const hoverResult = await client.hover(symbol.file, symbol.line - 1, 0);
+		try {
+			const ctx = lspManager;
+			const opened = await ensureFileOpened(ctx, symbol.file);
+			if (opened) {
+				const hoverResult = await opened.client.hover(symbol.file, symbol.line - 1, 0);
 				const hoverData = hoverResult.status === "ok" ? hoverResult.data : null;
 				if (hoverData?.contents) {
 					const contents = hoverData.contents;
@@ -325,9 +326,9 @@ async function _getHoverInfo(symbol: Symbol): Promise<HoverInfo> {
 						result.lspHover = String((contents as Record<string, string>).value);
 					}
 				}
-			} catch {
-				// LSP hover failed — fall back
 			}
+		} catch {
+			// LSP hover failed — fall back to tree-sitter docstring
 		}
 	}
 
@@ -341,7 +342,7 @@ async function _getHoverInfo(symbol: Symbol): Promise<HoverInfo> {
 
 function _extractDocstring(filePath: string, symbolLine: number): string | undefined {
 	try {
-		const content = readFileSync(filePath, "utf-8");
+		const content = readFileAdaptive(filePath);
 		const ext = filePath.slice(filePath.lastIndexOf(".")).toLowerCase();
 		const lang = TreeSitterAdapter.langForExtension(ext);
 
@@ -477,22 +478,37 @@ async function _getTypeHierarchy(
 		const serverInfo = await lspManager.getServerForFile(symbol.file);
 		if (serverInfo) {
 			const client = serverInfo.client;
+			const filePath = resolve(serverInfo.workspaceRoot, symbol.file);
+			const uri = `file://${filePath}`;
+			const position = { line: symbol.line - 1, character: symbol.col || 0 };
+
+			// Open file if needed (shared across all hierarchy requests)
 			try {
 				if (!client.isFileOpened(symbol.file)) {
-					const content = readFileSync(resolve(serverInfo.workspaceRoot, symbol.file), "utf-8");
-					await client.didOpen(symbol.file, content);
+					const fileContent = readFileAdaptive(filePath);
+					await client.didOpen(symbol.file, fileContent);
 				}
-				const uri = `file://${resolve(serverInfo.workspaceRoot, symbol.file)}`;
-				const position = { line: symbol.line - 1, character: symbol.col || 0 };
-				const prepareResult = await client.request("textDocument/prepareTypeHierarchy", {
+			} catch {
+				// File open failed — skip LSP hierarchy
+			}
+
+			// Step 1: prepareTypeHierarchy (separate error handling)
+			let prepareResult: unknown = null;
+			try {
+				prepareResult = await client.request("textDocument/prepareTypeHierarchy", {
 					textDocument: { uri },
 					position,
 				});
+			} catch {
+				// prepareTypeHierarchy not supported by server
+			}
 
-				if (prepareResult && Array.isArray(prepareResult) && prepareResult.length > 0) {
-					const item = prepareResult[0] as Record<string, unknown>;
+			if (prepareResult && Array.isArray(prepareResult) && prepareResult.length > 0) {
+				const item = prepareResult[0] as Record<string, unknown>;
 
-					if (direction === "both" || direction === "supertypes") {
+				// Step 2: supertypes (separate error handling)
+				if (direction === "both" || direction === "supertypes") {
+					try {
 						const supertypes = (await client.request("typeHierarchy/supertypes", { item })) as Array<
 							Record<string, unknown>
 						>;
@@ -507,9 +523,14 @@ async function _getTypeHierarchy(
 								});
 							}
 						}
+					} catch {
+						// supertypes request failed — fall through
 					}
+				}
 
-					if (direction === "both" || direction === "subtypes") {
+				// Step 3: subtypes (separate error handling)
+				if (direction === "both" || direction === "subtypes") {
+					try {
 						const subtypes = (await client.request("typeHierarchy/subtypes", { item })) as Array<
 							Record<string, unknown>
 						>;
@@ -524,10 +545,10 @@ async function _getTypeHierarchy(
 								});
 							}
 						}
+					} catch {
+						// subtypes request failed — fall through
 					}
 				}
-			} catch {
-				// Fall through to graph-based
 			}
 
 			// Fetch implementations for interface/trait types
@@ -552,7 +573,7 @@ async function _getTypeHierarchy(
 		}
 	}
 
-	// Graph-based hierarchy fallback
+// Graph-based hierarchy fallback
 	const inheritanceKinds = new Set(["class", "interface", "type_alias"]);
 
 	if (direction === "both" || direction === "supertypes") {
@@ -771,7 +792,7 @@ function _executeFileDetail(graph: RepoGraph, file: string): string {
 				const mInc = graph.incoming.get(member.id);
 				const mOut = graph.outgoing.get(member.id);
 				lines.push(
-					`  └ ${member.kind} \`${member.name}\` L${member.line}-${member.endLine} [${member.visibility}] PR ${member.pagerank.toFixed(3)} | in:${mInc ? mInc.length : 0} out:${mOut ? mOut.length : 0}`,
+					`  └ ${member.kind} \`${member.name}\` L${member.line}-${member.endLine} [${member.visibility}] PR ${member.pagerank.toFixed(4)} | in:${mInc ? mInc.length : 0} out:${mOut ? mOut.length : 0}`,
 				);
 			}
 		}
@@ -784,7 +805,7 @@ function _executeFileDetail(graph: RepoGraph, file: string): string {
 				const inc = graph.incoming.get(sym.id);
 				const out = graph.outgoing.get(sym.id);
 				lines.push(
-					`  - ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} [${sym.visibility}] PR ${sym.pagerank.toFixed(3)} | in:${inc ? inc.length : 0} out:${out ? out.length : 0}`,
+					`  - ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} [${sym.visibility}] PR ${sym.pagerank.toFixed(4)} | in:${inc ? inc.length : 0} out:${out ? out.length : 0}`,
 				);
 			}
 		}
@@ -793,7 +814,7 @@ function _executeFileDetail(graph: RepoGraph, file: string): string {
 			const inc = graph.incoming.get(sym.id);
 			const out = graph.outgoing.get(sym.id);
 			lines.push(
-				`- ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} [${sym.visibility}] PR ${sym.pagerank.toFixed(3)} | in:${inc ? inc.length : 0} out:${out ? out.length : 0}`,
+				`- ${sym.kind} \`${sym.name}\` L${sym.line}-${sym.endLine} [${sym.visibility}] PR ${sym.pagerank.toFixed(4)} | in:${inc ? inc.length : 0} out:${out ? out.length : 0}`,
 			);
 			if (sym.signature) lines.push(`  ${sym.signature.slice(0, 100)}`);
 		}

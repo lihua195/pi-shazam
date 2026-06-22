@@ -44,12 +44,17 @@ export function registerImpact(pi: ExtensionAPI): void {
 
 			// Symbol mode: call chain analysis (replaces shazam_call_chain)
 			if (symbolName) {
+				if (params.files && Array.isArray(params.files) && (params.files as string[]).length > 0) {
+					return "Error: --symbol and --files are mutually exclusive. Use --symbol for call chain analysis or --files for impact analysis, not both.";
+				}
 				recordCallChain(symbolName);
 				const flat = (params.flat as boolean) ?? false;
 				const direction = (params.direction as "incoming" | "outgoing" | "both") ?? "both";
 				if (flat) {
 					const refs = _getFlatReferences(graph, symbolName, direction);
-					return json ? JSON.stringify(refs, null, 2) : _formatFlatReferences(refs, symbolName);
+					return json
+						? buildEnvelope("shazam_impact", process.cwd(), "ok", refs)
+						: _formatFlatReferences(refs, symbolName);
 				}
 				return json
 					? _executeCallChainJson(graph, symbolName, depth, direction)
@@ -57,7 +62,7 @@ export function registerImpact(pi: ExtensionAPI): void {
 			}
 
 			// File mode: impact analysis
-			if (!params.files || !Array.isArray(params.files)) {
+			if (!params.files || !Array.isArray(params.files) || (params.files as string[]).length === 0) {
 				return "Error: either --files (array of file paths) or --symbol (symbol name) is required";
 			}
 			const files = params.files as string[];
@@ -173,7 +178,8 @@ export function executeImpact(
 	const affectedSymbols = opts.withSymbols ? bfs.affectedSymbols : [];
 
 	if (opts.compact) {
-		return [...bfs.affectedFiles].sort().join("\n");
+		const files = [...bfs.affectedFiles].sort();
+		return `## Impact (Compact)\n\n${files.length} affected file(s):\n\n${files.join("\n")}`;
 	}
 
 	const lines: string[] = [];
@@ -549,6 +555,7 @@ export function executeCallChainJson(
 	depth: number,
 	direction: "incoming" | "outgoing" | "both" = "both",
 ): string {
+	recordCallChain(symbolName);
 	return _executeCallChainJson(graph, symbolName, depth, direction);
 }
 

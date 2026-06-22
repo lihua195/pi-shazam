@@ -12,7 +12,7 @@ import { executeSymbolWithMode, executeFileDetail } from "../tools/lookup.js";
 import { executeFindTests, formatFindTestsResult } from "../tools/find_tests.js";
 import { executeFormat } from "../tools/format.js";
 import { executeVerifyTextAsync, executeVerifyJsonAsync } from "../tools/verify.js";
-import { executeChanges } from "../tools/changes.js";
+import { executeChanges, executeChangesJson } from "../tools/changes.js";
 import { executeRenameSymbol, formatRenameResult } from "../tools/rename_symbol.js";
 import { executeSafeDelete, formatSafeDeleteResult } from "../tools/safe_delete.js";
 import { appendFile, mkdir } from "node:fs/promises";
@@ -152,7 +152,7 @@ export function registerAllTools(
 		},
 		withLogging("shazam_impact", async ({ files, symbol, withSymbols, compact, depth, flat, direction, maxTokens }) => {
 			const dir = (direction as "incoming" | "outgoing" | "both") ?? "both";
-			const d = (depth as number) ?? 3;
+			const d = Math.min(Math.max((depth as number) ?? 3, 1), 10);
 
 			// Symbol mode: call chain analysis
 			if (symbol) {
@@ -230,8 +230,13 @@ export function registerAllTools(
 			description: changesDef.description,
 			inputSchema: changesDef.zodParams,
 		},
-		withLogging("shazam_changes", async ({ maxTokens }) => {
-			let text = executeChanges(getGraph(), projectRoot);
+		withLogging("shazam_changes", async ({ maxTokens, json }) => {
+			let text: string;
+			if (json) {
+				text = executeChangesJson(getGraph(), projectRoot);
+			} else {
+				text = executeChanges(getGraph(), projectRoot);
+			}
 			if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
 			return { content: [{ type: "text", text }] };
 		}),

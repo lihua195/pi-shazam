@@ -92,7 +92,7 @@ function _buildOverviewText(graph: RepoGraph, projectRoot: string, filter?: stri
 	if (files.length === 0) {
 		lines.push("## Project Overview");
 		lines.push("");
-		lines.push("No matching source files found.");
+		lines.push("No matching source files found. Try without --filter to see the full overview, or check the spelling of your filter keyword.");
 		return lines.join("\n");
 	}
 
@@ -169,14 +169,19 @@ function _buildOverviewText(graph: RepoGraph, projectRoot: string, filter?: stri
 		}
 	}
 
-	// Calculate per-file symbol counts and aggregate PageRank
-	const fileStats = new Map<string, { count: number; pagerank: number; topSym: string }>();
+	// Calculate per-file symbol counts, aggregate PageRank, and reference counts
+	const fileStats = new Map<
+		string,
+		{ count: number; pagerank: number; topSym: string; incomingRefs: number; outgoingRefs: number }
+	>();
 	for (const file of files) {
 		const symIds = graph.fileSymbols.get(file);
 		if (!symIds) continue;
 		let totalPR = 0;
 		let topPR = 0;
 		let topName = "";
+		let incoming = 0;
+		let outgoing = 0;
 		for (const id of symIds) {
 			const sym = graph.symbols.get(id);
 			if (sym) {
@@ -186,8 +191,12 @@ function _buildOverviewText(graph: RepoGraph, projectRoot: string, filter?: stri
 					topName = sym.name;
 				}
 			}
+			const inc = graph.incoming.get(id);
+			if (inc) incoming += inc.length;
+			const out = graph.outgoing.get(id);
+			if (out) outgoing += out.length;
 		}
-		fileStats.set(file, { count: symIds.length, pagerank: totalPR, topSym: topName });
+		fileStats.set(file, { count: symIds.length, pagerank: totalPR, topSym: topName, incomingRefs: incoming, outgoingRefs: outgoing });
 	}
 
 	// Top files by PageRank
@@ -199,7 +208,7 @@ function _buildOverviewText(graph: RepoGraph, projectRoot: string, filter?: stri
 	for (let i = 0; i < topFiles.length; i++) {
 		const [file, stats] = topFiles[i]!;
 		lines.push(
-			`${i + 1}. \`${file}\` — ${stats.count} symbols, PageRank ${stats.pagerank.toFixed(2)}, top symbol: ${stats.topSym}`,
+			`${i + 1}. \`${file}\` — ${stats.count} symbols, PageRank ${stats.pagerank.toFixed(4)}, top symbol: ${stats.topSym}`,
 		);
 	}
 
@@ -214,7 +223,7 @@ function _buildOverviewText(graph: RepoGraph, projectRoot: string, filter?: stri
 		lines.push("### Entry Points");
 		lines.push("");
 		for (const sym of entryPoints) {
-			lines.push(`- ${sym.kind} \`${sym.name}\` — ${sym.file}:${sym.line} (PR ${sym.pagerank.toFixed(3)})`);
+			lines.push(`- ${sym.kind} \`${sym.name}\` — ${sym.file}:${sym.line} (PR ${sym.pagerank.toFixed(4)})`);
 		}
 	}
 
@@ -251,7 +260,7 @@ function _buildOverviewText(graph: RepoGraph, projectRoot: string, filter?: stri
 
 	// Hotspots section (absorbed from tools/hotspots.ts)
 	if (!filter) {
-		const hotspots = _computeHotspots(graph, 10);
+		const hotspots = _computeHotspots(graph, 10, fileStats);
 		if (hotspots.length > 0) {
 			lines.push("");
 			lines.push("### Complexity Hotspots (Top 10)");
@@ -499,7 +508,7 @@ export function buildKeyDependenciesSection(projectRoot: string): string | null 
  */
 function buildPythonDepsSection(projectRoot: string): string | null {
 	const lines: string[] = [];
-	lines.push("### Key Dependencies");
+	lines.push("### Key Python Dependencies");
 	lines.push("");
 
 	// Try pyproject.toml first
@@ -556,7 +565,7 @@ function buildRustDepsSection(projectRoot: string): string | null {
 		const depsMatch = content.match(/\[dependencies\]\s*\n([\s\S]*?)(?=\n\[|\n*$)/);
 		if (!depsMatch) return null;
 		const deps = depsMatch[1]!.split("\n").filter((l) => l.trim() && !l.trim().startsWith("#"));
-		const lines: string[] = ["### Key Dependencies", "", "| Crate | Version |", "|-------|---------|"];
+		const lines: string[] = ["### Key Rust Dependencies", "", "| Crate | Version |", "|-------|---------|"];
 		for (const dep of deps.slice(0, 15)) {
 			const match = dep.match(/^"?([^"<>= ]+)"?\s*=\s*"?([^"]*)"?/);
 			if (match) lines.push(`| ${match[1]!.trim()} | ${match[2]?.trim() || ""} |`);
@@ -578,7 +587,7 @@ function buildGoDepsSection(projectRoot: string): string | null {
 	try {
 		const content = readFileSync(goModPath, "utf-8");
 		const deps = content.split("\n").filter((l) => l.trim().startsWith("\t") && !l.includes("go "));
-		const lines: string[] = ["### Key Dependencies", "", "| Module | Version |", "|--------|---------|"];
+		const lines: string[] = ["### Key Go Dependencies", "", "| Module | Version |", "|--------|---------|"];
 		for (const dep of deps.slice(0, 15)) {
 			const parts = dep.trim().split(/\s+/);
 			if (parts.length >= 2) lines.push(`| ${parts[0]} | ${parts[1]} |`);
@@ -622,36 +631,56 @@ interface FileHotspot {
 	hotspotScore: number;
 }
 
-function _computeHotspots(graph: RepoGraph, topN: number): FileHotspot[] {
-	const fileStats = new Map<string, FileHotspot>();
+function _computeHotspots(
+	graph: RepoGraph,
+	topN: number,
+	precomputed?: Map<string, { count: number; pagerank: number; incomingRefs: number; outgoingRefs: number }>,
+): FileHotspot[] {
+	const hotspots: FileHotspot[] = [];
 
-	for (const [file, symIds] of graph.fileSymbols) {
-		if (isNonSourceFile(file)) continue;
-
-		let totalPR = 0;
-		let incoming = 0;
-		let outgoing = 0;
-
-		for (const id of symIds) {
-			const sym = graph.symbols.get(id);
-			if (sym) totalPR += sym.pagerank;
-			const inc = graph.incoming.get(id);
-			if (inc) incoming += inc.length;
-			const out = graph.outgoing.get(id);
-			if (out) outgoing += out.length;
+	if (precomputed) {
+		// Reuse precomputed fileStats from _buildOverviewText
+		for (const [file, stats] of precomputed) {
+			if (isNonSourceFile(file)) continue;
+			hotspots.push({
+				file,
+				symbolCount: stats.count,
+				totalPagerank: stats.pagerank,
+				incomingRefs: stats.incomingRefs,
+				outgoingRefs: stats.outgoingRefs,
+				hotspotScore: stats.count * stats.pagerank,
+			});
 		}
+	} else {
+		// Standalone mode (executeHotspots): compute from scratch
+		for (const [file, symIds] of graph.fileSymbols) {
+			if (isNonSourceFile(file)) continue;
 
-		fileStats.set(file, {
-			file,
-			symbolCount: symIds.length,
-			totalPagerank: totalPR,
-			incomingRefs: incoming,
-			outgoingRefs: outgoing,
-			hotspotScore: symIds.length * totalPR,
-		});
+			let totalPR = 0;
+			let incoming = 0;
+			let outgoing = 0;
+
+			for (const id of symIds) {
+				const sym = graph.symbols.get(id);
+				if (sym) totalPR += sym.pagerank;
+				const inc = graph.incoming.get(id);
+				if (inc) incoming += inc.length;
+				const out = graph.outgoing.get(id);
+				if (out) outgoing += out.length;
+			}
+
+			hotspots.push({
+				file,
+				symbolCount: symIds.length,
+				totalPagerank: totalPR,
+				incomingRefs: incoming,
+				outgoingRefs: outgoing,
+				hotspotScore: symIds.length * totalPR,
+			});
+		}
 	}
 
-	return [...fileStats.values()].sort((a, b) => b.hotspotScore - a.hotspotScore).slice(0, topN);
+	return hotspots.sort((a, b) => b.hotspotScore - a.hotspotScore).slice(0, topN);
 }
 
 // ── Backward-compatible exports (for hotspots tests) ───────────────────

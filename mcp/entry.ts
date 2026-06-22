@@ -9,6 +9,9 @@
  */
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { scanProject } from "../core/scanner.js";
 import type { RepoGraph } from "../core/graph.js";
 import { LspManager, detectProjectLanguages } from "../lsp/manager.js";
@@ -16,6 +19,17 @@ import { setLspManager } from "../tools/_context.js";
 import { registerAllTools } from "./tools.js";
 
 const PROJECT_ROOT = process.argv[2] || ".";
+
+// Read version from package.json to keep it in sync automatically
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const pkgPath = resolve(__dirname, "..", "package.json");
+let VERSION = "0.0.0";
+try {
+	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+	VERSION = pkg.version || VERSION;
+} catch {
+	// Fallback — version will be inaccurate but MCP will still work
+}
 
 // Graph cache — uses scanProject's built-in incremental mtime detection.
 // No TTL needed; scanProject already handles per-file change detection.
@@ -40,7 +54,7 @@ async function main(): Promise<void> {
 
 	const server = new McpServer({
 		name: "pi-shazam",
-		version: "0.15.0",
+		version: VERSION,
 	});
 
 	// Share LspManager with tools layer so LSP enrichment works in MCP mode
@@ -49,8 +63,11 @@ async function main(): Promise<void> {
 	// Register all analysis tools with LSP support
 	registerAllTools(server, getGraph, PROJECT_ROOT, lspManager);
 
-	// Graceful shutdown on process exit
+	// Graceful shutdown on process exit (with reentrancy guard)
+	let _shuttingDown = false;
 	const shutdown = async () => {
+		if (_shuttingDown) return;
+		_shuttingDown = true;
 		try {
 			await lspManager.shutdown();
 		} catch {
@@ -67,10 +84,10 @@ async function main(): Promise<void> {
 	// Start stdio transport
 	const transport = new StdioServerTransport();
 	transport.onclose = () => {
-		lspManager.shutdown().catch(() => {});
+		shutdown().catch(() => {});
 	};
 	process.stdin.on("end", () => {
-		lspManager.shutdown().catch(() => {});
+		shutdown().catch(() => {});
 	});
 	await server.connect(transport);
 }
