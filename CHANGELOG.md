@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.3] - 2026-06-22
+
+### Housekeeping
+
+- **chore(#378): apply Prettier formatting** — `core/git-hooks.ts`, `tools/verify.ts`, `hooks/safety.ts` had code style drift; now reformatted to match project Prettier config.
+
 ## [0.15.2] - 2026-06-22
 
 ### Bug Fixes

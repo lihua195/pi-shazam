@@ -34,7 +34,6 @@ import { lspCodeActions } from "./lsp_enrich.js";
 import { createTool } from "./_factory.js";
 import { uriToPath } from "../lsp/client.js";
 
-
 export function registerVerify(pi: ExtensionAPI): void {
 	createTool(pi, {
 		name: "shazam_verify",
@@ -447,9 +446,9 @@ async function runLspDiagnostics(
 		for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
 			await new Promise((r) => setTimeout(r, POLL_INTERVAL_MS));
 			// Check if any server has published diagnostics
-			const hasDiagnostics = lspManagerForPolling.getActiveServers().some(
-				(srv) => srv.client.collectDiagnostics(targetFiles, false).length > 0,
-			);
+			const hasDiagnostics = lspManagerForPolling
+				.getActiveServers()
+				.some((srv) => srv.client.collectDiagnostics(targetFiles, false).length > 0);
 			if (hasDiagnostics) break;
 		}
 	}

@@ -166,7 +166,9 @@ export function getGitHooksDir(projectRoot: string): string {
 			cwd: projectRoot,
 			encoding: "utf-8",
 			timeout: 5000,
-		}).toString().trim();
+		})
+			.toString()
+			.trim();
 		// If the path is relative, resolve against project root
 		if (hooksPath.startsWith("/")) {
 			return hooksPath;
@@ -295,7 +297,9 @@ export function runPreCommitVerify(projectRoot: string): { verdict: "PASS" | "FA
 			cwd: projectRoot,
 			encoding: "utf-8",
 			timeout: 5000,
-		}).toString().trim();
+		})
+			.toString()
+			.trim();
 
 		if (!changedOutput) {
 			return { verdict: "PASS", message: "No staged changes to verify." };
