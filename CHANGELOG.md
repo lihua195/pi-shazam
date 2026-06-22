@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.14.2] - 2026-06-22
+
+### Bug Fixes
+
+- **fix(#355): systemPrompt character explosion** — `event.systemPrompt` is `string` at runtime but code treated it as `string[]`, causing `[...spread]` to explode each character onto its own line and inflate the system prompt from 3K to 102K tokens. Now uses `Array.isArray()` to handle both types safely. External report by @finnvyrn.
+- **fix(#354): defensive graph.symbols check** — `rename_symbol` now validates `graph?.symbols` before use to prevent "Cannot read properties of undefined" crashes in edge cases.
+
+### Features & Enhancements
+
+- **enhance(#353): error-type-specific failure recovery** — `hooks/failure-recovery.ts` now parses error messages to provide targeted suggestions: file-not-found (suggests `shazam_file_detail`), permission-denied, network errors, module-not-found. Added `analyzeError()` and `extractErrorText()` helper functions.
+
+### Documentation
+
+- **docs(OPS.md)**: add Phase 7 Kimi Code Hooks Sync checklist. Renumber Phase 7 Self-Improvement to Phase 8.
+
 ## [0.14.1] - 2026-06-21
 
 ### Features & Enhancements
@@ -50,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 
-- **fix(#334): LspManager._shuttingDown is a one-way latch** — Reset _shuttingDown in initializeAll() so LSP recovers after shutdown. Add 8s timeout to per-server close() in shutdown() to prevent hung-process leak.
+- **fix(#334): LspManager.\_shuttingDown is a one-way latch** — Reset \_shuttingDown in initializeAll() so LSP recovers after shutdown. Add 8s timeout to per-server close() in shutdown() to prevent hung-process leak.
 - **fix(#335): UTF-8 boundary corruption in encoding.ts** — isValidUtf8 now treats truncated multi-byte sequences at 64KB chunk boundary as inconclusive instead of false, preventing misclassification as GBK/GB2312.
 - **fix(#330): MCP shazam_verify runs sync path** — Switch to async verify (executeVerifyTextAsync/executeVerifyJsonAsync), enabling LSP diagnostics for MCP clients.
 - **fix(#331): MCP silently ignores {json:true}** — Add maxTokens and json to all 14 Zod schemas; add topN bounds (min 1, max 50) to codesearch/hotspots.
@@ -61,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **refactor(#337): Extract core/redact.ts** — Shared SECRET_PATTERNS + redact() from mcp/tools.ts and hooks/tool-logger.ts.
 - **refactor(#339): Extract core/formatters.ts** — Shared detectFormatters() from tools/fix.ts and hooks/shazam-guide.ts.
 - **refactor(#340): Extract core/audit-log.ts** — Unified audit-log rotation (10MB size, 5 archived copies, 30-day age).
-- **refactor(#338): Split oversized functions** — Extract helpers in tools/overview.ts (_buildOverviewText), core/scanner.ts (_walkDirectory), lsp/manager.ts (_initServerForLanguage).
+- **refactor(#338): Split oversized functions** — Extract helpers in tools/overview.ts (\_buildOverviewText), core/scanner.ts (\_walkDirectory), lsp/manager.ts (\_initServerForLanguage).
 
 ### Other
 
