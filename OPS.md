@@ -212,11 +212,48 @@ git branch
 
 **Pass**: on `main` branch, working directory clean, only `main` local branch.
 
-## Phase 7: Self-Improvement Retrospective
+## Phase 7: Kimi Code Hooks Sync
+
+After every pi-shazam release, check if Kimi Code hooks need to be updated. Kimi Code uses pi-shazam via MCP (`npx pi-shazam-mcp`), and its shell hooks provide similar functionality to pi-shazam's TypeScript hooks.
+
+### 7.1 When to Sync
+
+| pi-shazam Change | Kimi Code Hook to Check |
+|-----------------|------------------------|
+| New/renamed/deleted tool | `mcp-reference.sh`, `shazam-guide.sh` |
+| Tool description changed | `mcp-reference.sh`, `radar-session.sh` |
+| `tools/fix.ts` formatter changed | `auto-fix.sh` |
+| Verification flow changed | `pre-commit-shazam.sh`, `stop-verify.sh` |
+| Hook behavior changed | Corresponding `.sh` script |
+| New danger pattern added | `check-destructive.sh` |
+
+### 7.2 Sync Checklist
+
+- [ ] `mcp-reference.sh` — tool list complete, tool names correct (`mcp__pi-shazam__shazam_*`)
+- [ ] `shazam-guide.sh` — covers all tools with trigger patterns
+- [ ] `auto-fix.sh` — formatter commands match `tools/fix.ts`
+- [ ] `pre-commit-shazam.sh` — verify logic matches `hooks/safety.ts`
+- [ ] `stop-verify.sh` — edit detection correct
+- [ ] `watchdog.sh` — audit log format matches `hooks/tool-logger.ts`
+- [ ] `check-destructive.sh` — danger patterns match `hooks/safety.ts`
+- [ ] `agent-context-guard.sh` — context scoring matches `hooks/agent-context-guard.ts`
+- [ ] `issue-guard.sh` — issue detection matches `hooks/issue-guard.ts`
+
+### 7.3 Key Differences (Pi vs Kimi Code)
+
+| Aspect | Pi (TypeScript) | Kimi Code (Shell) |
+|--------|-----------------|-------------------|
+| Interactive confirm | `ctx.ui.confirm()` | ❌ exit 2 only |
+| State persistence | In-memory Map | Disk files (`~/.kimi-code/watchdog/`) |
+| Tool call format | `shazam_*` | `mcp__pi-shazam__shazam_*` |
+| Formatter execution | `execSync()` | Shell script |
+| Verify detection | `verify-state.ts` memory | `verified_<session>` marker file |
+
+## Phase 8: Self-Improvement Retrospective
 
 After every release, review the OPS process itself and ALL companion .md files for staleness. OPS.md is a living document — if you had to do something not documented here, add it.
 
-### 7.1 Companion File Audit
+### 8.1 Companion File Audit
 
 Review EVERY companion .md file. For each one, ask: "Did this release change anything that this file documents?"
 
@@ -233,7 +270,7 @@ Review EVERY companion .md file. For each one, ask: "Did this release change any
 | `DESIGN.md` | (if exists) Design tokens, component styles |
 | `api.d.ts` | (if exists) All API endpoints match current implementation |
 
-### 7.2 Process Retrospective
+### 8.2 Process Retrospective
 
 - [ ] Were there any manual steps during this release NOT documented in OPS.md? → **Add them now.**
 - [ ] Did any companion file go stale and only get caught late? → **Add a check to Phase 1.0.**
@@ -263,6 +300,7 @@ Review EVERY companion .md file. For each one, ask: "Did this release change any
 [ ] 15. MCP server smoke-tested
 [ ] 16. Temporary branches cleaned up (auto-deleted by release.sh, verified)
 [ ] 17. Git clean state confirmed
-[ ] 18. Self-improvement retrospective completed (Phase 7)
+[ ] 18. Self-improvement retrospective completed (Phase 8)
+[ ] 19. Kimi Code hooks synced (Phase 7)
 [ ] 19. All companion .md files audited for staleness
 ```

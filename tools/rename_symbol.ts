@@ -69,6 +69,16 @@ export function registerRenameSymbol(pi: ExtensionAPI): void {
 			}
 			// Scan project to get graph (fixes #209 — customExecute must not rely on module-level variable)
 			const graph = scanProject(".");
+			if (!graph?.symbols) {
+				return {
+					content: [
+						{
+							type: "text" as const,
+							text: "Error: Failed to scan project graph. Please try again or run shazam_overview first.",
+						},
+					],
+				};
+			}
 			const result = await executeRenameSymbol(graph, symbolName, newName, dryRun);
 			const text = json
 				? buildEnvelope("shazam_rename_symbol", process.cwd(), "ok", result)

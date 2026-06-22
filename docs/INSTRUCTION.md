@@ -484,16 +484,18 @@ registerMyHook(pi);
 
 ```typescript
 pi.on("before_agent_start", (_event, _ctx) => {
-	const sp = Array.isArray(_event.systemPrompt) ? _event.systemPrompt.join("\n") : String(_event.systemPrompt ?? "");
-	if (sp.includes("my-guide")) return; // avoid double injection
+	// _event.systemPrompt is always string[] (input)
+	// Returned systemPrompt must be string (output)
+	const existing = _event.systemPrompt ?? [];
+	if (existing.some(s => s.includes("my-guide"))) return; // avoid double injection
 
 	return {
-		systemPrompt: sp + "\n\nmy guidance text here",
+		systemPrompt: [...existing, "my guidance text here"].filter(Boolean).join("\n\n"),
 	};
 });
 ```
 
-**Critical**: `systemPrompt` may be `string` or `string[]` at runtime. Always check with `Array.isArray()`.
+**Critical**: `event.systemPrompt` is `string[]` (input), returned `systemPrompt` must be `string` (output). Always append to existing array, never replace.
 
 **Logging pattern** — follow tool-logger.ts convention, write to `~/.pi/hooks/audit/`:
 
