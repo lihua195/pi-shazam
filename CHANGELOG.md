@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.15.2] - 2026-06-22
+
+### Bug Fixes
+
+- **fix(#362): Dart LSP server never activated** — `_detectLanguage()` was missing `.dart` mapping, causing the Dart language server (configured in `lsp/servers.ts`) to never be used for `.dart` files. Dart/Flutter projects now get full LSP diagnostics, hover, and type hierarchy support.
+
+### Documentation
+
+- **docs(#362): full documentation audit** — synced language counts (6→7 for tree-sitter+LSP across README, SKILL, mcp/README, INSTRUCTION), added missing files to architecture trees (`changes.ts`, `definitions.ts`, `git-utils.ts`), updated hook mapping tables (`issue-guard.ts`, `agent-context-guard.ts`), fixed OPS.md checklist references, added `types/*.d.ts` to prettier paths, corrected tool count in package.json (14→9)
+- **docs(#362): AGENTS.md version sync** — updated version reference from v0.14.2 to current
+
 ## [0.15.1] - 2026-06-22
 
 ### Bug Fixes
