@@ -178,7 +178,9 @@ function buildParserWarningSection(graph: RepoGraph): string {
 		const suggestion = info.suggestion ? ` ${info.suggestion}` : "";
 		lines.push(`- ${lang}: tree-sitter parser unavailable.${suggestion}`);
 	}
-	lines.push("For these languages, use `shazam_hover` and `shazam_verify` (LSP-based tools) instead of graph-based tools (call_chain, impact, hotspots).");
+	lines.push(
+		"For these languages, use `shazam_hover` and `shazam_verify` (LSP-based tools) instead of graph-based tools (call_chain, impact, hotspots).",
+	);
 	return lines.join("\n");
 }
 
@@ -230,12 +232,9 @@ export function generateOverviewForPrompt(projectRoot: string, isContinuation = 
 	const recommendations = buildProactiveRecommendations(projectRoot, graph);
 	const baselineSection = buildSessionBaselineSection(projectRoot, graph);
 	const parserWarning = buildParserWarningSection(graph);
-	const parts = [
-		`[pi-shazam] Project Overview:\n${overview}`,
-		recommendations,
-		baselineSection,
-		parserWarning,
-	].filter(Boolean);
+	const parts = [`[pi-shazam] Project Overview:\n${overview}`, recommendations, baselineSection, parserWarning].filter(
+		Boolean,
+	);
 
 	_hasShownOverview = true;
 	return parts.join("\n\n");
@@ -269,7 +268,9 @@ export function registerBeforeStartHook(pi: ExtensionAPI): void {
 			const overviewText = generateOverviewForPrompt(projectRoot, _hasShownOverview);
 			// Append overview to the existing system prompt (AGENTS.md, skills, etc.)
 			// NOT replace — returning systemPrompt alone would wipe global rules and skill descriptions
-			const existing = event.systemPrompt ?? [];
+			// event.systemPrompt is string[] in types but string at runtime (Pi API contract)
+			const raw = event.systemPrompt;
+			const existing: string[] = Array.isArray(raw) ? raw : raw ? [raw] : [];
 			const merged = [...existing, overviewText].filter(Boolean);
 			return {
 				systemPrompt: merged.join("\n\n"),
