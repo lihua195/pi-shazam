@@ -27,6 +27,7 @@ Before bumping the version, ensure ALL documentation is up to date with the chan
 - [ ] Include subsections: Features & Enhancements, Bug Fixes, Refactoring, Documentation, Other
 - [ ] Reference issue/PR numbers for each entry (e.g., `fix(#NNN)`, `enhance(#NNN)`)
 - [ ] Keep entries concise but informative
+- [ ] **CRITICAL**: CHANGELOG content MUST be generated from ALL commits since the last version tag, NOT just the most recent commit. Run `git log vPREV..HEAD --oneline --reverse` to list all commits, then inspect each commit's diff to write accurate entries. A single commit may contain changes to 15+ files across multiple domains — each domain gets its own sub-entry.
 
 ### 1.2 README.md
 

@@ -43,7 +43,7 @@ Use this only if you are **not** using Pi agent. The MCP interface provides the 
 	"mcpServers": {
 		"pi-shazam": {
 			"command": "npx",
-			"args": ["-y", "-p", "pi-shazam", "pi-shazam-mcp"]
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp"]
 		}
 	}
 }

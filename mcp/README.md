@@ -13,7 +13,7 @@ Add to your MCP config (`~/.cursor/mcp.json` or `claude_desktop_config.json`):
 	"mcpServers": {
 		"pi-shazam": {
 			"command": "npx",
-			"args": ["pi-shazam-mcp"]
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp"]
 		}
 	}
 }
@@ -26,7 +26,7 @@ Add to your MCP config (`~/.cursor/mcp.json` or `claude_desktop_config.json`):
 	"mcpServers": {
 		"pi-shazam": {
 			"command": "npx",
-			"args": ["pi-shazam-mcp"]
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp"]
 		}
 	}
 }
@@ -46,7 +46,7 @@ Or directly edit `kimi_mcp.json`:
 	"mcpServers": {
 		"pi-shazam": {
 			"command": "npx",
-			"args": ["pi-shazam-mcp"]
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp"]
 		}
 	}
 }
@@ -59,7 +59,7 @@ Or directly edit `kimi_mcp.json`:
 	"mcpServers": {
 		"pi-shazam": {
 			"command": "npx",
-			"args": ["pi-shazam-mcp", "/path/to/project"]
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp", "/path/to/project"]
 		}
 	}
 }

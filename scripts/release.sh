@@ -126,7 +126,7 @@ pi install npm:pi-shazam@latest
 
 Or for MCP clients:
 \`\`\`json
-{ \"mcpServers\": { \"pi-shazam\": { \"command\": \"npx\", \"args\": [\"-y\", \"-p\", \"pi-shazam@${NEW_VERSION}\", \"pi-shazam-mcp\"] } } }
+{ \"mcpServers\": { \"pi-shazam\": { \"command\": \"npx\", \"args\": [\"-y\", \"-p\", \"pi-shazam@latest\", \"pi-shazam-mcp\"] } } }
 \`\`\`
 
 ${DIFF_LINK}"

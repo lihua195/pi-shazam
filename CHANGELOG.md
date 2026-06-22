@@ -7,9 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.15.3] - 2026-06-22
 
+### Bug Fixes
+
+- **fix(#376): security hardening, LSP resource management, and error handling** (#377)
+  - **Security**: PATH scanning restricted to trusted system directories (`SAFE_PATH_DIRS`) — prevents command injection via manipulated `PATH` environment variable; PROJECT_ROOT validated to be within user home directory with symlink escape detection; `_factory.ts` `validatePathInProject` hardened with realpath traversal check
+  - **LSP lifecycle**: `_doClose` race condition fixed (check exitCode before removing listeners); `_docVersions` cleared on cleanup to prevent stale state accumulation; old LSP client properly closed before language re-initialization; `proc.kill()` guarded against already-exited processes; `withTimeout` CTS cancel guard added
+  - **Error handling**: 25+ empty catch blocks replaced with `console.warn` diagnostics across `core/`, `lsp/`, `hooks/`, `mcp/`, `tools/` — every error branch now either handles (with a log) or propagates
+  - **Safety hook**: `--no-verify` detection fixed to handle combined short flags like `-nq`, `-qn` (previously only matched standalone `-n`)
+  - **LSP diagnostics polling**: replaced fixed 500ms wait with adaptive polling (5 attempts × 200ms, stops early when diagnostics arrive) — prevents stale/empty diagnostic results on slower LSP servers
+  - **LSP enrichment**: simplified `withEnrichTimeout` — removed duplicate CTS cancel logic (already handled by `_sendRequest`)
+
+- **fix(#378): CTS timing and SAFE_PATH_DIRS expansion** (#379)
+  - `_sendRequest` CTS dispose timing fixed: CTS was disposed synchronously before the returned Promise settled, causing premature CancellationToken cleanup; now uses proper async disposal pattern
+  - `SAFE_PATH_DIRS` expanded to include `/opt/homebrew/bin` and `/snap/bin` — Homebrew (macOS) and snap (Linux) users can now auto-detect LSP servers installed via these package managers
+
 ### Housekeeping
 
-- **chore(#378): apply Prettier formatting** — `core/git-hooks.ts`, `tools/verify.ts`, `hooks/safety.ts` had code style drift; now reformatted to match project Prettier config.
+- **chore(#378): Prettier formatting** — `core/git-hooks.ts`, `tools/verify.ts`, `hooks/safety.ts` had code style drift; reformatted to match project Prettier config
+
+### Documentation
+
+- **docs(#378): agent checklist expansion** — added user rule anchors (address as 老板, completion report format, code comment conventions, no empty catch blocks) to AGENTS.md checklist
+- **docs(#378): Kimi Code hooks sync** — updated `docs/kimi-code-hooks.md` version mapping for v0.15.3 tool name consolidation sync across all Kimi Code shell hooks
 
 ## [0.15.2] - 2026-06-22
 
