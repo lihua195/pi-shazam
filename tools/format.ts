@@ -559,7 +559,3 @@ function runFormatterCommand(args: string[], cwd: string): void {
 		// Formatter may fail on individual files — non-fatal
 	}
 }
-
-// ── Backward-compatible exports (for tests) ────────────────────────────────
-export { executeFormat as executeFix, executeFormatJson as executeFixJson };
-export type { FormatOptions as FixOptions };
