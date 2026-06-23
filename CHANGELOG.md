@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.0] - 2026-06-24
+
+### Features & Enhancements
+
+- **enhance(#430): cross-language import resolution** -- import paths are now resolved for Python (dotted + relative + src/ layout), Rust (`mod`, `crate::`, `super::`), Go (relative + directory packages), and Dart (`package:` + relative) in addition to JS/TS, building more complete dependency edges in multi-language projects
+- **enhance(#430): existsSync hot-path cache** -- import resolution builds an in-memory `existsSync` cache per scan, eliminating thousands of redundant syscalls during graph construction on large projects
+- **enhance(#428): module-level TreeSitterAdapter singleton** -- scanner now reuses a single `TreeSitterAdapter` across scans instead of creating a new instance (which reloads all WASM grammars) on every `scanProject()` call, cutting first-tool latency after startup
+- **enhance(#429): fast root-marker language detection** -- `detectProjectLanguages()` now checks root markers (`pubspec.yaml`, `Cargo.toml`, `package.json`, `pyproject.toml`, `go.mod`) before walking the directory tree, and raised `maxFiles` default from 2000 to 5000 to reduce language misses on large projects
+- **enhance(#429): Dart LSP setup guidance** -- added Dart SDK install instructions to `lsp/setup.ts` so users get actionable setup steps instead of "server not found"
+- **enhance(#431): improved Dart grammar failure message** -- when Dart tree-sitter grammar fails to load (due to tree-sitter 0.22/0.24 ABI mismatch), the error message now explains that LSP features still work and tree-sitter parsing requires an upgrade
+
+### Bug Fixes
+
+- **fix(#428-C1): Parser instance sharing corrupts concurrent parse state** -- TypeScript and TSX fallback paths now create independent `Parser` instances wrapping the JavaScript language instead of storing the same JS parser reference under three keys; concurrent `parse()` calls on a shared instance mutated internal WASM state and produced corrupt trees
+- **fix(#428-C2): per-scan TreeSitterAdapter reloads WASM grammars** -- scanner now holds a module-level lazy singleton (`_scannerAdapter`) instead of constructing a fresh `TreeSitterAdapter` on every scan, eliminating redundant WASM compilation and reducing memory churn
+- **fix(#428-C3): CancellationToken listener leak in LSP client** -- `_sendRequest` now saves the `onCancellationRequested` listener disposable and releases it in `finally`; previously listeners accumulated on every request and were never disposed, causing a slow memory leak on long-running Pi sessions
+- **fix(#429): Windows path URI double-encodes drive letter colon** -- `pathToUri()` now detects Windows drive letters (`C:`) and preserves the colon instead of encoding it as `%3A`, which caused LSP servers to reject file URIs on Windows
+- **fix(#429): lspLanguageId misclassifies .js/.mjs/.cjs as TypeScript** -- removed over-broad suffix mapping that sent JS files with TypeScript language ID; now only `.tsx` maps to `typescriptreact` and `.jsx` to `javascriptreact`
+- **fix(#429): collectDiagnostics iterates all notifications on every call** -- replaced O(n) iteration over `_notifications` map with direct lookup by requested file URI; only consumes diagnostics for files the caller asked about
+- **fix(#429): LSP initialize not cancellable** -- `initialize()` now links the caller's `AbortSignal` to an internal `CancellationTokenSource` so init can be properly cancelled on shutdown
+- **fix(#429): _openingFiles not cleared on crash cleanup** -- `_cleanupAfterCrash()` now clears `_openingFiles` set alongside `_openedFiles`, preventing leaked open-file state after LSP crash recovery
+- **fix(#429): empty catch blocks swallow errors in LSP timeout/cleanup paths** -- replaced silent `catch {}` blocks in `withTimeout` and `_cleanupAfterCrash` with `_log()` calls that surface the actual error message
+- **fix(#429): Dart LSP serverName mismatch** -- corrected `serverName` from `"dart-language-server"` to `"dart"` to match the actual binary name; the mismatch caused server discovery to skip the Dart SDK binary even when installed
+- **fix(#429): detectProjectLanguages uses resolve() not realpathSync() for cycle detection** -- switched to `realpathSync()` so symlinked directories are properly deduplicated; switched remaining `console.warn` calls to `_logWarn` for consistent logging
+- **fix(#431): Rust _isExported over-scopes visibility_modifier check** -- `pub` visibility is now checked only on the immediate node's children instead of all ancestors; previously a `pub` field inside a private struct caused the entire parent chain to be incorrectly marked as exported
+- **fix(#431): Rust import query captures scoped_use_list wrapper node** -- removed `(scoped_use_list)` capture from Rust import query so imports like `use foo::{bar, baz}` capture individual identifiers instead of the braced list as a single string
+- **fix(#431): Dart tree-sitter queries use @sengac/tree-sitter-dart node types** -- updated Dart import query to match `configurable_uri > uri > string_literal`, and call query to match `constructor_invocation` and `new_expression` nodes instead of the old `method_invocation` pattern that produced zero captures
+
+### Refactoring
+
+- Scanner singleton reset is now wired into `resetCache()` for test isolation
+
 ## [0.18.2] - 2026-06-23
 
 ### Bug Fixes
