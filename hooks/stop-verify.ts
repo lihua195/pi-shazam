@@ -87,9 +87,7 @@ export function registerStopVerify(pi: ExtensionAPI): void {
 
 		// Build a file list for the message
 		const fileList =
-			editedFiles.length <= 3
-				? editedFiles.map((f) => `\`${f}\``).join(", ")
-				: `${editedFiles.length} files`;
+			editedFiles.length <= 3 ? editedFiles.map((f) => `\`${f}\``).join(", ") : `${editedFiles.length} files`;
 
 		// Send a steer message that triggers a new turn, forcing the agent
 		// to run shazam_verify before continuing. deliverAs: "steer" makes
