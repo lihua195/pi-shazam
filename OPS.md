@@ -20,6 +20,7 @@ Before bumping the version, ensure ALL documentation is up to date with the chan
 - [ ] If new tool/hook/command added: update AGENTS.md tables, SKILL.md, mcp/README.md, docs/kimi-code-hooks.md
 - [ ] If project description/philosophy changed: update README.md intro
 - [ ] If community interaction policy changed: update AGENTS.md
+- [ ] If core architecture or risk pattern changed: update LLM-REVIEW-GUIDE.md
 
 ### 1.1 CHANGELOG.md
 
@@ -62,6 +63,14 @@ Before bumping the version, ensure ALL documentation is up to date with the chan
 - [ ] Update version number (handled by `release.sh`, but verify)
 - [ ] Update API contracts if tool output formats changed
 - [ ] Update architecture layer boundaries if layers changed
+
+### 1.7 LLM-REVIEW-GUIDE.md
+
+- [ ] Update risk tiers if new high-risk files were added/removed
+- [ ] Update P0/P1 categories if new failure patterns emerged in the release
+- [ ] Update "Key Files to Review" if core architecture changed
+- [ ] Update Quick Sanity Checklist if new verification commands are available
+- [ ] If no code architecture changes: verify existing checklist items still pass
 
 ## Phase 2: Version Bump & Build
 
@@ -269,6 +278,7 @@ Review EVERY companion .md file. For each one, ask: "Did this release change any
 | `mcp/README.md`       | MCP tool table, client setup examples                                                  |
 | `docs/INSTRUCTION.md` | API contracts, version number, architecture boundaries                                 |
 | `LOCAL_CI.md`         | All CI steps still valid (new test files? new checks needed?)                          |
+| `LLM-REVIEW-GUIDE.md` | Review rules, risk tiers, sanity checks                                                |
 | `OPS.md`              | This file — were any steps missing, wrong order, or need new Pass criteria?            |
 | `DESIGN.md`           | (if exists) Design tokens, component styles                                            |
 | `api.d.ts`            | (if exists) All API endpoints match current implementation                             |
@@ -306,4 +316,5 @@ Review EVERY companion .md file. For each one, ask: "Did this release change any
 [ ] 18. Self-improvement retrospective completed (Phase 8)
 [ ] 19. Kimi Code hooks synced (Phase 7)
 [ ] 20. All companion .md files audited for staleness
+[ ] 21. LLM-REVIEW-GUIDE.md updated if architecture/risk patterns changed
 ```
