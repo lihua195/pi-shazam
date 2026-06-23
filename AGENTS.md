@@ -240,6 +240,8 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
   - Tool parameters: update `inputSchema: z.object({...})` in mcp/tools.ts
   - Update `README.md` if user-facing tool list or usage changed
   - Run `./scripts/release.sh` to ensure everything is synced and deployed
+- **Adding a shared utility to core/**: Add the function to the appropriate `core/*.ts` file → export it → import in all consumers from `../core/<file>.js` → if the utility is used across layers, `core/` is the only valid home (layer boundary: `core/` must not import from `tools/`, `hooks/`, or `lsp/`)
+- **Fixing test environment issues**: Check `vitest.config.ts` (test runner settings) and `vitest.setup.ts` (global process handlers) before assuming a test failure is a real bug — pre-existing stream destruction errors from vscode-jsonrpc are suppressed in `vitest.setup.ts`
 
 ## First Places to Inspect
 
@@ -248,8 +250,11 @@ Key entry points — shazam_overview "Suggested Reading Order" provides the full
 - `index.ts` — extension entry, all registrations
 - `core/treesitter.ts` — language support, symbol extraction
 - `core/graph.ts` — dependency graph
+- `core/output.ts` — shared utilities: `_logWarn`, `NEXT_RULES`, `truncateOutput`
+- `core/scanner.ts` — project scanning, `getEffectiveRoot()` project root override
 - `lsp/client.ts` — LSP JSON-RPC
 - `tools/_factory.ts` — tool registration factory
+- `vitest.config.ts` — test runner config (suppresses pre-existing stream errors)
 - `docs/INSTRUCTION.md` — single source of truth for contracts and conventions
 
 ## Docs Directory
