@@ -7,13 +7,13 @@
  */
 
 import { readdirSync, statSync, existsSync } from "node:fs";
-import { readFile as readFileAsync } from "node:fs/promises";
 import { join, resolve, delimiter } from "node:path";
 import { homedir } from "node:os";
 import { LspClient } from "./client.js";
 import type { LspDiagnostic, LspLocation } from "./client.js";
 import { LSP_SERVER_SPECS, languageForSuffix, lspTimeoutFor } from "./servers.js";
 import { SKIP_DIRS } from "../core/filter.js";
+import { readFileAdaptiveAsync } from "../core/encoding.js";
 
 // -- Types --------------------------------------------------------------------
 
@@ -483,6 +483,13 @@ export class LspManager {
 				source: detection.source as LspServerInfo["source"],
 			};
 
+			// C2: Check if shutdown was triggered while we were initializing.
+			// If so, close the client immediately instead of leaking the process.
+			if (this._shuttingDown) {
+				await client.close().catch((err) => this.log(`close on shutdown race for ${language} failed: ${err}`));
+				return null;
+			}
+
 			this.servers.set(language, info);
 
 			// Re-open previously opened files after server crash/reconnection
@@ -493,7 +500,7 @@ export class LspManager {
 				const readResults = await Promise.allSettled(
 					entries.map(async (filePath) => {
 						const absPath = resolve(detection.workspaceRoot, filePath);
-						const content = await readFileAsync(absPath, "utf-8");
+						const content = await readFileAdaptiveAsync(absPath);
 						return { filePath, content };
 					}),
 				);

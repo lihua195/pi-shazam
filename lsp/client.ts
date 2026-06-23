@@ -168,6 +168,7 @@ export class LspClient {
 	private _initialized = false;
 	private _initPromise: Promise<void> | null = null;
 	private _closing = false;
+	private _cleanedUp = false;
 	private _closePromise: Promise<void> | null = null;
 	private _log: (msg: string) => void;
 
@@ -214,7 +215,14 @@ export class LspClient {
 		this._log(`Starting LSP: ${this.command[0]} (workspace: ${this.workspaceRoot})`);
 
 		const [cmd, ...args] = this.command;
-		this.process = spawn(cmd!, args, {
+		// L8: Validate command array has at least one element instead of using
+		// non-null assertion. An empty command array would be a configuration bug.
+		if (!cmd) {
+			this._log("LSP start failed: empty command array");
+			this._cleanupAfterCrash();
+			return;
+		}
+		this.process = spawn(cmd, args, {
 			cwd: this.workspaceRoot,
 			stdio: ["pipe", "pipe", "pipe"],
 		});
@@ -993,6 +1001,9 @@ export class LspClient {
 		// During intentional close(), the finally block handles cleanup.
 		// Suppress double-cleanup from the exit handler firing after kill().
 		if (this._closing) return;
+		// M3: Prevent double cleanup when both error and exit events fire.
+		if (this._cleanedUp) return;
+		this._cleanedUp = true;
 
 		const closeError = new Error("LSP process exited unexpectedly");
 

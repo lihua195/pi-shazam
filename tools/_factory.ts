@@ -136,13 +136,16 @@ export function createTool<T extends TProperties>(pi: ExtensionAPI, spec: ToolSp
 		async execute(_toolCallId: string, params: Record<string, unknown>): Promise<AgentToolResult> {
 			const json = (params.json as boolean) ?? false;
 			const maxTokens = params.maxTokens as number | undefined;
-			const project = process.cwd();
-			params.project = project;
+			// C3: Use scanner's effective project root (respects setProjectRoot override)
+			// instead of process.cwd() so scanner and LSP use the same root.
+			const project = resolve(".");
+			// L7: Avoid mutating caller's params object -- use spread to create a new one
+			const effectiveParams = { ...params, project };
 			const graph = scanProject(".");
 
 			let text: string;
 			try {
-				text = await domainFn(graph, params);
+				text = await domainFn(graph, effectiveParams);
 			} catch (err) {
 				const errMsg = err instanceof Error ? err.message : String(err);
 				if (json) {
