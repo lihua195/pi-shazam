@@ -6,7 +6,7 @@
 [![CI](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml/badge.svg)](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **100% Vibe Coding** — This entire project (core analysis engine, 9 tools, hooks, LSP integration, MCP server, CI/CD, documentation) was built using [Pi coding agent](https://pi.dev) powered primarily by **DeepSeek-V4-Pro**, **MiMo-V2.5-Pro**, and **Qwen3.7-Max**. Zero hand-written code. Every line, every test, every architecture decision — generated and refined by AI, verified by automated CI.
+> **100% Vibe Coding** — This entire project (core analysis engine, 9 tools, hooks, LSP integration, MCP server, CI/CD, documentation) was built using [Pi coding agent](https://pi.dev) powered primarily by **DeepSeek-V4-Pro**, **GLM-5.2**, **GLM-5.1**, **MiMo-V2.5-Pro**, and **Qwen3.7-Max**. Zero hand-written code. Every line, every test, every architecture decision — generated and refined by AI, verified by automated CI.
 
 ## What It Does
 
