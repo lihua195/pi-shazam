@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.18.2] - 2026-06-23
+
+### Bug Fixes
+
+- **fix(#421): customExecute tools use process.cwd() instead of scanner project root override** — exported `getEffectiveRoot()` from scanner; replaced `process.cwd()` in customExecute tools (lookup, verify, rename_symbol) with the overridable root so path validation and JSON envelope metadata work correctly when Pi detects the project in a subdirectory; fixed misleading factory comment
+- **fix(#424): orphan false positives for module-level infrastructure symbols** — added `isInfrastructureWrapper()` filter to `findOrphans()` that skips `_require` (ESM/CJS interop), `__filename`, and `__dirname` from orphan detection; these are live code at module top level but invisible to the dependency graph because their usage is in top-level expressions
+- **fix(#425): console.warn/error stack trace noise** — added shared `_logWarn()` helper to `core/output.ts` that suppresses ENOENT errors and prints concise one-line warnings instead of full stack traces; replaced 41 `console.warn/error(err)` calls across 15 files so expected degradation (LSP unavailable, config missing) no longer looks like a crash
+- **fix(#426): LSP detection misses version manager binaries (nvm/fnm/volta)** — added `_getVersionManagerBinDirs()` helper that dynamically resolves bin directories from `NVM_BIN`, `FNM_MULTISHELL_PATH`, `FNM_DIR`, and `VOLTA_HOME` environment variables; wired into both `SAFE_PATH_DIRS` and `trustedUserCandidates()` so globally installed LSP servers are correctly discovered
+
 ## [0.18.1] - 2026-06-23
 
 ### Bug Fixes
