@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.3] - 2026-06-24
+
+### Bug Fixes
+
+- **fix(#444): orphan false positives when same-file references are at module top level** -- `findOrphans` now checks `graph.fileCalls` and `graph.fileRefs` as a fallback when a symbol has zero incoming edges. Top-level calls outside any function body (e.g., module initialization code) produce no symbol-level edge because `findCallerSymbols` returns empty when no enclosing symbol's range covers the call line. The fallback check matches the symbol's name against its own file's call/ref lists, preventing false-positive orphan reports for functions genuinely used within the same file.
+
+### Features & Enhancements
+
+- **enhance(#443): LSP server discovery expanded to mise, asdf, pyenv, pnpm, n, and Homebrew on Linux** -- environment-variable-driven paths (`MISE_DATA_DIR`, `ASDF_DATA_DIR`, `PYENV_ROOT`, `PNPM_HOME`, `N_PREFIX`, `HOMEBREW_PREFIX`) and default fallback directories (`~/.local/share/mise/shims`, `~/.asdf/shims`, `~/.pyenv/shims`, `~/.local/share/pnpm`, `~/.linuxbrew/bin`) are now checked for LSP server executables, enabling automatic detection for users managing runtimes through these version managers.
+
+### Documentation
+
+- **docs**: update model list and add MCP+hooks usage guide
+
+### Other
+
+- **fix**: release.sh Step 8.5 now detects squash-merged branches via `gh pr list` in addition to `git branch --merged`
+
 ## [0.19.2] - 2026-06-24
 
 ### Bug Fixes
@@ -20,7 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fix(#437): LSP server process leak from TOCTOU race** -- added a second `_shuttingDown` check after `servers.set()` in `_initServerForLanguage`; if `shutdown()` raced between the first check and server registration, the server is now immediately closed instead of leaking as an orphaned OS process
 - **fix(#438): GBK files with >64KB ASCII prefix misdetected as UTF-8** -- for files larger than 64KB where the first chunk passes UTF-8 validation, the full decoded buffer is now checked for replacement character ratio; if >5%, the full buffer is decoded with GBK then GB2312 as fallback, fixing mojibake for Chinese source files with long English preambles
 - **fix(#439): cache directory creation failure crashes entire scan** -- `getProjectCacheDir` `mkdirSync` is now wrapped in try/catch; when the cache directory is inaccessible (EACCES, EROFS, ENOSPC), a warning is logged and the scan continues without caching instead of failing all shazam tools
-- **fix: LSP _openingFiles not cleared on _doClose** -- `_doClose` now clears `_openingFiles` set alongside other state cleanup, preventing stale open-file tracking after LSP server shutdown
+- **fix: LSP \_openingFiles not cleared on \_doClose** -- `_doClose` now clears `_openingFiles` set alongside other state cleanup, preventing stale open-file tracking after LSP server shutdown
 
 ### Documentation
 
@@ -46,11 +64,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fix(#429): lspLanguageId misclassifies .js/.mjs/.cjs as TypeScript** -- removed over-broad suffix mapping that sent JS files with TypeScript language ID; now only `.tsx` maps to `typescriptreact` and `.jsx` to `javascriptreact`
 - **fix(#429): collectDiagnostics iterates all notifications on every call** -- replaced O(n) iteration over `_notifications` map with direct lookup by requested file URI; only consumes diagnostics for files the caller asked about
 - **fix(#429): LSP initialize not cancellable** -- `initialize()` now links the caller's `AbortSignal` to an internal `CancellationTokenSource` so init can be properly cancelled on shutdown
-- **fix(#429): _openingFiles not cleared on crash cleanup** -- `_cleanupAfterCrash()` now clears `_openingFiles` set alongside `_openedFiles`, preventing leaked open-file state after LSP crash recovery
+- **fix(#429): \_openingFiles not cleared on crash cleanup** -- `_cleanupAfterCrash()` now clears `_openingFiles` set alongside `_openedFiles`, preventing leaked open-file state after LSP crash recovery
 - **fix(#429): empty catch blocks swallow errors in LSP timeout/cleanup paths** -- replaced silent `catch {}` blocks in `withTimeout` and `_cleanupAfterCrash` with `_log()` calls that surface the actual error message
 - **fix(#429): Dart LSP serverName mismatch** -- corrected `serverName` from `"dart-language-server"` to `"dart"` to match the actual binary name; the mismatch caused server discovery to skip the Dart SDK binary even when installed
 - **fix(#429): detectProjectLanguages uses resolve() not realpathSync() for cycle detection** -- switched to `realpathSync()` so symlinked directories are properly deduplicated; switched remaining `console.warn` calls to `_logWarn` for consistent logging
-- **fix(#431): Rust _isExported over-scopes visibility_modifier check** -- `pub` visibility is now checked only on the immediate node's children instead of all ancestors; previously a `pub` field inside a private struct caused the entire parent chain to be incorrectly marked as exported
+- **fix(#431): Rust \_isExported over-scopes visibility_modifier check** -- `pub` visibility is now checked only on the immediate node's children instead of all ancestors; previously a `pub` field inside a private struct caused the entire parent chain to be incorrectly marked as exported
 - **fix(#431): Rust import query captures scoped_use_list wrapper node** -- removed `(scoped_use_list)` capture from Rust import query so imports like `use foo::{bar, baz}` capture individual identifiers instead of the braced list as a single string
 - **fix(#431): Dart tree-sitter queries use @sengac/tree-sitter-dart node types** -- updated Dart import query to match `configurable_uri > uri > string_literal`, and call query to match `constructor_invocation` and `new_expression` nodes instead of the old `method_invocation` pattern that produced zero captures
 

@@ -230,6 +230,7 @@ const SAFE_PATH_DIRS = new Set([
 	"/usr/sbin",
 	"/sbin",
 	"/opt/homebrew/bin",
+	"/home/linuxbrew/.linuxbrew/bin",
 	"/snap/bin",
 ]);
 
@@ -247,6 +248,26 @@ const VERSION_MANAGER_ENV_VARS: Array<{ env: string; subPath?: string }> = [
 	{ env: "FNM_MULTISHELL_PATH" },
 	{ env: "FNM_DIR", subPath: "current/bin" },
 	{ env: "VOLTA_HOME", subPath: "bin" },
+	{ env: "MISE_DATA_DIR", subPath: "shims" },
+	{ env: "ASDF_DATA_DIR", subPath: "shims" },
+	{ env: "PYENV_ROOT", subPath: "shims" },
+	{ env: "PNPM_HOME" },
+	{ env: "PNPM_HOME", subPath: "bin" },
+	{ env: "N_PREFIX", subPath: "bin" },
+	{ env: "HOMEBREW_PREFIX", subPath: "bin" },
+];
+
+/**
+ * Default install directories for version managers when their env var is not set.
+ * These are checked as fallbacks so users relying on default paths also work.
+ */
+const DEFAULT_VERSION_MANAGER_DIRS: Array<{ base: string; subPath: string }> = [
+	{ base: join(homedir(), ".local", "share", "mise"), subPath: "shims" },
+	{ base: join(homedir(), ".asdf"), subPath: "shims" },
+	{ base: join(homedir(), ".pyenv"), subPath: "shims" },
+	{ base: join(homedir(), ".local", "share", "pnpm"), subPath: "" },
+	{ base: join(homedir(), ".local", "share", "pnpm"), subPath: "bin" },
+	{ base: join(homedir(), ".linuxbrew"), subPath: "bin" },
 ];
 
 export function _getVersionManagerBinDirs(): string[] {
@@ -254,6 +275,17 @@ export function _getVersionManagerBinDirs(): string[] {
 	for (const { env, subPath } of VERSION_MANAGER_ENV_VARS) {
 		const base = process.env[env];
 		if (!base) continue;
+		const dir = subPath ? join(base, subPath) : base;
+		try {
+			if (statSync(dir).isDirectory()) {
+				dirs.push(dir);
+			}
+		} catch {
+			// Directory does not exist — skip silently
+		}
+	}
+	// Fallback: check default install directories when env var is not set
+	for (const { base, subPath } of DEFAULT_VERSION_MANAGER_DIRS) {
 		const dir = subPath ? join(base, subPath) : base;
 		try {
 			if (statSync(dir).isDirectory()) {
@@ -293,7 +325,12 @@ function trustedUserCandidates(commandName: string): string[] {
 		join(home, ".yarn", "bin", commandName),
 		join(home, ".config", "yarn", "global", "node_modules", ".bin", commandName),
 		join(home, ".local", "share", "pnpm", commandName),
+		join(home, ".local", "share", "pnpm", "bin", commandName),
 		join(home, ".local", "share", "nvim", "mason", "bin", commandName),
+		join(home, ".local", "share", "mise", "shims", commandName),
+		join(home, ".asdf", "shims", commandName),
+		join(home, ".pyenv", "shims", commandName),
+		join(home, ".linuxbrew", "bin", commandName),
 	];
 	// Return all matching executables, not just the first (fixes for-of with immediate return)
 	const results: string[] = [];

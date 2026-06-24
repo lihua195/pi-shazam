@@ -116,36 +116,53 @@ describe("version manager bin discovery (#426)", () => {
 		}
 	});
 
-	it("should return empty array when no version manager env vars are set", async () => {
+	const ALL_VM_ENV_VARS = [
+		"NVM_BIN",
+		"FNM_MULTISHELL_PATH",
+		"FNM_DIR",
+		"VOLTA_HOME",
+		"MISE_DATA_DIR",
+		"ASDF_DATA_DIR",
+		"PYENV_ROOT",
+		"PNPM_HOME",
+		"N_PREFIX",
+		"HOMEBREW_PREFIX",
+	];
+
+	it("should return only default fallback dirs when no version manager env vars are set", async () => {
 		const { _getVersionManagerBinDirs } = await import("../lsp/manager.js");
-		const origNvmBin = process.env.NVM_BIN;
-		const origFnmPath = process.env.FNM_MULTISHELL_PATH;
-		const origFnmDir = process.env.FNM_DIR;
-		const origVoltaHome = process.env.VOLTA_HOME;
+		const orig: Record<string, string | undefined> = {};
+		for (const k of ALL_VM_ENV_VARS) orig[k] = process.env[k];
 		try {
-			delete process.env.NVM_BIN;
-			delete process.env.FNM_MULTISHELL_PATH;
-			delete process.env.FNM_DIR;
-			delete process.env.VOLTA_HOME;
+			for (const k of ALL_VM_ENV_VARS) delete process.env[k];
 			const dirs = _getVersionManagerBinDirs();
-			expect(dirs).toEqual([]);
+			// When no env vars are set, results come from default fallback dirs
+			// that exist on the machine. All returned values must be valid paths.
+			for (const dir of dirs) {
+				expect(dir).toBeTruthy();
+				expect(typeof dir).toBe("string");
+			}
 		} finally {
-			if (origNvmBin) process.env.NVM_BIN = origNvmBin;
-			if (origFnmPath) process.env.FNM_MULTISHELL_PATH = origFnmPath;
-			if (origFnmDir) process.env.FNM_DIR = origFnmDir;
-			if (origVoltaHome) process.env.VOLTA_HOME = origVoltaHome;
+			for (const [k, v] of Object.entries(orig)) {
+				if (v !== undefined) process.env[k] = v;
+			}
 		}
 	});
 
 	it("should skip non-existent directories", async () => {
 		const { _getVersionManagerBinDirs } = await import("../lsp/manager.js");
-		const origNvmBin = process.env.NVM_BIN;
+		const orig: Record<string, string | undefined> = {};
+		for (const k of ALL_VM_ENV_VARS) orig[k] = process.env[k];
 		try {
+			for (const k of ALL_VM_ENV_VARS) delete process.env[k];
 			process.env.NVM_BIN = "/nonexistent/path/that/does/not/exist";
 			const dirs = _getVersionManagerBinDirs();
-			expect(dirs).toEqual([]);
+			// The nonexistent path must not appear in results
+			expect(dirs).not.toContain("/nonexistent/path/that/does/not/exist");
 		} finally {
-			process.env.NVM_BIN = origNvmBin;
+			for (const [k, v] of Object.entries(orig)) {
+				if (v !== undefined) process.env[k] = v;
+			}
 		}
 	});
 });

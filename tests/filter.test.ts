@@ -10,12 +10,32 @@ import { describe, it, expect } from "vitest";
 import { findOrphans } from "../core/filter.js";
 import { createRepoGraph, createSymbol, type RepoGraph, type Symbol } from "../core/graph.js";
 
-function buildGraph(symbols: Symbol[]): RepoGraph {
+function buildGraph(
+	symbols: Symbol[],
+	overrides?: { fileCalls?: [string, [string, number, string][]][]; fileRefs?: [string, [string, number][]][] },
+): RepoGraph {
 	const graph = createRepoGraph();
 	for (const sym of symbols) {
 		graph.symbols.set(sym.id, sym);
 		graph.incoming.set(sym.id, []);
 		graph.outgoing.set(sym.id, []);
+		// Rebuild nameIndex so findCalleeSymbols works
+		const named = graph.nameIndex.get(sym.name);
+		if (named) {
+			named.push(sym);
+		} else {
+			graph.nameIndex.set(sym.name, [sym]);
+		}
+	}
+	if (overrides?.fileCalls) {
+		for (const [file, calls] of overrides.fileCalls) {
+			graph.fileCalls.set(file, calls);
+		}
+	}
+	if (overrides?.fileRefs) {
+		for (const [file, refs] of overrides.fileRefs) {
+			graph.fileRefs.set(file, refs);
+		}
 	}
 	return graph;
 }
@@ -249,5 +269,65 @@ describe("core/filter findOrphans", () => {
 		const result = findOrphans(graph);
 		expect(result.internal).toHaveLength(1);
 		expect(result.internal[0].name).toBe("_unusedHelper");
+	});
+
+	// ── Same-file reference tracking (issue #444) ─────────────────────────
+
+	it("should NOT report symbol called at top-level in same file as orphan (call)", () => {
+		// Simulates: ensureGitignore defined at line 39, called at line 156 (top-level)
+		// Top-level calls don't have an enclosing function, so findCallerSymbols
+		// returns empty, no edge is created, and incoming is empty.
+		const graph = buildGraph(
+			[
+				sym("src/index.ts::ensureGitignore::39", "src/index.ts", "ensureGitignore", "function", "internal"),
+				sym("src/index.ts::deadCode::200", "src/index.ts", "deadCode", "function", "internal"),
+			],
+			{
+				fileCalls: [
+					[
+						"src/index.ts",
+						[
+							["ensureGitignore", 156, "call"],
+							["log", 160, "call"],
+						],
+					],
+				],
+			},
+		);
+		const result = findOrphans(graph);
+		const names = result.internal.map((s) => s.name);
+		expect(names).not.toContain("ensureGitignore");
+		// deadCode is genuinely unused (no caller at all)
+		expect(names).toContain("deadCode");
+	});
+
+	it("should NOT report symbol referenced as callback arg in same file as orphan (ref)", () => {
+		// Simulates: resolveMarkerState defined at line 242, used at line 223
+		// as a top-level reference (e.g., passed as argument to a function)
+		const graph = buildGraph(
+			[sym("src/index.ts::resolveMarkerState::242", "src/index.ts", "resolveMarkerState", "function", "internal")],
+			{
+				fileRefs: [["src/index.ts", [["resolveMarkerState", 223]]]],
+			},
+		);
+		const result = findOrphans(graph);
+		expect(result.internal).toHaveLength(0);
+	});
+
+	it("should still report symbol with same-name call in a DIFFERENT file as orphan", () => {
+		// The symbol is in helper.ts, but fileCalls for index.ts mentions the same name.
+		// This is NOT a same-file ref — we must only check the symbol's own file.
+		const graph = buildGraph(
+			[
+				sym("src/helper.ts::orphanFn::10", "src/helper.ts", "orphanFn", "function", "internal"),
+				sym("src/index.ts::deadCode::1", "src/index.ts", "deadCode", "function", "internal"),
+			],
+			{
+				fileCalls: [["src/index.ts", [["orphanFn", 5, "call"]]]],
+			},
+		);
+		const result = findOrphans(graph);
+		const names = result.internal.map((s) => s.name);
+		expect(names).toContain("orphanFn");
 	});
 });

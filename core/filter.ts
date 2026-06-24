@@ -266,6 +266,35 @@ function isInfrastructureWrapper(name: string, kind: string, _file?: string): bo
 }
 
 /**
+ * Check if a symbol is referenced within its own file via fileCalls or fileRefs.
+ *
+ * When a call/reference occurs at the top level of a module (not inside any
+ * function/class body), findCallerSymbols returns empty because no symbol's
+ * range covers that line. This causes the same-file call to produce no edge,
+ * leaving the callee with zero incoming references -- a false positive orphan
+ * (issue #444).
+ *
+ * This function provides a fallback check: if the symbol's name appears in
+ * its own file's call or ref lists, it is genuinely referenced within that
+ * file and should not be classified as orphan.
+ */
+function _hasSameFileRef(graph: RepoGraph, sym: { name: string; file: string }): boolean {
+	const calls = graph.fileCalls.get(sym.file);
+	if (calls) {
+		for (const [calleeName] of calls) {
+			if (calleeName === sym.name) return true;
+		}
+	}
+	const refs = graph.fileRefs.get(sym.file);
+	if (refs) {
+		for (const [refName] of refs) {
+			if (refName === sym.name) return true;
+		}
+	}
+	return false;
+}
+
+/**
  * Shared orphan symbol detection.
  *
  * Single implementation used by baseline diff and verify tools.
@@ -287,6 +316,9 @@ function isInfrastructureWrapper(name: string, kind: string, _file?: string): bo
  *  - Registration functions (register*, createTool) called by MCP/extension frameworks
  *  - Language-specific entry point symbols (dunder methods, main, traits)
  *  - Framework handler patterns (handle_*, on_*, middleware, *_handler)
+ *  - Symbols referenced within their own file via fileCalls/fileRefs,
+ *    even when no symbol-level edge exists (issue #444 -- top-level
+ *    calls outside any function body produce no caller->callee edge)
  *
  * Returns structured result with separate lists for internal and exported orphans.
  * The exported list is always empty under the current policy (all exports excluded).
@@ -352,6 +384,10 @@ export function findOrphans(graph: RepoGraph): {
 		if (sym.kind === "interface" || sym.kind === "type_alias") continue;
 		const incoming = graph.incoming.get(sym.id);
 		if (!incoming || incoming.length === 0) {
+			// Same-file reference fallback (issue #444): top-level calls
+			// outside any function body produce no symbol-level edge,
+			// but the symbol is genuinely used within its own file.
+			if (_hasSameFileRef(graph, sym)) continue;
 			// Skip anonymous functions
 			if (sym.kind === "anonymous_function") continue;
 			// Skip impl blocks -- they are structural declarations (impl Foo { ... })
