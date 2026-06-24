@@ -6,7 +6,7 @@
 [![CI](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml/badge.svg)](https://github.com/gjczone/pi-shazam/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> **100% Vibe Coding** — This entire project (core analysis engine, 9 tools, hooks, LSP integration, MCP server, CI/CD, documentation) was built using [Pi coding agent](https://pi.dev) powered primarily by **DeepSeek-V4-Pro**, **GLM-5.2**, **GLM-5.1**, **MiMo-V2.5-Pro**, and **Qwen3.7-Max**. Zero hand-written code. Every line, every test, every architecture decision — generated and refined by AI, verified by automated CI.
+> **100% Vibe Coding** — This entire project (core analysis engine, 9 tools, hooks, LSP integration, MCP server, CI/CD, documentation) was built using [Pi coding agent](https://pi.dev) powered primarily by (in order of contribution) **DeepSeek-V4-Pro**, **GLM-5.2**, **GLM-5.1**, **Doubao-Seed-2.1-Pro**, **MiMo-V2.5-Pro**, and **Qwen3.7-Max**. Zero hand-written code. Every line, every test, every architecture decision — generated and refined by AI, verified by automated CI.
 
 ## What It Does
 
@@ -50,6 +50,21 @@ Use this only if you are **not** using Pi agent. The MCP interface provides the 
 ```
 
 Compatible with any MCP-capable client. Same analysis engine, JSON-based tool interface.
+
+### Enhance MCP with Agent Hooks
+
+For the best experience, combine pi-shazam MCP with your agent's hook system. Hooks can auto-trigger shazam tools at the right moments — before editing, after writing, before committing — without the LLM needing to remember to call them.
+
+**Example: Kimi Code + shazam MCP**
+
+| Hook | When | shazam Tool | Effect |
+|------|------|-------------|--------|
+| `pre-edit` | Before file edit | `shazam_impact` | Warns about affected callers before changes |
+| `post-edit` | After file save | `shazam_changes` | Shows what changed and risk level |
+| `pre-commit` | Before git commit | `shazam_verify --preCommit` | Blocks commit if type errors, orphans, or lint issues exist |
+| `session-start` | New session | `shazam_overview` | Injects project structure into system prompt |
+| `auto-fix` | Verify reports format issues | `shazam_format` | Auto-fixes formatting without touching logic |
+
 
 ## Tools
 
