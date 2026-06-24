@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.2] - 2026-06-24
+
+### Bug Fixes
+
+- **fix(#441): extension fails to load when vscode-jsonrpc/node is missing** -- wrapped top-level `_require("vscode-jsonrpc/node")` calls in `lsp/client.ts` and `tools/lsp_enrich.ts` in try-catch blocks. When the module is unavailable, the extension loads successfully with LSP disabled and all tree-sitter tools work normally, instead of the entire extension failing to load with `MODULE_NOT_FOUND`.
+
 ## [0.19.1] - 2026-06-24
 
 ### Bug Fixes
