@@ -15,12 +15,35 @@ Before bumping the version, ensure ALL documentation is up to date with the chan
 
 ### 1.0 General .md Sync Check
 
-- [ ] Scan ALL changed files in this release and cross-check against the .md file list below
+Before bumping version, identify ALL companion .md files and cross-check against changed code.
+
+```bash
+# Discover all .md files in the project (excluding node_modules, dist, .git)
+find . -name "*.md" -not -path "*/node_modules/*" -not -path "*/dist/*" -not -path "*/.git/*" | sort
+
+# List files changed since the last version tag
+git diff --name-only v$(node -p 'require("./package.json").version')..HEAD
+```
+
+Cross-reference changed source files against the .md checklist below. For each changed source file, determine which .md file documents that area:
+
+| Source change              | .md files to check                                  |
+| -------------------------- | --------------------------------------------------- |
+| `core/` files changed      | `docs/INSTRUCTION.md`, `AGENTS.md` (architecture)   |
+| `tools/` files changed     | `SKILL.md`, `mcp/README.md`, `AGENTS.md` (tools)    |
+| `hooks/` files changed     | `AGENTS.md` (hooks), `docs/kimi-code-hooks.md`      |
+| `lsp/` files changed       | `docs/INSTRUCTION.md` (LSP degradation)             |
+| `types/` files changed     | `docs/INSTRUCTION.md` (API contracts)               |
+| `package.json` changed     | `README.md` (install), `AGENTS.md` (commands)       |
+| `.github/workflows/` changed | `LOCAL_CI.md`                                     |
+| Release process changed    | `OPS.md`                                            |
+
 - [ ] If language count changed: update README.md, AGENTS.md, SKILL.md, mcp/README.md, docs/kimi-code-hooks.md
 - [ ] If new tool/hook/command added: update AGENTS.md tables, SKILL.md, mcp/README.md, docs/kimi-code-hooks.md
 - [ ] If project description/philosophy changed: update README.md intro
 - [ ] If community interaction policy changed: update AGENTS.md
 - [ ] If core architecture or risk pattern changed: update LLM-REVIEW-GUIDE.md
+- [ ] **New**: verify ALL .md files listed in Phase 8.1 table exist and are referenced in this checklist
 
 ### 1.1 CHANGELOG.md
 
