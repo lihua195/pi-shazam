@@ -89,7 +89,7 @@ export type GraphCacheData = GraphCacheDataExport;
 
 /**
  * Load a persistent graph cache. Returns null if missing, corrupt, wrong
- * version, or older than 7 days.
+ * version, or older than 1 day.
  */
 export function loadGraphCache(cachePath: string): GraphCacheData | null {
 	if (!existsSync(cachePath)) return null;

@@ -1140,6 +1140,7 @@ export class LspClient {
 			this.connection = null;
 			this.process = null;
 			this._openedFiles.clear();
+			this._openingFiles.clear();
 			this._notifications.clear();
 			this._docVersions.clear();
 			this._serverCapabilities = {};
