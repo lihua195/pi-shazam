@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.6] - 2026-06-25
+
+### Bug Fixes
+
+- **fix(#459): suppress ENOENT warnings from readFileAdaptive for missing config files** -- added `existsSync` guards before reading `package.json` in `core/formatters.ts` and `tools/overview.ts`, suppressed ENOENT `console.warn` in `core/encoding.ts` for both sync and async variants, and wrapped `readFileAdaptive` in try/catch in `hooks/shazam-guide.ts`. Non-Node.js projects (Rust, Python, Go) no longer see noisy ENOENT warnings on startup.
+
+### Tests
+
+- **test(#459): ENOENT warning suppression test** -- added test to `tests/formatters.test.ts` verifying that `detectFormatters` does not emit `console.warn` with ENOENT/stat-failed messages when called on a directory without `package.json`.
+
 ## [0.19.5] - 2026-06-25
 
 ### Bug Fixes
