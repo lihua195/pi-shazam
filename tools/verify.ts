@@ -141,7 +141,11 @@ export async function executeVerifyJsonAsync(projectRoot: string, options: Verif
 			lspDiagnostics,
 			lspAvailable,
 			failedOpens: lspFailedOpens,
-			verdict: lspDiagnostics.some((d) => d.severity === "error") ? "FAIL" : lspFailedOpens.length > 0 ? "WARN" : "PASS",
+			verdict: lspDiagnostics.some((d) => d.severity === "error")
+				? "FAIL"
+				: lspFailedOpens.length > 0
+					? "WARN"
+					: "PASS",
 			quickMode: quick,
 			lspOnlyMode: lspOnly,
 			preCommitMode: preCommit,

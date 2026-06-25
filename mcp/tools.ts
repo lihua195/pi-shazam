@@ -206,7 +206,9 @@ export function registerAllTools(
 			for (const f of filesArr) {
 				if (!validatePathInProject(f, projectRoot)) {
 					return {
-						content: [{ type: "text", text: `Error: File path '${f}' is outside the project root and cannot be accessed.` }],
+						content: [
+							{ type: "text", text: `Error: File path '${f}' is outside the project root and cannot be accessed.` },
+						],
 					};
 				}
 			}
@@ -310,7 +312,12 @@ export function registerAllTools(
 			// #446: Validate user-supplied sourceFile path against project root (path-traversal guard)
 			if (sourceFile && !validatePathInProject(sourceFile as string, projectRoot)) {
 				return {
-					content: [{ type: "text", text: `Error: Source file path '${sourceFile}' is outside the project root and cannot be accessed.` }],
+					content: [
+						{
+							type: "text",
+							text: `Error: Source file path '${sourceFile}' is outside the project root and cannot be accessed.`,
+						},
+					],
 				};
 			}
 			const result = executeFindTests(getGraph(), projectRoot, {
@@ -351,7 +358,13 @@ export function registerAllTools(
 					],
 				};
 			}
-			const result = await executeRenameSymbol(getGraph(), symbol as string, newName as string, effectiveDryRun, projectRoot);
+			const result = await executeRenameSymbol(
+				getGraph(),
+				symbol as string,
+				newName as string,
+				effectiveDryRun,
+				projectRoot,
+			);
 			let text = formatRenameResult(result, symbol as string, newName as string, effectiveDryRun);
 			if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
 			return { content: [{ type: "text", text }] };

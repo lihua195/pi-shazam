@@ -931,7 +931,9 @@ function _walkDirectory(
 					// prevent traversal outside project root (C4: path traversal)
 					const resolvedRoot = resolve(root);
 					if (!realPath.startsWith(resolvedRoot + "/") && realPath !== resolvedRoot) {
-						console.warn(`[pi-shazam] _walkDirectory: symlink target outside project root, skipping: ${relPath} -> ${realPath}`);
+						console.warn(
+							`[pi-shazam] _walkDirectory: symlink target outside project root, skipping: ${relPath} -> ${realPath}`,
+						);
 						continue;
 					}
 					_walkDirectory(realPath, depth + 1, options);
