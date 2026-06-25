@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.4] - 2026-06-25
+
+### Bug Fixes
+
+- **fix(#445,#446,#447,#452): MCP path-traversal guards, recordCallChain, projectRoot** -- added path-traversal protections in MCP tools, fixed `recordCallChain` logic, and corrected `projectRoot` handling.
+- **fix(#449,#450,#451): LSP URI mismatch, isPathInRoot, _cleanedUp latch** -- resolved LSP URI mismatch issues, fixed `isPathInRoot` boundary checks, and corrected the `_cleanedUp` latch race condition.
+- **fix(#448,#453): incremental scan edge loss + batch P1 cleanup** -- fixed edge loss during incremental scans and implemented batch P1 cleanup improvements.
+
+### Documentation
+
+- **docs**: update LLM-REVIEW-GUIDE.md with fix notes for #448, #451, #445-#447, #452
+
 ## [0.19.3] - 2026-06-24
 
 ### Bug Fixes
