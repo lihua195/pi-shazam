@@ -8,6 +8,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { readFileAdaptive } from "./encoding.js";
+import { _logWarn } from "./output.js";
 
 /**
  * Detect available formatters from project config files.
@@ -53,7 +54,7 @@ export function detectFormatters(projectRoot: string): string[] {
 			if (pkg.prettier) formatters.push("prettier");
 			if (pkg.eslintConfig) formatters.push("eslint");
 		} catch {
-			console.warn("[pi-shazam] detectFormatters: package.json parse failed");
+			_logWarn("detectFormatters", "package.json parse failed");
 			// package.json invalid -- continue
 		}
 	}
@@ -71,7 +72,7 @@ export function detectFormatters(projectRoot: string): string[] {
 			const pyproject = readFileAdaptive(join(projectRoot, "pyproject.toml"));
 			if (pyproject.includes("[tool.ruff")) formatters.push("ruff");
 		} catch {
-			console.warn("[pi-shazam] detectFormatters: pyproject.toml parse failed");
+			_logWarn("detectFormatters", "pyproject.toml parse failed");
 		}
 	}
 
@@ -85,7 +86,7 @@ export function detectFormatters(projectRoot: string): string[] {
 			const cargo = readFileAdaptive(join(projectRoot, "Cargo.toml"));
 			if (cargo.includes("[package]")) formatters.push("rustfmt");
 		} catch {
-			console.warn("[pi-shazam] detectFormatters: Cargo.toml parse failed");
+			_logWarn("detectFormatters", "Cargo.toml parse failed");
 		}
 	}
 

@@ -13,6 +13,7 @@
 import { writeFileSync, chmodSync, existsSync, readFileSync, unlinkSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
+import { _logWarn } from "./output.js";
 
 /**
  * Pre-commit hook script content.
@@ -175,7 +176,7 @@ export function getGitHooksDir(projectRoot: string): string {
 		}
 		return resolve(projectRoot, hooksPath);
 	} catch {
-		console.warn("[pi-shazam] getGitHooksDir: git rev-parse failed, falling back to .git/hooks");
+		_logWarn("getGitHooksDir", "git rev-parse failed, falling back to .git/hooks");
 		// Fallback to .git/hooks for non-git directories
 		const gitDir = resolve(projectRoot, ".git");
 		return join(gitDir, "hooks");

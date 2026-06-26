@@ -15,7 +15,7 @@ import { existsSync } from "node:fs";
 import { readFile as readFileAsync } from "node:fs/promises";
 import { join } from "node:path";
 import { execFileSync } from "node:child_process";
-import { getNextForTool, formatNextSection } from "../core/output.js";
+import { _logWarn, getNextForTool, formatNextSection } from "../core/output.js";
 import { isNonSourceFile } from "../core/filter.js";
 import { detectFormatters } from "../core/formatters.js";
 
@@ -276,7 +276,7 @@ function parseEditorconfig(projectRoot: string): { style?: string; size?: number
 
 		return { style, size };
 	} catch {
-		console.warn("[pi-shazam] parseEditorconfig: failed to parse .editorconfig");
+		_logWarn("parseEditorconfig", "failed to parse .editorconfig");
 		return null;
 	}
 }
@@ -342,7 +342,7 @@ function hasUseTabsInConfig(projectRoot: string): boolean {
 					return content.includes('"useTabs": true') || content.includes("'useTabs': true");
 				}
 			} catch {
-				console.warn("[pi-shazam] hasUseTabsInConfig: failed to read config file");
+				_logWarn("hasUseTabsInConfig", "failed to read config file");
 				// Skip unreadable configs
 			}
 		}
@@ -356,7 +356,7 @@ function hasUseTabsInConfig(projectRoot: string): boolean {
 			if (pkg.prettier?.useTabs === true) return true;
 		}
 	} catch {
-		console.warn("[pi-shazam] hasUseTabsInConfig: failed to read package.json");
+		_logWarn("hasUseTabsInConfig", "failed to read package.json");
 		// Skip
 	}
 

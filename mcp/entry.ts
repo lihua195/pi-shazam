@@ -77,7 +77,7 @@ try {
 	const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 	VERSION = pkg.version || VERSION;
 } catch {
-	console.warn("[pi-shazam mcp] failed to read package.json version");
+	_logWarn("entry", "failed to read package.json version");
 	// Fallback -- version will be inaccurate but MCP will still work
 }
 
@@ -121,7 +121,7 @@ async function main(): Promise<void> {
 		try {
 			await lspManager.shutdown();
 		} catch {
-			console.warn("[pi-shazam mcp] shutdown: lspManager.shutdown failed");
+			_logWarn("shutdown", "lspManager.shutdown failed");
 			/* best effort */
 		}
 	};

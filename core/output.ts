@@ -452,13 +452,17 @@ export function truncateOutput(lines: string[], maxTokens: number): string {
  * Never passes the raw Error object to console, as Node.js would print the
  * full stack trace, making normal degradation look like a crash.
  *
+ * `err` is optional: omit it for warning conditions with no caught error
+ * (the " - reason" suffix is dropped so output stays clean).
+ *
  * Usage:
  *   _logWarn("isExecutable", "statSync failed for /path/to/binary", err)
+ *   _logWarn("parseEditorconfig", "failed to parse .editorconfig")
  */
-export function _logWarn(tag: string, message: string, err: unknown): void {
+export function _logWarn(tag: string, message: string, err?: unknown): void {
 	if (err instanceof Error && (err as NodeJS.ErrnoException).code === "ENOENT") {
 		return; // expected: file not found, suppress completely
 	}
-	const reason = err instanceof Error ? err.message : String(err);
-	console.warn(`[pi-shazam] ${tag}: ${message} - ${reason}`);
+	const reason = err === undefined ? "" : err instanceof Error ? err.message : String(err);
+	console.warn(reason ? `[pi-shazam] ${tag}: ${message} - ${reason}` : `[pi-shazam] ${tag}: ${message}`);
 }

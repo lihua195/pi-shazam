@@ -59,7 +59,7 @@ function countSourceFilesUpTo(root: string, limit: number): number {
 		try {
 			entries = readdirSync(dir, { withFileTypes: true });
 		} catch {
-			console.warn(`[pi-shazam] countSourceFilesUpTo: permission denied or unreadable directory: ${dir}`);
+			_logWarn("countSourceFilesUpTo", `permission denied or unreadable directory: ${dir}`);
 			return; // permission denied or unreadable directory
 		}
 		for (const entry of entries) {
@@ -280,7 +280,7 @@ export function registerBeforeStartHook(pi: ExtensionAPI): void {
 				systemPrompt: merged.join("\n\n"),
 			};
 		} catch (err) {
-			console.warn(`[pi-shazam] Failed to generate overview: ${err}`);
+			_logWarn("generateOverview", "failed to generate overview", err);
 			// Don't block agent start on overview failure
 			return undefined;
 		}

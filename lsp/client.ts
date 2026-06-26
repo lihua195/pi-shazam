@@ -1148,7 +1148,7 @@ export class LspClient {
 						proc.stderr.removeAllListeners("data");
 					}
 				} catch {
-					console.warn("[pi-shazam] _doClose: proc.stderr.removeAllListeners failed");
+					_logWarn("_doClose", "proc.stderr.removeAllListeners failed");
 					// stderr may not be an EventEmitter (e.g., in tests).
 				}
 			}
@@ -1170,7 +1170,7 @@ export class LspClient {
 						try {
 							proc.kill("SIGKILL");
 						} catch {
-							console.warn("[pi-shazam] _doClose: proc.kill(SIGKILL) failed");
+							_logWarn("_doClose", "proc.kill(SIGKILL) failed");
 						}
 						resolve();
 					}, 2000);
