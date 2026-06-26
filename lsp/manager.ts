@@ -196,17 +196,18 @@ function detectWorkspaceRoot(projectRoot: string, filePath: string | null, langu
 				return current;
 			}
 		}
-		// Check if we've reached or passed the project root
+		// Never walk above projectRoot. When current has reached root (this
+		// happens when filePath is null/inside root, or after walking up from
+		// a deeper file), root markers were already checked above, so break.
+		// The previous condition only broke on `current === parent || parent
+		// === root`, so when current === root itself and root had no marker,
+		// it set current = parent (above root) and escaped (#466).
+		if (current === root) {
+			break;
+		}
 		const parent = resolve(current, "..");
-		if (current === parent || parent === root) {
-			if (current !== root) {
-				// Check root itself
-				for (const marker of markers) {
-					if (existsSync(join(root, marker))) {
-						return root;
-					}
-				}
-			}
+		// Filesystem root reached without finding a marker.
+		if (current === parent) {
 			break;
 		}
 		current = parent;
