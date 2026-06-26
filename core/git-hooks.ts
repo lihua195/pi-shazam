@@ -223,14 +223,19 @@ export function installPreCommitHook(projectRoot: string): string {
 		throw new Error(`Git hooks directory not found: ${hooksDir}. Is this a git repository?`);
 	}
 
-	// Check if hook already exists (don't overwrite custom hooks)
-	if (existsSync(hookPath)) {
+	// Check if hook already exists (don't overwrite custom hooks).
+	// Use try/catch instead of existsSync + readFileSync to avoid TOCTOU race
+	// where the file is deleted between the existence check and the read (issue #462).
+	try {
 		const existingContent = readFileSync(hookPath, "utf-8");
 		if (!existingContent.includes("shazam")) {
 			// Backup existing hook
 			const backupPath = join(hooksDir, "pre-commit.shazam-backup");
 			writeFileSync(backupPath, existingContent, "utf-8");
 		}
+	} catch {
+		// Hook file does not exist or was removed between check and read.
+		// Treat as no existing hook and proceed with fresh installation.
 	}
 
 	writeFileSync(hookPath, PRE_COMMIT_HOOK_CONTENT, "utf-8");
@@ -249,9 +254,15 @@ export function installPreCommitHook(projectRoot: string): string {
 export function isPreCommitHookInstalled(projectRoot: string): boolean {
 	const hooksDir = getGitHooksDir(projectRoot);
 	const hookPath = join(hooksDir, "pre-commit");
-	if (!existsSync(hookPath)) return false;
-	const content = readFileSync(hookPath, "utf-8");
-	return content.includes("shazam");
+	// Use try/catch instead of existsSync + readFileSync to avoid TOCTOU race
+	// where the file is deleted between the existence check and the read (issue #462).
+	try {
+		const content = readFileSync(hookPath, "utf-8");
+		return content.includes("shazam");
+	} catch {
+		// Hook file does not exist or was removed between check and read.
+		return false;
+	}
 }
 
 /**
@@ -266,17 +277,26 @@ export function removePreCommitHook(projectRoot: string): boolean {
 	const hookPath = join(hooksDir, "pre-commit");
 	const backupPath = join(hooksDir, "pre-commit.shazam-backup");
 
-	if (!existsSync(hookPath)) return false;
-	const content = readFileSync(hookPath, "utf-8");
+	// Use try/catch instead of existsSync + readFileSync to avoid TOCTOU race
+	// where the file is deleted between the existence check and the read (issue #462).
+	let content: string;
+	try {
+		content = readFileSync(hookPath, "utf-8");
+	} catch {
+		// Hook file does not exist or was removed between check and read.
+		return false;
+	}
 	if (!content.includes("shazam")) return false;
 
-	// Restore backup if exists
-	if (existsSync(backupPath)) {
+	// Restore backup if it can be read. If the backup was removed (TOCTOU race),
+	// fall back to removing the shazam-installed hook entirely.
+	try {
 		const backupContent = readFileSync(backupPath, "utf-8");
 		writeFileSync(hookPath, backupContent, "utf-8");
 		chmodSync(hookPath, 0o755);
-	} else {
-		// Remove the shazam-installed hook
+	} catch {
+		// Backup file does not exist or was removed between check and read.
+		// Remove the shazam-installed hook instead of restoring backup.
 		unlinkSync(hookPath);
 	}
 
