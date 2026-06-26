@@ -54,7 +54,7 @@ export function registerImpact(pi: ExtensionAPI): void {
 				if (flat) {
 					const refs = _getFlatReferences(graph, symbolName, direction);
 					return json
-						? buildEnvelope("shazam_impact", process.cwd(), "ok", refs)
+						? buildEnvelope("shazam_impact", getEffectiveRoot(), "ok", refs)
 						: _formatFlatReferences(refs, symbolName);
 				}
 				return json
@@ -305,7 +305,7 @@ export function executeImpactJson(graph: RepoGraph, files: string[], depth: numb
 
 	const risk = assessImpactRisk(bfs.affectedFiles.size, bfs.affectedSymbols.length);
 
-	return buildEnvelope("shazam_impact", process.cwd(), "ok", {
+	return buildEnvelope("shazam_impact", getEffectiveRoot(), "ok", {
 		targetFiles: files,
 		affectedFileCount: bfs.affectedFiles.size,
 		affectedFiles: [...bfs.affectedFiles].sort(),
@@ -407,7 +407,7 @@ function _executeCallChainJson(
 				: [],
 	}));
 
-	return buildEnvelope("shazam_impact", process.cwd(), "ok", result);
+	return buildEnvelope("shazam_impact", getEffectiveRoot(), "ok", result);
 }
 
 function _traceIncoming(graph: RepoGraph, startId: string, maxDepth: number): [number, Symbol, { kind: string }][] {

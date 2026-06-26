@@ -12,7 +12,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { readFileSync, realpathSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { scanProject } from "../core/scanner.js";
+import { scanProject, setProjectRoot } from "../core/scanner.js";
 import { _logWarn } from "../core/output.js";
 import type { RepoGraph } from "../core/graph.js";
 import { LspManager, detectProjectLanguages } from "../lsp/manager.js";
@@ -34,6 +34,12 @@ try {
 	console.error("[pi-shazam mcp] Invalid PROJECT_ROOT path");
 	process.exit(1);
 }
+// #464: propagate the explicit project-root argument to the scanner override
+// so getEffectiveRoot() returns PROJECT_ROOT inside MCP executors. Without
+// this, factory-injected params.project and buildEnvelope project fields
+// would fall back to process.cwd(), diverging from PROJECT_ROOT used by
+// scanProject and the LSP manager.
+setProjectRoot(PROJECT_ROOT);
 
 // Read version from package.json to keep it in sync automatically
 const __dirname = dirname(fileURLToPath(import.meta.url));

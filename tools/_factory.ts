@@ -20,7 +20,7 @@ import type {
 } from "../types/pi-extension.js";
 import { Type, type TProperties, type TObject } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
-import { scanProject } from "../core/scanner.js";
+import { scanProject, getEffectiveRoot } from "../core/scanner.js";
 import { truncateOutput, _logWarn } from "../core/output.js";
 import { resolve } from "node:path";
 import { realpathSync } from "node:fs";
@@ -136,10 +136,14 @@ export function createTool<T extends TProperties>(pi: ExtensionAPI, spec: ToolSp
 		async execute(_toolCallId: string, params: Record<string, unknown>): Promise<AgentToolResult> {
 			const json = (params.json as boolean) ?? false;
 			const maxTokens = params.maxTokens as number | undefined;
-			// Resolve "." to absolute path for JSON envelope metadata.
+			// #464: use the configured project root (getEffectiveRoot) instead of
+			// process.cwd() so filesystem/git operations target the correct dir
+			// when Pi is launched from a parent directory or MCP is launched with
+			// an explicit project-root argument. scanProject(".") already honors
+			// the override; this aligns the injected params.project with it.
 			// Note: customExecute tools must import getEffectiveRoot() from scanner
 			// for path validation, as the factory does not inject the override.
-			const project = resolve(".");
+			const project = getEffectiveRoot();
 			// L7: Avoid mutating caller's params object -- use spread to create a new one
 			const effectiveParams = { ...params, project };
 			const graph = scanProject(".");

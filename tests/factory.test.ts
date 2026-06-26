@@ -1,10 +1,14 @@
 /**
  * Tests for tools/_factory — verify the createTool factory function.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { Type } from "typebox";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { mkdtempSync } from "node:fs";
 import type { ExtensionAPI, ToolDefinition } from "../types/pi-extension.js";
 import { createTool } from "../tools/_factory.js";
+import { setProjectRoot, getEffectiveRoot, resetProjectRoot } from "../core/scanner.js";
 
 /**
  * Create a mock ExtensionAPI that captures the registered tool definition.
@@ -191,5 +195,72 @@ describe("createTool factory", () => {
 
 		const text = (result.content[0] as { text: string }).text;
 		expect(text).toBe("async result");
+	});
+});
+
+// -------------------------------------------------------------------------
+// #464: factory must inject getEffectiveRoot() as params.project, not
+// process.cwd(). When Pi is launched from a parent directory, the override
+// (set via setProjectRoot) must propagate to every execute-path tool so
+// filesystem/git operations target the configured root.
+// -------------------------------------------------------------------------
+describe("createTool factory project root override (#464)", () => {
+	// Use a real temp dir so scanProject(".") does not log ENOENT noise.
+	let overrideRoot: string;
+
+	beforeEach(() => {
+		resetProjectRoot();
+		overrideRoot = mkdtempSync(join(tmpdir(), "pi-shazam-464-"));
+	});
+
+	afterEach(() => {
+		resetProjectRoot();
+	});
+
+	it("should inject process.cwd() as params.project when no override is set", async () => {
+		const { pi, registered } = mockPi();
+		const captured = vi.fn((_graph: unknown, params: Record<string, unknown>) => {
+			return String(params.project);
+		});
+
+		createTool(pi, {
+			name: "shazam_test",
+			label: "Test",
+			description: "test",
+			params: Type.Object({}),
+			execute: captured,
+		});
+
+		await registered[0]!.execute("call-1", {}, undefined, undefined, {} as never);
+
+		expect(captured).toHaveBeenCalledOnce();
+		const passedProject = (captured.mock.calls[0]![1] as { project: string }).project;
+		expect(passedProject).toBe(process.cwd());
+	});
+
+	it("should inject the override root as params.project when setProjectRoot is set (#464)", async () => {
+		setProjectRoot(overrideRoot);
+
+		const { pi, registered } = mockPi();
+		const captured = vi.fn((_graph: unknown, params: Record<string, unknown>) => {
+			return String(params.project);
+		});
+
+		createTool(pi, {
+			name: "shazam_test",
+			label: "Test",
+			description: "test",
+			params: Type.Object({}),
+			execute: captured,
+		});
+
+		await registered[0]!.execute("call-2", {}, undefined, undefined, {} as never);
+
+		expect(captured).toHaveBeenCalledOnce();
+		const passedProject = (captured.mock.calls[0]![1] as { project: string }).project;
+		// Fix: factory must use getEffectiveRoot(), not process.cwd().
+		expect(passedProject).toBe(overrideRoot);
+		expect(passedProject).not.toBe(process.cwd());
+		expect(getEffectiveRoot()).toBe(overrideRoot);
 	});
 });
