@@ -21,7 +21,7 @@ import { _logWarn } from "./output.js";
 // -- Constants ----------------------------------------------------------------
 
 /** Maximum files to scan (safety limit) */
-const MAX_FILES = 20_000;
+export const MAX_FILES = 20_000;
 
 /** File extensions to scan */
 const SOURCE_EXTS = new Set(Object.keys(EXT_TO_LANG));
@@ -208,7 +208,7 @@ export function findDependentFiles(graph: RepoGraph, changedFiles: string[]): Se
  *   files whose incoming edges are still valid -- only outgoing edges need
  *   rebuilding (issue #448).
  */
-function removeEdgesForFile(graph: RepoGraph, relPath: string, preserveIncoming = false): void {
+export function removeEdgesForFile(graph: RepoGraph, relPath: string, preserveIncoming = false): void {
 	const symIds = new Set(graph.fileSymbols.get(relPath) ?? []);
 
 	// Clean incoming entries on targets of this file's outgoing edges
@@ -224,6 +224,17 @@ function removeEdgesForFile(graph: RepoGraph, relPath: string, preserveIncoming 
 						graph.incoming.set(edge.target, filtered);
 					} else {
 						graph.incoming.delete(edge.target);
+					}
+				}
+				// Issue #471 Finding C: also clean targetToSources on the SOURCE
+				// side. When a source symbol in this file is deleted, we must
+				// remove it from every target's targetToSources set to avoid
+				// stale entries pointing to a non-existent source.
+				const targetSources = graph.targetToSources.get(edge.target);
+				if (targetSources) {
+					targetSources.delete(id);
+					if (targetSources.size === 0) {
+						graph.targetToSources.delete(edge.target);
 					}
 				}
 			}
@@ -305,6 +316,17 @@ export function removeFileData(graph: RepoGraph, relPath: string): void {
 						graph.incoming.set(edge.target, filtered);
 					} else {
 						graph.incoming.delete(edge.target);
+					}
+				}
+				// Issue #471 Finding C: also clean targetToSources on the SOURCE
+				// side. When a source symbol in this file is deleted, we must
+				// remove it from every target's targetToSources set to avoid
+				// stale entries pointing to a non-existent source.
+				const targetSources = graph.targetToSources.get(edge.target);
+				if (targetSources) {
+					targetSources.delete(id);
+					if (targetSources.size === 0) {
+						graph.targetToSources.delete(edge.target);
 					}
 				}
 			}
@@ -587,8 +609,16 @@ function _scanProject(projectPath: string, log?: (msg: string) => void): RepoGra
 	clearExistsCache();
 
 	const adapter = getScannerAdapter();
-	const files = collectSourceFiles(root, MAX_FILES);
+	const { files, truncated } = collectSourceFiles(root, MAX_FILES);
 	logger(`Scanned ${files.length} source files`);
+	// Issue #471 Finding A: warn when the file cap was hit so the agent is
+	// incomplete, instead of silently returning a truncated graph with no indication.
+	if (truncated) {
+		_logWarn(
+			"scanProject",
+			`MAX_FILES limit reached (${MAX_FILES}) — additional source files skipped. Graph may be incomplete`,
+		);
+	}
 
 	// Check in-memory cache first (same process, fastest path)
 	const isInMemory = cachedGraph !== null && cachedProjectPath === root && cachedFiles.size > 0;
@@ -921,25 +951,36 @@ function scanIncremental(
 
 // -- File collection ----------------------------------------------------------
 
-function collectSourceFiles(root: string, maxFiles: number): string[] {
+export function collectSourceFiles(root: string, maxFiles: number): { files: string[]; truncated: boolean } {
 	const options = {
 		root,
 		maxFiles,
 		maxDepth: 50,
 		files: [] as string[],
 		visitedSymlinks: new Set<string>(),
+		truncated: false,
 	};
 	_walkDirectory(root, 0, options);
-	return options.files;
+	return { files: options.files, truncated: options.truncated };
 }
 
 function _walkDirectory(
 	dir: string,
 	depth: number,
-	options: { root: string; maxFiles: number; maxDepth: number; files: string[]; visitedSymlinks: Set<string> },
+	options: {
+		root: string;
+		maxFiles: number;
+		maxDepth: number;
+		files: string[];
+		visitedSymlinks: Set<string>;
+		truncated: boolean;
+	},
 ): void {
 	const { root, maxFiles, maxDepth, files, visitedSymlinks } = options;
-	if (files.length >= maxFiles) return;
+	if (files.length >= maxFiles) {
+		options.truncated = true;
+		return;
+	}
 	if (depth > maxDepth) return;
 
 	let entries;
@@ -956,7 +997,10 @@ function _walkDirectory(
 	}
 
 	for (const entry of entries) {
-		if (files.length >= maxFiles) return;
+		if (files.length >= maxFiles) {
+			options.truncated = true;
+			return;
+		}
 
 		const relPath = relative(root, join(dir, entry.name));
 

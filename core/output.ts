@@ -463,6 +463,6 @@ export function _logWarn(tag: string, message: string, err?: unknown): void {
 	if (err instanceof Error && (err as NodeJS.ErrnoException).code === "ENOENT") {
 		return; // expected: file not found, suppress completely
 	}
-	const reason = err === undefined ? "" : err instanceof Error ? err.message : String(err);
-	console.warn(reason ? `[pi-shazam] ${tag}: ${message} - ${reason}` : `[pi-shazam] ${tag}: ${message}`);
+	const reason = err instanceof Error ? err.message : err != null ? String(err) : "";
+	console.warn(`[pi-shazam] ${tag}: ${message}${reason ? ` - ${reason}` : ""}`);
 }

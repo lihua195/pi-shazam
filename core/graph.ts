@@ -297,10 +297,13 @@ export function deserializeGraphV2(data: SerializedGraphV2): RepoGraph {
 		}
 	}
 
-	for (const [k, v] of Object.entries(data.fileSymbols)) {
+	// Issue #471 Finding B: cache fields may be null/undefined in corrupted or
+	// partial cache files. Guard each Object.entries call with a nullish
+	// coalesce to an empty object so deserialization is resilient.
+	for (const [k, v] of Object.entries(data.fileSymbols ?? {})) {
 		graph.fileSymbols.set(k, v);
 	}
-	for (const [k, v] of Object.entries(data.fileImports)) {
+	for (const [k, v] of Object.entries(data.fileImports ?? {})) {
 		// M4: fileImports serialized as [string, number][] to preserve line numbers
 		const imports =
 			Array.isArray(v) && v.length > 0 && Array.isArray(v[0])
@@ -308,13 +311,13 @@ export function deserializeGraphV2(data: SerializedGraphV2): RepoGraph {
 				: (v as unknown as string[]);
 		graph.fileImports.set(k, imports);
 	}
-	for (const [k, v] of Object.entries(data.fileCalls)) {
+	for (const [k, v] of Object.entries(data.fileCalls ?? {})) {
 		graph.fileCalls.set(k, v);
 	}
 	for (const [k, v] of Object.entries(data.fileRefs ?? {})) {
 		graph.fileRefs.set(k, v);
 	}
-	for (const [k, v] of Object.entries(data.fileImportBindings)) {
+	for (const [k, v] of Object.entries(data.fileImportBindings ?? {})) {
 		graph.fileImportBindings.set(k, v);
 	}
 	return graph;
