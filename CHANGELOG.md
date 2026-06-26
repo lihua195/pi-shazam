@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.9] - 2026-06-26
+
+### Bug Fixes
+
+- **fix(#486): MCP server ignores project root when launched without CLI argument** -- added fallback chain for PROJECT_ROOT resolution: CLI arg > `PI_SHAZAM_PROJECT_ROOT` env > `PWD` env > `.` (cwd). This fixes the issue where MCP clients (ZCode, Cursor, etc.) that don't pass project root as a CLI argument would use the wrong working directory, causing "No matching source files found" errors.
+
 ## [0.19.8] - 2026-06-26
 
 ### Bug Fixes

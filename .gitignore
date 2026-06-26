@@ -13,3 +13,4 @@ dist/
 *.tgz
 .agents/
 .pi/swarm/state/
+.zcode

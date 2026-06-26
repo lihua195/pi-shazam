@@ -53,7 +53,13 @@ export function validateProjectRoot(root: string): { ok: boolean; error?: string
 	}
 }
 
-const PROJECT_ROOT = resolve(process.argv[2] || ".");
+// Priority: CLI arg > PI_SHAZAM_PROJECT_ROOT env > PWD env > cwd
+const PROJECT_ROOT = resolve(
+	process.argv[2] ||
+		process.env.PI_SHAZAM_PROJECT_ROOT ||
+		process.env.PWD ||
+		"."
+);
 // #464/#465: validate PROJECT_ROOT exists and is a directory, then propagate
 // it to the scanner override so getEffectiveRoot() returns PROJECT_ROOT.
 const rootValidation = validateProjectRoot(PROJECT_ROOT);
