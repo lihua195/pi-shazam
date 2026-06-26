@@ -22,26 +22,43 @@ import { Type, type TProperties, type TObject } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
 import { scanProject } from "../core/scanner.js";
 import { truncateOutput, _logWarn } from "../core/output.js";
-import { resolve } from "node:path";
+import { resolve, relative, isAbsolute } from "node:path";
 import { realpathSync } from "node:fs";
 
 // -- Path traversal guard ----------------------------------------------------
 
 /**
+ * Cross-platform path-containment check (#463).
+ *
+ * Uses `relative()` + `isAbsolute()` instead of `startsWith(root + "/")`
+ * because `path.resolve()` returns backslash-separated paths on Windows,
+ * where a forward-slash prefix never matches and rejects every valid
+ * subpath. `relative()` respects the host platform's separator semantics,
+ * so this returns true iff `target` is `root` itself or nested inside it.
+ *
+ * Mirrors the already-correct `isPathInRoot` in lsp/manager.ts.
+ */
+export function isPathInRoot(target: string, root: string): boolean {
+	const rel = relative(root, target);
+	return rel === "" || (!rel.startsWith("..") && !isAbsolute(rel));
+}
+
+/**
  * Validate that a given path is within the project root, preventing path traversal attacks.
- * First resolves to an absolute path, then checks whether it starts with projectRoot + "/" or equals projectRoot.
+ * First resolves to an absolute path, then checks containment via isPathInRoot
+ * (platform-agnostic; works on Windows backslash paths as well as POSIX).
  * Returns false for paths outside the project scope.
  */
 export function validatePathInProject(rawPath: string, projectRoot: string = process.cwd()): boolean {
 	const resolved = resolve(projectRoot, rawPath);
 	const rootResolved = resolve(projectRoot);
-	const pathOk = resolved.startsWith(rootResolved + "/") || resolved === rootResolved;
-	if (!pathOk) return false;
+	// Containment check: platform-agnostic via relative(), not startsWith(root + "/").
+	if (!isPathInRoot(resolved, rootResolved)) return false;
 	// Verify resolved real path is also within project root (prevents symlink escape)
 	try {
 		const realResolved = realpathSync(resolved);
 		const realRoot = realpathSync(rootResolved);
-		return realResolved.startsWith(realRoot + "/") || realResolved === realRoot;
+		return isPathInRoot(realResolved, realRoot);
 	} catch (err) {
 		_logWarn("validatePathInProject", `realpathSync failed for ${resolved}`, err);
 		return false;
