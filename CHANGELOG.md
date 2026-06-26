@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.8] - 2026-06-26
+
+### Bug Fixes
+
+- **fix(#485): MCP server fails to start when entry.js is accessed via symlink** -- npm/npx always create symlinks in `.bin/` directories. The `isMainModule` guard compared `process.argv[1]` (symlink path) against `import.meta.url` (resolved file URL), which never matched, preventing `main()` from ever executing. Fixed by using `realpathSync()` for symlink-safe path comparison. Also fixed `package.json` version resolution to search upward from both `dist/mcp/` (compiled) and `mcp/` (vitest source) contexts.
+
 ## [0.19.7] - 2026-06-26
 
 ### Bug Fixes
