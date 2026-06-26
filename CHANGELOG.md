@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.19.7] - 2026-06-26
+
+### Bug Fixes
+
+- **fix(#462): wrap readFileSync in try/catch to prevent TOCTOU races in git-hooks** -- `core/git-hooks.ts` now catches exceptions from `readFileSync` when reading git hook files, preventing race conditions when hooks are deleted between detection and reading.
+- **fix(#463): use relative()-based path containment for Windows** -- replaced `startsWith` path containment checks with `path.relative()`-based logic in hooks, fixing false negatives on Windows where drive letters and mixed separators caused incorrect containment results.
+- **fix(#464): use getEffectiveRoot() instead of process.cwd() in factory and MCP** -- `tools/_factory.ts` and `mcp/entry.ts` now use the explicit project root override via `getEffectiveRoot()` instead of `process.cwd()`, ensuring consistent project root resolution when MCP or factory-injected params specify a different root.
+- **fix(#465): close MCP shazam_format path-traversal and home-only startup** -- replaced the hard `$HOME` prefix restriction in MCP `validateProjectRoot` with an existence + directory check that accepts any valid directory (containers, CI under `/workspace`, `/srv`, `/opt`). Opt-in `PI_SHAZAM_HOME_ONLY=1` environment variable restores the old restriction for hardened environments. Added `pathToFileURL` guard so `mcp/entry.ts` only runs `main()` when executed as entry point.
+- **fix(#466): uriToPath drive-letter handling + detectWorkspaceRoot escape** -- `lsp/client.ts` `uriToPath` now delegates to Node.js `fileURLToPath` for proper drive-letter URI handling (`file:///C:/...`), with a fallback to manual slice+decode for malformed URIs. `lsp/manager.ts` `detectWorkspaceRoot` now validates the result is within the project root to prevent escape.
+- **fix(#467): close 4 pre-commit and safety gate bypass paths** -- closed bypass paths in `hooks/safety.ts` (chained commands after git commit, download-then-execute RCE patterns), `hooks/stop-verify.ts` (reset `_reminderSent` on verify error), `hooks/verify-state.ts` (FAIL verdict text parsing for non-JSON verify output), and `hooks/shazam-guide.ts` (path normalization).
+- **fix(#468): route assessRisk by explicit mode instead of orphanDelta** -- `core/risk.ts` now routes risk assessment by explicit mode parameter instead of relying on `orphanDelta` heuristics, preventing incorrect risk classification when orphan counts happen to match threshold values.
+- **fix(#469): replace O(NxM) dependent detection and nameIndex cleanup with reverse-index lookups** -- `core/scanner.ts` incremental scan now uses reverse-index lookups instead of O(N*M) iteration for dependent detection and nameIndex cleanup, significantly improving performance on large codebases.
+- **fix(#470): honor maxTokens in format/rename_symbol customExecute and verify JSON mode** -- `tools/format.ts` and `tools/rename_symbol.ts` customExecute paths now honor `maxTokens` parameter with `truncateOutput`, matching the factory auto-truncation behavior. JSON mode is left intact to preserve valid JSON structure.
+- **fix(#471): core data integrity - MAX_FILES warn, cache null guards, targetToSources source cleanup** -- added MAX_FILES warning in scanner when file count exceeds threshold, null guards in `core/cache.ts` for corrupt cache entries, and proper source cleanup in `core/graph.ts` `targetToSources` to prevent stale references.
+- **fix(#472): guard optional event.input before cast in agent-context-guard** -- `hooks/agent-context-guard.ts` now guards `event.input` with optional chaining before casting, preventing runtime errors when the event object lacks the `input` property.
+
+### Refactoring
+
+- **refactor(#461): standardize console.warn to _logWarn across codebase** -- replaced all `console.warn` calls with the shared `_logWarn` function from `core/output.ts` across 16 files, ensuring consistent warning format, ENOENT suppression, and centralized log control.
+
+### Tests
+
+- **test(#461): 8 new test files added** -- `tests/path-containment.test.ts`, `tests/risk.test.ts`, `tests/stop-verify.test.ts`, `tests/lsp-uri-workspace.test.ts`, `tests/git-hooks-toctou.test.ts`, `tests/scanner-perf.test.ts`, `tests/maxtokens-truncation.test.ts`, `tests/data-integrity.test.ts` -- covering all bug fixes in this release with 52 test files and 601 total tests.
+
 ## [0.19.6] - 2026-06-25
 
 ### Bug Fixes
