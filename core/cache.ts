@@ -78,7 +78,10 @@ export function saveGraphCache(graph: RepoGraph, fileMtimes: Map<string, number>
 		// M2: Enforce size limit on save too, not just load — prevents OOM on huge projects.
 		// Use Buffer.byteLength to match the byte-count gate at load time (stat.size is in bytes).
 		if (Buffer.byteLength(json, "utf-8") > MAX_CACHE_SIZE) {
-			_logWarn("saveGraphCache", `serialized graph too large (${Buffer.byteLength(json, "utf-8")} bytes), skipping cache`);
+			_logWarn(
+				"saveGraphCache",
+				`serialized graph too large (${Buffer.byteLength(json, "utf-8")} bytes), skipping cache`,
+			);
 			return;
 		}
 		writeFileSync(tmpPath, json, "utf-8");

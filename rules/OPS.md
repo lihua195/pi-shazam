@@ -27,15 +27,15 @@ Update ALL companion files before bumping the version. The release.sh script han
 
 **Files to review and update:**
 
-| File | What to update |
-|------|---------------|
-| `CHANGELOG.md` | Add a new section for the release version with all user-visible changes |
-| `README.md` | Update feature list, tool table, usage examples if any tool behavior changed |
-| `AGENTS.md` | Update tool table, architecture notes, dependency references, agent checklist |
-| `SKILL.md` | Update tool parameter docs, return format docs, usage examples for changed tools |
-| `mcp/README.md` | Update MCP tool table, parameter docs, usage examples for changed tools |
-| `rules/*.md` | Update any rules affected by the release (new tools, changed patterns, new deps) |
-| `docs/INSTRUCTION.md` | Update contracts, layer docs, version references, tech stack notes |
+| File                  | What to update                                                                   |
+| --------------------- | -------------------------------------------------------------------------------- |
+| `CHANGELOG.md`        | Add a new section for the release version with all user-visible changes          |
+| `README.md`           | Update feature list, tool table, usage examples if any tool behavior changed     |
+| `AGENTS.md`           | Update tool table, architecture notes, dependency references, agent checklist    |
+| `SKILL.md`            | Update tool parameter docs, return format docs, usage examples for changed tools |
+| `mcp/README.md`       | Update MCP tool table, parameter docs, usage examples for changed tools          |
+| `rules/*.md`          | Update any rules affected by the release (new tools, changed patterns, new deps) |
+| `docs/INSTRUCTION.md` | Update contracts, layer docs, version references, tech stack notes               |
 
 **Validation:** Every tool that was added, changed, or removed in this release cycle must have its documentation updated in ALL files that reference it.
 
@@ -43,12 +43,12 @@ Update ALL companion files before bumping the version. The release.sh script han
 
 `scripts/release.sh` handles version bumps automatically across all version surfaces:
 
-| Surface | File | What changes |
-|---------|------|-------------|
-| npm package | `package.json` | `version` field |
-| MCP entry | `mcp/entry.ts` | version constant |
-| Agent docs | `AGENTS.md` | version references |
-| Contracts | `docs/INSTRUCTION.md` | version references |
+| Surface     | File                  | What changes       |
+| ----------- | --------------------- | ------------------ |
+| npm package | `package.json`        | `version` field    |
+| MCP entry   | `mcp/entry.ts`        | version constant   |
+| Agent docs  | `AGENTS.md`           | version references |
+| Contracts   | `docs/INSTRUCTION.md` | version references |
 
 Run the release script:
 
@@ -57,6 +57,7 @@ Run the release script:
 ```
 
 The script will:
+
 1. Prompt for the new version (semver)
 2. Update all version surfaces listed above
 3. Extract the CHANGELOG section for the release version
@@ -97,6 +98,7 @@ npx vitest run tests/data-integrity.test.ts
 4. Creating the GitHub Release triggers `publish.yml`
 
 **publish.yml workflow:**
+
 ```
 npm ci --legacy-peer-deps --> npx tsc --noEmit --> npm test --> npm run build --> npm publish
 ```
@@ -108,6 +110,7 @@ The workflow runs typecheck, test, and build before publishing. If any step fail
 After `publish.yml` completes, verify the release landed correctly.
 
 **npm registry check:**
+
 ```bash
 npm view pi-shazam version
 npm view pi-shazam dist-tags
@@ -116,6 +119,7 @@ npm view pi-shazam dist-tags
 The version must match what you released, and `latest` must point to it.
 
 **Smoke test:**
+
 ```bash
 npm pack pi-shazam@latest
 tar -xzf pi-shazam-*.tgz
@@ -127,6 +131,7 @@ rm -rf pi-shazam-*.tgz package/
 Verify the published tarball contains `dist/index.js` and `dist/index.d.ts`.
 
 **MCP server check:**
+
 ```bash
 npx pi-shazam-mcp --version
 ```
@@ -143,6 +148,7 @@ git branch --merged main | grep -v 'main\|develop' | xargs -n 1 git branch -d
 ```
 
 Verify git is in a clean state:
+
 ```bash
 git status
 git log --oneline -3

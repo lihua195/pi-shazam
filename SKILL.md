@@ -230,15 +230,15 @@ shazam_changes({})
 
 pi-shazam auto-detects language servers for supported languages:
 
-| Language              | Server                     | Auto-Detect |
-| --------------------- | -------------------------- | ----------- |
-| TypeScript/JavaScript | typescript-language-server | yes         |
-| Python                | pyright                    | yes         |
-| Rust                  | rust-analyzer              | yes         |
-| Go                    | gopls                      | yes         |
+| Language              | Server                      | Auto-Detect |
+| --------------------- | --------------------------- | ----------- |
+| TypeScript/JavaScript | typescript-language-server  | yes         |
+| Python                | pyright                     | yes         |
+| Rust                  | rust-analyzer               | yes         |
+| Go                    | gopls                       | yes         |
 | JSON                  | vscode-json-language-server | yes         |
-| YAML                  | yaml-language-server       | yes         |
-| Dart                  | dart                       | yes         |
+| YAML                  | yaml-language-server        | yes         |
+| Dart                  | dart                        | yes         |
 
 When a language server is unavailable, tools fall back to tree-sitter only and annotate output with `(tree-sitter only, LSP unavailable)`.
 

@@ -23,14 +23,14 @@ Every `it()` block follows:
 
 ```ts
 it("describes the expected behavior", () => {
-  // Arrange — set up inputs, mocks, fixtures
-  const input = buildFixture();
+	// Arrange — set up inputs, mocks, fixtures
+	const input = buildFixture();
 
-  // Act — call the function under test
-  const result = functionUnderTest(input);
+	// Act — call the function under test
+	const result = functionUnderTest(input);
 
-  // Assert — verify outcome
-  expect(result).toEqual(expected);
+	// Assert — verify outcome
+	expect(result).toEqual(expected);
 });
 ```
 
@@ -61,8 +61,8 @@ Use `beforeAll` for expensive operations that multiple tests in a file share:
 let overview: OverviewResult;
 
 beforeAll(async () => {
-  const { scanProject } = await import("../core/scanner.js");
-  overview = await scanProject(".");
+	const { scanProject } = await import("../core/scanner.js");
+	overview = await scanProject(".");
 }, 60_000); // 60s timeout for full project scan
 ```
 
@@ -76,8 +76,8 @@ Tool modules register side effects on import (they call `createTool`). To avoid 
 
 ```ts
 it("returns definitions for a known symbol", async () => {
-  const { registerDefinitions } = await import("../tools/definitions.js");
-  // ... test the tool's execute function
+	const { registerDefinitions } = await import("../tools/definitions.js");
+	// ... test the tool's execute function
 });
 ```
 
@@ -90,10 +90,10 @@ it("returns definitions for a known symbol", async () => {
 
 ```ts
 vi.mock("../lsp/client.js", () => ({
-  LspClient: vi.fn().mockImplementation(() => ({
-    getDefinitions: vi.fn().mockResolvedValue([]),
-    dispose: vi.fn(),
-  })),
+	LspClient: vi.fn().mockImplementation(() => ({
+		getDefinitions: vi.fn().mockResolvedValue([]),
+		dispose: vi.fn(),
+	})),
 }));
 ```
 
@@ -103,16 +103,16 @@ When mock factory functions need variables that survive hoisting, use `vi.hoiste
 
 ```ts
 const { mockState } = vi.hoisted(() => {
-  let mockState: string[] = [];
-  return { mockState };
+	let mockState: string[] = [];
+	return { mockState };
 });
 
 vi.mock("../core/cache.js", () => ({
-  getCached: vi.fn().mockImplementation(() => mockState),
-  setCached: vi.fn().mockImplementation((data: string[]) => {
-    mockState.length = 0;
-    mockState.push(...data);
-  }),
+	getCached: vi.fn().mockImplementation(() => mockState),
+	setCached: vi.fn().mockImplementation((data: string[]) => {
+		mockState.length = 0;
+		mockState.push(...data);
+	}),
 }));
 ```
 
@@ -145,15 +145,15 @@ import { tmpdir } from "node:os";
 let tmpDir: string;
 
 beforeAll(() => {
-  tmpDir = mkdtempSync(join(tmpdir(), "shazam-bench-"));
-  // Generate 100 .ts files with imports between them
-  for (let i = 0; i < 100; i++) {
-    writeFileSync(join(tmpDir, `mod${i}.ts`), generateModule(i));
-  }
+	tmpDir = mkdtempSync(join(tmpdir(), "shazam-bench-"));
+	// Generate 100 .ts files with imports between them
+	for (let i = 0; i < 100; i++) {
+		writeFileSync(join(tmpDir, `mod${i}.ts`), generateModule(i));
+	}
 });
 
 afterAll(() => {
-  rmSync(tmpDir, { recursive: true, force: true });
+	rmSync(tmpDir, { recursive: true, force: true });
 });
 ```
 
@@ -171,12 +171,12 @@ Validate the content envelope format expected by MCP clients:
 ```ts
 const result = await mcpServer.callTool("shazam_overview", {});
 expect(result).toMatchObject({
-  content: [
-    {
-      type: "text",
-      text: expect.stringContaining("## shazam_overview"),
-    },
-  ],
+	content: [
+		{
+			type: "text",
+			text: expect.stringContaining("## shazam_overview"),
+		},
+	],
 });
 ```
 
@@ -188,11 +188,11 @@ expect(result).toMatchObject({
 
 Hard performance limits — a test that exceeds these is a regression:
 
-| Operation | Threshold | Fixture |
-|---|---|---|
-| `scanProject` 100 files | < 30s | Synthetic TS project in temp dir |
-| `PageRank` 1000 nodes | < 10s | Generated dependency graph |
-| `buildDependencyGraph` | < 5s | Self-hosted scan ("`.`") |
+| Operation               | Threshold | Fixture                          |
+| ----------------------- | --------- | -------------------------------- |
+| `scanProject` 100 files | < 30s     | Synthetic TS project in temp dir |
+| `PageRank` 1000 nodes   | < 10s     | Generated dependency graph       |
+| `buildDependencyGraph`  | < 5s      | Self-hosted scan ("`.`")         |
 
 - Set explicit timeouts on benchmark `it()` blocks: `it("...", () => { ... }, 30_000)`.
 - Use `console.time`/`console.timeEnd` for ad-hoc profiling during development, remove before committing.
@@ -202,16 +202,16 @@ Hard performance limits — a test that exceeds these is a regression:
 
 Tag tests by category in the `describe` or `it` name for selective execution:
 
-| Category | Scope | Example |
-|---|---|---|
-| **smoke** | Full pipeline end-to-end | `scanProject(".") → overview → verify output` |
-| **integration** | Cross-layer interaction | `tool calls core + LSP, verifies combined result` |
-| **unit** | Single module, isolated | `encodeFile() with UTF-8 input` |
-| **edge-case** | Boundary conditions | `empty file`, `MAX_FILES limit`, `binary file` |
-| **security** | Path traversal, redaction | `../etc/passwd` rejection, secret masking |
-| **performance** | Benchmarks | `scanProject 100 files < 30s` |
-| **LSP** | Server communication | `initialize → didOpen → definitions → shutdown` |
-| **parity** | Pi/MCP sync | `Pi tool and MCP tool return equivalent content` |
+| Category        | Scope                     | Example                                           |
+| --------------- | ------------------------- | ------------------------------------------------- |
+| **smoke**       | Full pipeline end-to-end  | `scanProject(".") → overview → verify output`     |
+| **integration** | Cross-layer interaction   | `tool calls core + LSP, verifies combined result` |
+| **unit**        | Single module, isolated   | `encodeFile() with UTF-8 input`                   |
+| **edge-case**   | Boundary conditions       | `empty file`, `MAX_FILES limit`, `binary file`    |
+| **security**    | Path traversal, redaction | `../etc/passwd` rejection, secret masking         |
+| **performance** | Benchmarks                | `scanProject 100 files < 30s`                     |
+| **LSP**         | Server communication      | `initialize → didOpen → definitions → shutdown`   |
+| **parity**      | Pi/MCP sync               | `Pi tool and MCP tool return equivalent content`  |
 
 Run a specific category: `npx vitest run -t "smoke"` or filter by filename pattern.
 

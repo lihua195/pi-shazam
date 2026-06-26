@@ -147,11 +147,7 @@ export interface VerifyJsonResult {
  * @param serializedText - The JSON.stringify output of the full envelope
  * @param maxTokens - Token budget; when undefined or not exceeded, no-op
  */
-export function capVerifyDiagnostics(
-	result: VerifyJsonResult,
-	serializedText: string,
-	maxTokens?: number,
-): boolean {
+export function capVerifyDiagnostics(result: VerifyJsonResult, serializedText: string, maxTokens?: number): boolean {
 	if (!maxTokens) return false;
 	if (estimateTokens(serializedText) <= maxTokens) return false;
 	const diags = result.lspDiagnostics;
@@ -601,7 +597,10 @@ async function runLspDiagnostics(
 
 	// Annotate output if files failed to open
 	if (failedOpens.length > 0) {
-		_logWarn("runLspDiagnostics", `LSP didOpen failed for ${failedOpens.length} file(s): ${failedOpens.slice(0, 5).join(", ")}${failedOpens.length > 5 ? "..." : ""}`);
+		_logWarn(
+			"runLspDiagnostics",
+			`LSP didOpen failed for ${failedOpens.length} file(s): ${failedOpens.slice(0, 5).join(", ")}${failedOpens.length > 5 ? "..." : ""}`,
+		);
 	}
 
 	return {

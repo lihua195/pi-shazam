@@ -8,12 +8,12 @@ TypeScript coding rules for pi-shazam. All source code, comments, JSDoc, type de
 
 **Strict dependency direction:** `hooks/` -> `tools/` -> `core/` + `lsp/`
 
-| Layer    | May Import From                               | May NOT Import From                 |
-| -------- | --------------------------------------------- | ----------------------------------- |
-| `core/`  | node builtins, npm packages                   | `tools/`, `hooks/`, `lsp/`, `pi`    |
-| `lsp/`   | `core/`, node builtins, npm packages           | `tools/`, `hooks/`, `pi`            |
-| `tools/` | `core/`, `lsp/`, npm packages                  | `hooks/`                            |
-| `hooks/` | `tools/`, `core/`, `lsp/`, `types/`, `pi`     | --                                  |
+| Layer    | May Import From                           | May NOT Import From              |
+| -------- | ----------------------------------------- | -------------------------------- |
+| `core/`  | node builtins, npm packages               | `tools/`, `hooks/`, `lsp/`, `pi` |
+| `lsp/`   | `core/`, node builtins, npm packages      | `tools/`, `hooks/`, `pi`         |
+| `tools/` | `core/`, `lsp/`, npm packages             | `hooks/`                         |
+| `hooks/` | `tools/`, `core/`, `lsp/`, `types/`, `pi` | --                               |
 
 **Enforcement:** `tsc` does not catch cross-layer violations. Verify manually before every commit. If you add an import from `tools/` or `hooks/` into `core/`, or from `hooks/` into `tools/`, the layer boundary is broken.
 
@@ -50,24 +50,25 @@ import type { ExtensionAPI } from "../types/pi-extension.js";
 import { Type } from "typebox";
 
 export function registerOverview(pi: ExtensionAPI): void {
-  createTool(pi, {
-    name: "shazam_overview",
-    label: "Project Overview",
-    description: "Returns module dependency map, top-10 PageRank files, key dependencies...",
-    params: Type.Object({
-      filter: Type.Optional(Type.String()),
-    }),
-    execute(graph, params) {
-      // domain logic -- receives pre-scanned RepoGraph + merged params
-      // returns plain text output
-    },
-  });
+	createTool(pi, {
+		name: "shazam_overview",
+		label: "Project Overview",
+		description: "Returns module dependency map, top-10 PageRank files, key dependencies...",
+		params: Type.Object({
+			filter: Type.Optional(Type.String()),
+		}),
+		execute(graph, params) {
+			// domain logic -- receives pre-scanned RepoGraph + merged params
+			// returns plain text output
+		},
+	});
 }
 ```
 
 **Factory handles:** `json`/`maxTokens` param merging, `scanProject(".")`, JSON/text output toggle with standard envelope (`schema_version`, `command`, `project`, `status`, `result`), `truncateOutput()` when `maxTokens` is set.
 
 **Two modes:**
+
 - `execute(graph, params)` -- simple domain function; factory handles scan, envelope, truncation.
 - `customExecute(toolCallId, params, signal, onUpdate, ctx)` -- complex async tools (LSP, multi-branch); factory only merges params. Tool handles its own scan, envelope, truncation.
 
@@ -77,19 +78,19 @@ export function registerOverview(pi: ExtensionAPI): void {
 
 ## 5. Naming Conventions
 
-| Kind            | Style               | Example                                    |
-| --------------- | ------------------- | ------------------------------------------ |
-| Variables       | `camelCase`         | `graphSummary`, `edgeCount`                |
-| Functions       | `camelCase`         | `buildGraph`, `extractSymbols`             |
-| Private helpers | `_camelCase`        | `_formatEntry`, `_classifyKind`, `_logWarn` |
-| Classes         | `PascalCase`        | `LspManager`, `LspClient`, `TreeSitterAdapter` |
-| Types/Interfaces| `PascalCase`        | `ScanResult`, `SymbolInfo`, `RepoGraph`    |
-| Enums           | `PascalCase`        | `NextLevel`                                |
-| Constants       | `UPPER_SNAKE_CASE`  | `EXT_TO_LANG`, `NEXT_RULES`, `SKIP_DIRS`   |
-| Files (tools/)  | `snake_case.ts`     | `find_tests.ts`, `rename_symbol.ts`, `safe_delete.ts` |
-| Files (other)   | `kebab-case.ts`     | `git-utils.ts`, `treesitter-queries.ts`, `agent-context-guard.ts` |
-| Tool names      | `shazam_snake_case` | `shazam_lookup`, `shazam_overview`         |
-| Tool labels     | Title Case          | `"Symbol Lookup"`, `"Impact Analysis"`     |
+| Kind             | Style               | Example                                                           |
+| ---------------- | ------------------- | ----------------------------------------------------------------- |
+| Variables        | `camelCase`         | `graphSummary`, `edgeCount`                                       |
+| Functions        | `camelCase`         | `buildGraph`, `extractSymbols`                                    |
+| Private helpers  | `_camelCase`        | `_formatEntry`, `_classifyKind`, `_logWarn`                       |
+| Classes          | `PascalCase`        | `LspManager`, `LspClient`, `TreeSitterAdapter`                    |
+| Types/Interfaces | `PascalCase`        | `ScanResult`, `SymbolInfo`, `RepoGraph`                           |
+| Enums            | `PascalCase`        | `NextLevel`                                                       |
+| Constants        | `UPPER_SNAKE_CASE`  | `EXT_TO_LANG`, `NEXT_RULES`, `SKIP_DIRS`                          |
+| Files (tools/)   | `snake_case.ts`     | `find_tests.ts`, `rename_symbol.ts`, `safe_delete.ts`             |
+| Files (other)    | `kebab-case.ts`     | `git-utils.ts`, `treesitter-queries.ts`, `agent-context-guard.ts` |
+| Tool names       | `shazam_snake_case` | `shazam_lookup`, `shazam_overview`                                |
+| Tool labels      | Title Case          | `"Symbol Lookup"`, `"Impact Analysis"`                            |
 
 **Symbol ID format:** `{file}::{name}::{line}` (e.g., `core/graph.ts::buildGraph::42`). Stable across tools -- other tools depend on it.
 
@@ -103,19 +104,21 @@ The `_logWarn` pattern from `core/output.ts` is the standard warning mechanism:
 import { _logWarn } from "../core/output.js";
 
 try {
-  const result = await parseFile(filePath);
+	const result = await parseFile(filePath);
 } catch (err) {
-  _logWarn("scanner", `Failed to parse ${filePath}`, err);
-  return null; // graceful degradation
+	_logWarn("scanner", `Failed to parse ${filePath}`, err);
+	return null; // graceful degradation
 }
 ```
 
 **`_logWarn` behavior:**
+
 - ENOENT (file not found) -- suppressed entirely (expected when optional binaries are missing).
 - Other errors -- prints concise one-line: `[pi-shazam] tag: message - reason`.
 - Never passes raw Error objects to `console` (would print full stack trace).
 
 **Rules:**
+
 - Every `catch` block must handle the error (with a log) or re-throw. Empty catch blocks are forbidden.
 - Log context: what operation failed, the input context, and the original error message.
 - Use `_logWarn(tag, message, err?)` in `core/` and `tools/` layers.
@@ -140,13 +143,13 @@ Prettier is the formatter. Configuration (`.prettierrc`):
 
 ```json
 {
-  "semi": true,
-  "singleQuote": false,
-  "tabWidth": 2,
-  "useTabs": true,
-  "trailingComma": "all",
-  "printWidth": 120,
-  "arrowParens": "always"
+	"semi": true,
+	"singleQuote": false,
+	"tabWidth": 2,
+	"useTabs": true,
+	"trailingComma": "all",
+	"printWidth": 120,
+	"arrowParens": "always"
 }
 ```
 

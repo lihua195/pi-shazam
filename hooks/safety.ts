@@ -190,9 +190,7 @@ export function registerSafetyHooks(pi: ExtensionAPI): void {
 		// `git commit` invocation so the gate fires regardless of any benign
 		// prefix chained before the commit.
 		const segments = tokenizeSegments(cmd);
-		const gitCommitSeg = segments.find(
-			(seg) => seg[0] === "git" && seg.length >= 2 && seg[1] === "commit",
-		);
+		const gitCommitSeg = segments.find((seg) => seg[0] === "git" && seg.length >= 2 && seg[1] === "commit");
 		if (gitCommitSeg) {
 			// Skip if --no-verify or -n flag is present in the commit segment.
 			// Scope the check to the commit segment so a benign `echo --no-verify`

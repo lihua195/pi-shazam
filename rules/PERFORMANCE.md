@@ -6,17 +6,17 @@ Performance constraints and optimization guidelines for pi-shazam.
 
 These are hard limits enforced by the benchmark test suite (`tests/benchmark.test.ts`). Regressions past these thresholds fail CI.
 
-| Operation | Threshold | Input size |
-|-----------|-----------|------------|
-| `scanProject` | < 30 seconds | 100 files |
+| Operation            | Threshold    | Input size |
+| -------------------- | ------------ | ---------- |
+| `scanProject`        | < 30 seconds | 100 files  |
 | PageRank computation | < 10 seconds | 1000 nodes |
-| Graph building | < 5 seconds | 1000 nodes |
+| Graph building       | < 5 seconds  | 1000 nodes |
 
 If a change causes a benchmark to exceed its threshold, the change must be optimized or redesigned before merging.
 
 ## PageRank
 
-- **Complexity**: O(n * iterations) where n is the number of nodes in the dependency graph.
+- **Complexity**: O(n \* iterations) where n is the number of nodes in the dependency graph.
 - **Location**: `core/pagerank.ts`
 - **1000 nodes < 10s**: This is the benchmark threshold. Do not add O(n^2) operations to the PageRank hot path.
 - **No logging in iteration loop**: PageRank iterations must not emit log output. A single log per PageRank invocation (start/finish) is acceptable.
@@ -34,7 +34,7 @@ If a change causes a benchmark to exceed its threshold, the change must be optim
 - **Location**: `core/scanner.ts`
 - **MAX_FILES = 20,000**: Hard cap on the number of files scanned. This prevents runaway scans on monorepos.
 - **Incremental scanning**: Uses mtime-based cache stored in `~/.cache/repomap/`. Only files with changed modification times are re-parsed. Do not disable this.
-- **File filtering**: Excluded directories (node_modules, .git, dist, build, __pycache__) are skipped during the walk. When adding a new directory to skip, update the exclusion list in `core/scanner.ts`.
+- **File filtering**: Excluded directories (node_modules, .git, dist, build, **pycache**) are skipped during the walk. When adding a new directory to skip, update the exclusion list in `core/scanner.ts`.
 - **Parallel reads**: File reading is sequential by default. If you add parallel reads, respect the MAX_FILES cap and watch for EMFILE errors.
 
 ## LSP Timeouts

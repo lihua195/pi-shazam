@@ -45,11 +45,13 @@ console.error("[pi-shazam] [mcp] tool call failed:", err.message);
 **Format**: JSONL (one JSON object per line)
 
 **Rotation policy**:
+
 - Max file size: 10 MB per log file
 - Archive count: 5 rotated files (`audit.jsonl`, `audit.jsonl.1`, ... `audit.jsonl.5`)
 - Retention: 30 days — older archives are deleted on startup
 
 **What gets logged**:
+
 - Every `shazam_*` tool invocation: tool name, parameters (redacted), timestamp, duration, success/failure
 - Session lifecycle: session start, session shutdown
 - LSP events: server start, server crash, server timeout
@@ -61,6 +63,7 @@ console.error("[pi-shazam] [mcp] tool call failed:", err.message);
 `core/redact.ts` strips secrets from strings before they enter any log (audit log, `_logWarn` output, or `pi.logger` calls).
 
 **Patterns matched**:
+
 - API keys: `sk-...`, `api_key=...`, `apikey: ...`
 - Bearer tokens: `Bearer ...`, `token=...`
 - Passwords: `password=...`, `passwd=...`, `secret=...`
@@ -68,6 +71,7 @@ console.error("[pi-shazam] [mcp] tool call failed:", err.message);
 - Generic hex/base64 tokens longer than 32 characters in sensitive contexts
 
 **Usage**:
+
 ```ts
 import { redact } from "./redact.js";
 
@@ -84,26 +88,27 @@ auditLog.write({ tool: name, params: redact(JSON.stringify(params)) });
 ```ts
 // hooks/tool-logger.ts registers on tool_execution_start
 pi.on("tool_execution_start", (event) => {
-  if (!event.tool.startsWith("shazam_")) return;
+	if (!event.tool.startsWith("shazam_")) return;
 
-  const entry = {
-    tool: event.tool,
-    params: redact(JSON.stringify(event.params)),
-    timestamp: Date.now(),
-    sessionId: event.sessionId,
-  };
+	const entry = {
+		tool: event.tool,
+		params: redact(JSON.stringify(event.params)),
+		timestamp: Date.now(),
+		sessionId: event.sessionId,
+	};
 
-  auditLog.write(entry);
+	auditLog.write(entry);
 });
 ```
 
 On `tool_execution_end`, the logger appends duration and result status:
+
 ```ts
 auditLog.write({
-  tool: event.tool,
-  duration: event.duration,
-  success: !event.error,
-  error: event.error?.message,
+	tool: event.tool,
+	duration: event.duration,
+	success: !event.error,
+	error: event.error?.message,
 });
 ```
 
@@ -123,11 +128,11 @@ _logWarn("graph", "cycle detected in dependency graph");
 
 Every log entry follows a consistent structure:
 
-| Field   | Description                                                       |
-| ------- | ----------------------------------------------------------------- |
-| `tag`   | Source module identifier: `graph`, `scanner`, `pagerank`, `lsp-client`, `lsp-manager`, `encoding`, `treesitter`, `git-utils`, `cache`, `redact`, `audit`, `mcp` |
-| `message` | Human-readable description of what happened or what failed      |
-| `err`   | Optional — the original error object or message                   |
+| Field     | Description                                                                                                                                                     |
+| --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tag`     | Source module identifier: `graph`, `scanner`, `pagerank`, `lsp-client`, `lsp-manager`, `encoding`, `treesitter`, `git-utils`, `cache`, `redact`, `audit`, `mcp` |
+| `message` | Human-readable description of what happened or what failed                                                                                                      |
+| `err`     | Optional — the original error object or message                                                                                                                 |
 
 The `tag` value must match the module name (without extension). Do not invent new tags without updating the tag registry above.
 
@@ -148,10 +153,10 @@ Exception: a single log at the START or END of a hot operation is acceptable (e.
 
 pi-shazam uses only two levels:
 
-| Level   | API                        | When to use                                           |
-| ------- | -------------------------- | ----------------------------------------------------- |
-| Warning | `_logWarn` / `pi.logger.warn` / `console.error` | Something failed or degraded, but the operation continues with a fallback |
-| Info    | `pi.logger.info`           | Normal operation milestones (tool call started, context injected) — hooks layer only |
+| Level   | API                                             | When to use                                                                          |
+| ------- | ----------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Warning | `_logWarn` / `pi.logger.warn` / `console.error` | Something failed or degraded, but the operation continues with a fallback            |
+| Info    | `pi.logger.info`                                | Normal operation milestones (tool call started, context injected) — hooks layer only |
 
 No `debug`, `trace`, `verbose`, or `error` levels exist. `_logWarn` handles both warnings and errors — the severity is implied by the message content and whether an `err` object is passed.
 

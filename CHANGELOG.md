@@ -22,14 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **fix(#466): uriToPath drive-letter handling + detectWorkspaceRoot escape** -- `lsp/client.ts` `uriToPath` now delegates to Node.js `fileURLToPath` for proper drive-letter URI handling (`file:///C:/...`), with a fallback to manual slice+decode for malformed URIs. `lsp/manager.ts` `detectWorkspaceRoot` now validates the result is within the project root to prevent escape.
 - **fix(#467): close 4 pre-commit and safety gate bypass paths** -- closed bypass paths in `hooks/safety.ts` (chained commands after git commit, download-then-execute RCE patterns), `hooks/stop-verify.ts` (reset `_reminderSent` on verify error), `hooks/verify-state.ts` (FAIL verdict text parsing for non-JSON verify output), and `hooks/shazam-guide.ts` (path normalization).
 - **fix(#468): route assessRisk by explicit mode instead of orphanDelta** -- `core/risk.ts` now routes risk assessment by explicit mode parameter instead of relying on `orphanDelta` heuristics, preventing incorrect risk classification when orphan counts happen to match threshold values.
-- **fix(#469): replace O(NxM) dependent detection and nameIndex cleanup with reverse-index lookups** -- `core/scanner.ts` incremental scan now uses reverse-index lookups instead of O(N*M) iteration for dependent detection and nameIndex cleanup, significantly improving performance on large codebases.
+- **fix(#469): replace O(NxM) dependent detection and nameIndex cleanup with reverse-index lookups** -- `core/scanner.ts` incremental scan now uses reverse-index lookups instead of O(N\*M) iteration for dependent detection and nameIndex cleanup, significantly improving performance on large codebases.
 - **fix(#470): honor maxTokens in format/rename_symbol customExecute and verify JSON mode** -- `tools/format.ts` and `tools/rename_symbol.ts` customExecute paths now honor `maxTokens` parameter with `truncateOutput`, matching the factory auto-truncation behavior. JSON mode is left intact to preserve valid JSON structure.
 - **fix(#471): core data integrity - MAX_FILES warn, cache null guards, targetToSources source cleanup** -- added MAX_FILES warning in scanner when file count exceeds threshold, null guards in `core/cache.ts` for corrupt cache entries, and proper source cleanup in `core/graph.ts` `targetToSources` to prevent stale references.
 - **fix(#472): guard optional event.input before cast in agent-context-guard** -- `hooks/agent-context-guard.ts` now guards `event.input` with optional chaining before casting, preventing runtime errors when the event object lacks the `input` property.
 
 ### Refactoring
 
-- **refactor(#461): standardize console.warn to _logWarn across codebase** -- replaced all `console.warn` calls with the shared `_logWarn` function from `core/output.ts` across 16 files, ensuring consistent warning format, ENOENT suppression, and centralized log control.
+- **refactor(#461): standardize console.warn to \_logWarn across codebase** -- replaced all `console.warn` calls with the shared `_logWarn` function from `core/output.ts` across 16 files, ensuring consistent warning format, ENOENT suppression, and centralized log control.
 
 ### Tests
 
@@ -61,7 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bug Fixes
 
 - **fix(#445,#446,#447,#452): MCP path-traversal guards, recordCallChain, projectRoot** -- added path-traversal protections in MCP tools, fixed `recordCallChain` logic, and corrected `projectRoot` handling.
-- **fix(#449,#450,#451): LSP URI mismatch, isPathInRoot, _cleanedUp latch** -- resolved LSP URI mismatch issues, fixed `isPathInRoot` boundary checks, and corrected the `_cleanedUp` latch race condition.
+- **fix(#449,#450,#451): LSP URI mismatch, isPathInRoot, \_cleanedUp latch** -- resolved LSP URI mismatch issues, fixed `isPathInRoot` boundary checks, and corrected the `_cleanedUp` latch race condition.
 - **fix(#448,#453): incremental scan edge loss + batch P1 cleanup** -- fixed edge loss during incremental scans and implemented batch P1 cleanup improvements.
 
 ### Documentation

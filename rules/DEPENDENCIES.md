@@ -15,16 +15,16 @@ These are the production dependencies shipped with the extension.
 
 ### tree-sitter ecosystem
 
-| Package | Purpose | Pinning |
-|---------|---------|---------|
-| `tree-sitter` | Core parser (Node.js binding) | Pinned to 0.22.4 via `overrides` in package.json |
-| `tree-sitter-typescript` | TypeScript/TSX grammar | Peer dep on tree-sitter |
-| `tree-sitter-javascript` | JavaScript grammar | Peer dep on tree-sitter |
-| `tree-sitter-python` | Python grammar | Peer dep on tree-sitter |
-| `tree-sitter-rust` | Rust grammar | Peer dep on tree-sitter |
-| `tree-sitter-go` | Go grammar | Peer dep on tree-sitter |
-| `tree-sitter-java` | Java grammar | Peer dep on tree-sitter |
-| `tree-sitter-c-sharp` | C# grammar | Peer dep on tree-sitter |
+| Package                  | Purpose                       | Pinning                                          |
+| ------------------------ | ----------------------------- | ------------------------------------------------ |
+| `tree-sitter`            | Core parser (Node.js binding) | Pinned to 0.22.4 via `overrides` in package.json |
+| `tree-sitter-typescript` | TypeScript/TSX grammar        | Peer dep on tree-sitter                          |
+| `tree-sitter-javascript` | JavaScript grammar            | Peer dep on tree-sitter                          |
+| `tree-sitter-python`     | Python grammar                | Peer dep on tree-sitter                          |
+| `tree-sitter-rust`       | Rust grammar                  | Peer dep on tree-sitter                          |
+| `tree-sitter-go`         | Go grammar                    | Peer dep on tree-sitter                          |
+| `tree-sitter-java`       | Java grammar                  | Peer dep on tree-sitter                          |
+| `tree-sitter-c-sharp`    | C# grammar                    | Peer dep on tree-sitter                          |
 
 **Critical**: tree-sitter is pinned to 0.22.4 via `overrides` in package.json. This forces npm to install 0.22.4 regardless of what the grammar packages declare in their peer dependencies. Do not change this pin without testing ALL grammars.
 
@@ -32,46 +32,46 @@ These are the production dependencies shipped with the extension.
 
 ### LSP client stack
 
-| Package | Purpose |
-|---------|---------|
-| `vscode-jsonrpc` | JSON-RPC transport for LSP communication (StreamMessageReader/StreamMessageWriter) |
-| `vscode-languageserver-protocol` | LSP type definitions (Diagnostic, Location, Position, Range, SymbolKind, etc.) |
+| Package                          | Purpose                                                                            |
+| -------------------------------- | ---------------------------------------------------------------------------------- |
+| `vscode-jsonrpc`                 | JSON-RPC transport for LSP communication (StreamMessageReader/StreamMessageWriter) |
+| `vscode-languageserver-protocol` | LSP type definitions (Diagnostic, Location, Position, Range, SymbolKind, etc.)     |
 
 These are used in `lsp/client.ts` for communicating with language servers. The project uses the official `createMessageConnection` pattern from `vscode-jsonrpc/node`, not hand-written Content-Length frame parsing.
 
 ### Encoding
 
-| Package | Purpose |
-|---------|---------|
+| Package      | Purpose                                                        |
+| ------------ | -------------------------------------------------------------- |
 | `iconv-lite` | UTF-8 / GBK / GB2312 encoding fallback for source file reading |
 
 Used by `core/encoding.ts` adaptive reader. The fast path is UTF-8; GBK and GB2312 are fallbacks that only activate on decode failure.
 
 ### Validation
 
-| Package | Purpose |
-|---------|---------|
+| Package             | Purpose                                                    |
+| ------------------- | ---------------------------------------------------------- |
 | `@sinclair/typebox` | JSON Schema for Pi tool parameters (ExtensionAPI contract) |
-| `zod` | Runtime validation for MCP tool parameters |
+| `zod`               | Runtime validation for MCP tool parameters                 |
 
 Pi tools use TypeBox schemas (required by ExtensionAPI). MCP tools use Zod schemas (required by MCP SDK). Do not cross-use them.
 
 ### MCP server
 
-| Package | Purpose |
-|---------|---------|
+| Package                     | Purpose                                                              |
+| --------------------------- | -------------------------------------------------------------------- |
 | `@modelcontextprotocol/sdk` | MCP server implementation for exposing tools to external MCP clients |
 
 Used in `mcp/entry.ts` and `mcp/tools.ts`.
 
 ## Dev Dependencies
 
-| Package | Purpose |
-|---------|---------|
-| `@types/node` | Node.js type definitions |
-| `prettier` | Code formatting (tabs, double quotes, trailing commas, 120 width) |
-| `typescript` | Type checking and compilation |
-| `vitest` | Test runner and benchmark framework |
+| Package       | Purpose                                                           |
+| ------------- | ----------------------------------------------------------------- |
+| `@types/node` | Node.js type definitions                                          |
+| `prettier`    | Code formatting (tabs, double quotes, trailing commas, 120 width) |
+| `typescript`  | Type checking and compilation                                     |
+| `vitest`      | Test runner and benchmark framework                               |
 
 There is no eslint in this project. Formatting is handled entirely by prettier.
 

@@ -37,21 +37,21 @@ npm test                         # unit tests — 0 failures, 0 errors
 
 Steps (13 total):
 
-| #   | Step                          | Command                                                  | Pass Criteria                          |
-| --- | ----------------------------- | -------------------------------------------------------- | -------------------------------------- |
-| 1   | Install deps                  | `npm install --legacy-peer-deps`                         | Exit 0                                 |
-| 2   | Type check                    | `npm run typecheck` (tsc --noEmit)                       | Zero errors                            |
-| 3   | Format check                  | `npx prettier --check .`                                 | Zero diffs                             |
-| 4   | Unit tests                    | `npm test`                                               | 0 failures, 0 errors                   |
-| 5   | Build                         | `npm run build`                                          | Exit 0                                 |
-| 6   | Dist artifacts exist          | `test -f dist/index.js && test -f dist/index.d.ts`       | Both files present                     |
-| 7   | MCP integration tests         | `npx vitest run tests/mcp-integration.test.ts`           | All pass (requires dist/)              |
-| 8   | Benchmarks                    | `npx vitest run tests/benchmark.test.ts`                 | Within time thresholds                 |
-| 9   | Security audit                | `npm audit --omit=dev`                                   | 0 vulnerabilities                      |
-| 10  | Hook registration count       | grep dist/index.js for 9 register functions              | Count >= 9                             |
-| 11  | Pre-publish contract check    | grep dist/ for `pi.logger.` and `pi.typebox`             | Zero matches                           |
-| 12  | MCP smoke test                | stdin JSON-RPC initialize + shazam_overview to entry.js  | JSON response with non-empty content   |
-| 13  | Pi integration smoke test     | `pi -p "call shazam_overview briefly"`                   | No "Extension error" in output         |
+| #   | Step                       | Command                                                 | Pass Criteria                        |
+| --- | -------------------------- | ------------------------------------------------------- | ------------------------------------ |
+| 1   | Install deps               | `npm install --legacy-peer-deps`                        | Exit 0                               |
+| 2   | Type check                 | `npm run typecheck` (tsc --noEmit)                      | Zero errors                          |
+| 3   | Format check               | `npx prettier --check .`                                | Zero diffs                           |
+| 4   | Unit tests                 | `npm test`                                              | 0 failures, 0 errors                 |
+| 5   | Build                      | `npm run build`                                         | Exit 0                               |
+| 6   | Dist artifacts exist       | `test -f dist/index.js && test -f dist/index.d.ts`      | Both files present                   |
+| 7   | MCP integration tests      | `npx vitest run tests/mcp-integration.test.ts`          | All pass (requires dist/)            |
+| 8   | Benchmarks                 | `npx vitest run tests/benchmark.test.ts`                | Within time thresholds               |
+| 9   | Security audit             | `npm audit --omit=dev`                                  | 0 vulnerabilities                    |
+| 10  | Hook registration count    | grep dist/index.js for 9 register functions             | Count >= 9                           |
+| 11  | Pre-publish contract check | grep dist/ for `pi.logger.` and `pi.typebox`            | Zero matches                         |
+| 12  | MCP smoke test             | stdin JSON-RPC initialize + shazam_overview to entry.js | JSON response with non-empty content |
+| 13  | Pi integration smoke test  | `pi -p "call shazam_overview briefly"`                  | No "Extension error" in output       |
 
 **Quick run**: `npm run ci` (covers steps 1-9, skips format check, hook registration,
 contract check, smoke tests).
@@ -68,12 +68,12 @@ Flags:
 | Flag          | Effect                                            |
 | ------------- | ------------------------------------------------- |
 | `--quick`     | Git-change-only check (~2s), skip LSP diagnostics |
-| `--lspOnly`   | LSP diagnostics only, skip graph analysis          |
-| `--preCommit` | Stricter thresholds for pre-commit gate            |
-| `--delta`     | Only check changed files                           |
-| `--maxFiles`  | Limit number of files to check                     |
-| `--noCascade` | Skip cascade analysis                              |
-| `--noSecrets` | Skip secrets detection                             |
+| `--lspOnly`   | LSP diagnostics only, skip graph analysis         |
+| `--preCommit` | Stricter thresholds for pre-commit gate           |
+| `--delta`     | Only check changed files                          |
+| `--maxFiles`  | Limit number of files to check                    |
+| `--noCascade` | Skip cascade analysis                             |
+| `--noSecrets` | Skip secrets detection                            |
 
 **State tracking**: `hooks/verify-state.ts` records the verdict with 5-minute TTL.
 Fail-closed: unknown/missing verdict = not PASS.
@@ -82,6 +82,7 @@ Fail-closed: unknown/missing verdict = not PASS.
 
 **When**: Before every `git commit`.
 **What**: The hook script detects project language and runs appropriate checks:
+
 - TypeScript/JavaScript: `tsc --noEmit`, eslint or biome
 - Rust: `cargo check`, `cargo clippy`
 - Go: `go vet`, `golangci-lint`
@@ -97,16 +98,17 @@ Fail-closed: unknown/missing verdict = not PASS.
 **When**: On push and PR to `main`.
 **What**: 6 parallel jobs across `ubuntu-latest` + `macos-latest`:
 
-| Job               | Checks                                              |
-| ----------------- | --------------------------------------------------- |
-| typecheck         | `npx tsc --noEmit`                                  |
-| test              | `npm test` via vitest                               |
-| build             | `npm run build` + dist artifact verification        |
-| mcp-integration   | MCP integration tests against built dist            |
-| benchmark         | Performance benchmarks                              |
-| audit             | `npm audit --omit=dev`                              |
+| Job             | Checks                                       |
+| --------------- | -------------------------------------------- |
+| typecheck       | `npx tsc --noEmit`                           |
+| test            | `npm test` via vitest                        |
+| build           | `npm run build` + dist artifact verification |
+| mcp-integration | MCP integration tests against built dist     |
+| benchmark       | Performance benchmarks                       |
+| audit           | `npm audit --omit=dev`                       |
 
 **Coverage gaps** (local CI has these, ci.yml does not):
+
 - Format check (`prettier --check`)
 - Hook registration count
 - Pre-publish contract check
@@ -177,27 +179,27 @@ git commit --no-verify    # bypass all pre-commit hooks
 
 ## 4. Verification Matrix
 
-| Change Type       | Layer 1 (Pre-Edit) | Layer 2 (Quick) | Layer 3 (Full CI) | Layer 4 (shazam_verify) | Layer 5 (Pre-Commit) | Layer 6 (GH Actions) |
-| ----------------- | ------------------- | --------------- | ------------------ | ----------------------- | -------------------- | -------------------- |
-| Code change       | --                  | Required        | Before merge       | After edit              | On commit            | On push/PR           |
-| Tool change       | --                  | Required        | Required           | After edit              | On commit            | On push/PR           |
-| Hook change       | --                  | Required        | Required           | After edit              | On commit            | On push/PR           |
-| LSP change        | --                  | Required        | Required           | After edit              | On commit            | On push/PR           |
-| New tool/hook     | --                  | Required        | Required + MCP parity | After edit          | On commit            | On push/PR           |
-| Release           | --                  | Required        | All 13 steps       | Required                | On commit            | On push/PR           |
-| Multi-file edit   | Auto-triggered      | Required        | Before merge       | After edit              | On commit            | On push/PR           |
-| Shared module edit| Auto-triggered      | Required        | Required           | Required                | On commit            | On push/PR           |
+| Change Type        | Layer 1 (Pre-Edit) | Layer 2 (Quick) | Layer 3 (Full CI)     | Layer 4 (shazam_verify) | Layer 5 (Pre-Commit) | Layer 6 (GH Actions) |
+| ------------------ | ------------------ | --------------- | --------------------- | ----------------------- | -------------------- | -------------------- |
+| Code change        | --                 | Required        | Before merge          | After edit              | On commit            | On push/PR           |
+| Tool change        | --                 | Required        | Required              | After edit              | On commit            | On push/PR           |
+| Hook change        | --                 | Required        | Required              | After edit              | On commit            | On push/PR           |
+| LSP change         | --                 | Required        | Required              | After edit              | On commit            | On push/PR           |
+| New tool/hook      | --                 | Required        | Required + MCP parity | After edit              | On commit            | On push/PR           |
+| Release            | --                 | Required        | All 13 steps          | Required                | On commit            | On push/PR           |
+| Multi-file edit    | Auto-triggered     | Required        | Before merge          | After edit              | On commit            | On push/PR           |
+| Shared module edit | Auto-triggered     | Required        | Required              | Required                | On commit            | On push/PR           |
 
 ### Tool-Specific Verification
 
-| Tool Change                              | Additional Checks                                    |
-| ---------------------------------------- | ---------------------------------------------------- |
-| New tool in `tools/`                     | Register in `index.ts`, add MCP handler, update AGENTS.md/SKILL.md |
-| Tool parameter change                    | Update both TypeBox (Pi) and Zod (MCP) schemas       |
-| Tool output format change                | Verify JSON envelope schema, verify plain text skeleton |
-| New hook in `hooks/`                     | Register in `index.ts`, hook registration count >= 9 |
-| LSP client/manager change                | Test with at least 2 language servers                |
-| Graph algorithm change                   | Verify all RepoGraph consumers produce correct output |
+| Tool Change               | Additional Checks                                                  |
+| ------------------------- | ------------------------------------------------------------------ |
+| New tool in `tools/`      | Register in `index.ts`, add MCP handler, update AGENTS.md/SKILL.md |
+| Tool parameter change     | Update both TypeBox (Pi) and Zod (MCP) schemas                     |
+| Tool output format change | Verify JSON envelope schema, verify plain text skeleton            |
+| New hook in `hooks/`      | Register in `index.ts`, hook registration count >= 9               |
+| LSP client/manager change | Test with at least 2 language servers                              |
+| Graph algorithm change    | Verify all RepoGraph consumers produce correct output              |
 
 ---
 

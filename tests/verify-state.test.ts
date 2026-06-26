@@ -122,24 +122,24 @@ describe("hooks/verify-state", () => {
 		});
 
 		it("should allow reminder after verify + new edit cycle", () => {
-		// Send reminder, then verify
-		markReminderSent();
-		markVerifyCalled();
-		expect(wasReminderSent()).toBe(false);
+			// Send reminder, then verify
+			markReminderSent();
+			markVerifyCalled();
+			expect(wasReminderSent()).toBe(false);
 
-		// New edit after verify: reminder should be allowed again
-		onNewEdit();
-		expect(wasReminderSent()).toBe(false);
-		markReminderSent();
-		expect(wasReminderSent()).toBe(true);
-	});
+			// New edit after verify: reminder should be allowed again
+			onNewEdit();
+			expect(wasReminderSent()).toBe(false);
+			markReminderSent();
+			expect(wasReminderSent()).toBe(true);
+		});
 
-	it("resetReminderSent clears the reminder flag (#467)", () => {
-		markReminderSent();
-		expect(wasReminderSent()).toBe(true);
-		resetReminderSent();
-		expect(wasReminderSent()).toBe(false);
-	});
+		it("resetReminderSent clears the reminder flag (#467)", () => {
+			markReminderSent();
+			expect(wasReminderSent()).toBe(true);
+			resetReminderSent();
+			expect(wasReminderSent()).toBe(false);
+		});
 	});
 
 	// -------------------------------------------------------------------------
