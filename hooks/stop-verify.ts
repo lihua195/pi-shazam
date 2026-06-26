@@ -22,6 +22,7 @@ import {
 	resetVerifyState,
 	markReminderSent,
 	wasReminderSent,
+	resetReminderSent,
 } from "./verify-state.js";
 
 /** Minimum interval between auto-verify steer messages (60 seconds). */
@@ -50,6 +51,14 @@ export function registerStopVerify(pi: ExtensionAPI): void {
 						: undefined;
 				markVerifyCalled(text);
 				clearEditedFiles();
+			} else {
+				// #467 Finding 4: verify errored out. The previous reminder's
+				// dedup flag (_reminderSent) must be cleared so a future turn_end
+				// can re-remind the agent to retry verify. Previously the
+				// `if (!event.isError)` guard skipped this branch entirely,
+				// leaving _reminderSent stuck true and silencing all subsequent
+				// reminders.
+				resetReminderSent();
 			}
 		}
 	});

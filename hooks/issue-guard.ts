@@ -10,7 +10,7 @@
 
 import type { ExtensionAPI } from "../types/pi-extension.js";
 import { setPendingImpact, clearPendingImpact } from "./impact-state.js";
-import { tokenizeCommand, extractCommandFromEvent } from "./_bash-utils.js";
+import { tokenizeSegments, extractCommandFromEvent } from "./_bash-utils.js";
 
 /**
  * Patterns that indicate a serious issue requiring impact analysis.
@@ -40,9 +40,15 @@ export function registerIssueGuard(pi: ExtensionAPI): void {
 
 		const command = extractCommandFromEvent(event);
 
-		// argv-based gh issue create detection
-		const argv = tokenizeCommand(command);
-		const isGhIssueCreate = argv[0] === "gh" && argv.length >= 3 && argv[1] === "issue" && argv[2] === "create";
+		// #467: segment-aware gh issue create detection. Previously only
+		// argv[0] was checked, so a chained command like
+		// `echo safe && gh issue create` bypassed detection (argv[0] was
+		// "echo") and the pending-impact flag was never set. Scan every
+		// segment for a `gh issue create` invocation.
+		const segments = tokenizeSegments(command);
+		const isGhIssueCreate = segments.some(
+			(seg) => seg[0] === "gh" && seg.length >= 3 && seg[1] === "issue" && seg[2] === "create",
+		);
 		if (!isGhIssueCreate) return;
 
 		// Classify severity from title/body patterns in the command

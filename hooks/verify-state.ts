@@ -71,8 +71,13 @@ export function markVerifyCalled(content?: string): void {
 			_logWarn("markVerifyCalled", "JSON.parse failed for verify content", err);
 		}
 
+		// #467: previously only "[FAIL] NOT READY" was matched, so a bare
+		// "[FAIL] 5 errors" or a "Verdict: FAIL" line bypassed detection
+		// and was treated as a PASS. Match any [FAIL] token and any
+		// "Verdict: FAIL" line.
 		const isFail =
-			/\[FAIL\]\s+NOT\s+READY/i.test(content) ||
+			/\[FAIL\]/i.test(content) ||
+			/Verdict:\s*FAIL/i.test(content) ||
 			/risk\s*[:=]\s*['"]?\*\*high\*\*/i.test(content) ||
 			/Errors:\s*([1-9]\d*)/.test(content);
 		_lastVerifyPassed = !isFail;
@@ -136,4 +141,14 @@ export function markReminderSent(): void {
  */
 export function wasReminderSent(): boolean {
 	return _reminderSent;
+}
+
+/**
+ * Reset only the reminder-sent flag (not the full verify state).
+ * Used when a verify attempt errors out: the previous reminder's
+ * dedup flag must be cleared so a future turn_end can re-remind.
+ * (#467 Finding 4: _reminderSent was stuck true after verify error.)
+ */
+export function resetReminderSent(): void {
+	_reminderSent = false;
 }
