@@ -16,9 +16,7 @@ import { findDependentFiles, removeFileData } from "../core/scanner.js";
 // ── findDependentFiles ────────────────────────────────────────────────────
 
 describe("Issue #469: findDependentFiles", () => {
-	function buildGraphWithImports(
-		fileImports: Map<string, string[]>,
-	): RepoGraph {
+	function buildGraphWithImports(fileImports: Map<string, string[]>): RepoGraph {
 		const graph = createRepoGraph();
 		graph.fileImports = fileImports;
 		return graph;
@@ -74,9 +72,7 @@ describe("Issue #469: findDependentFiles", () => {
 	});
 
 	it("returns empty set for empty changedFiles input", () => {
-		const graph = buildGraphWithImports(
-			new Map([["src/app.ts", ["src/lib.ts"]]]),
-		);
+		const graph = buildGraphWithImports(new Map([["src/app.ts", ["src/lib.ts"]]]));
 
 		const deps = findDependentFiles(graph, []);
 
@@ -104,11 +100,7 @@ describe("Issue #469: findDependentFiles", () => {
 	it("deduplicates importers that import multiple changed files", () => {
 		// c.ts imports both math.ts and utils.ts -- when both change,
 		// c.ts must appear only once in the result set
-		const graph = buildGraphWithImports(
-			new Map([
-				["src/c.ts", ["src/math.ts", "src/utils.ts"]],
-			]),
-		);
+		const graph = buildGraphWithImports(new Map([["src/c.ts", ["src/math.ts", "src/utils.ts"]]]));
 
 		const deps = findDependentFiles(graph, ["src/math.ts", "src/utils.ts"]);
 
@@ -158,10 +150,9 @@ describe("Issue #469: removeFileData nameIndex cleanup", () => {
 	}
 
 	it("removes nameIndex entry when the deleted file held the last symbol of that name", () => {
-		const graph = buildGraphForRemove(
-			"src/math.ts",
-			[{ id: "src/math.ts::add::1", name: "add", kind: "function", line: 1 }],
-		);
+		const graph = buildGraphForRemove("src/math.ts", [
+			{ id: "src/math.ts::add::1", name: "add", kind: "function", line: 1 },
+		]);
 
 		expect(graph.nameIndex.has("add")).toBe(true);
 		expect(graph.nameIndex.get("add")!.length).toBe(1);
@@ -177,9 +168,7 @@ describe("Issue #469: removeFileData nameIndex cleanup", () => {
 		const graph = buildGraphForRemove(
 			"src/math.ts",
 			[{ id: "src/math.ts::add::1", name: "add", kind: "function", line: 1 }],
-			[
-				{ id: "src/utils.ts::add::5", name: "add", kind: "function", file: "src/utils.ts", line: 5 },
-			],
+			[{ id: "src/utils.ts::add::5", name: "add", kind: "function", file: "src/utils.ts", line: 5 }],
 		);
 
 		expect(graph.nameIndex.get("add")!.length).toBe(2);
@@ -203,9 +192,7 @@ describe("Issue #469: removeFileData nameIndex cleanup", () => {
 				{ id: "src/handlers.ts::handler::1", name: "handler", kind: "function", line: 1 },
 				{ id: "src/handlers.ts::handler::10", name: "handler", kind: "function", line: 10 },
 			],
-			[
-				{ id: "src/other.ts::handler::3", name: "handler", kind: "function", file: "src/other.ts", line: 3 },
-			],
+			[{ id: "src/other.ts::handler::3", name: "handler", kind: "function", file: "src/other.ts", line: 3 }],
 		);
 
 		expect(graph.nameIndex.get("handler")!.length).toBe(3);
@@ -219,13 +206,10 @@ describe("Issue #469: removeFileData nameIndex cleanup", () => {
 	});
 
 	it("removes multiple distinct names from nameIndex", () => {
-		const graph = buildGraphForRemove(
-			"src/math.ts",
-			[
-				{ id: "src/math.ts::add::1", name: "add", kind: "function", line: 1 },
-				{ id: "src/math.ts::sub::5", name: "sub", kind: "function", line: 5 },
-			],
-		);
+		const graph = buildGraphForRemove("src/math.ts", [
+			{ id: "src/math.ts::add::1", name: "add", kind: "function", line: 1 },
+			{ id: "src/math.ts::sub::5", name: "sub", kind: "function", line: 5 },
+		]);
 
 		expect(graph.nameIndex.has("add")).toBe(true);
 		expect(graph.nameIndex.has("sub")).toBe(true);

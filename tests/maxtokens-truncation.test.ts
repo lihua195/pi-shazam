@@ -57,10 +57,7 @@ describe("Issue #470: shazam_format honors maxTokens", () => {
 		mkdirSync(join(dir, "src"), { recursive: true });
 		// Create 30 files with trailing whitespace to produce many format issues
 		for (let i = 0; i < 30; i++) {
-			writeFileSync(
-				join(dir, "src", `mod_${i}.ts`),
-				`export function f${i}() {\n  return 1;   \n}\n`,
-			);
+			writeFileSync(join(dir, "src", `mod_${i}.ts`), `export function f${i}() {\n  return 1;   \n}\n`);
 		}
 		setProjectRoot(dir);
 
@@ -84,10 +81,7 @@ describe("Issue #470: shazam_format honors maxTokens", () => {
 		const dir = makeTempDir();
 		mkdirSync(join(dir, "src"), { recursive: true });
 		for (let i = 0; i < 10; i++) {
-			writeFileSync(
-				join(dir, "src", `mod_${i}.ts`),
-				`export function f${i}() {\n  return 1;   \n}\n`,
-			);
+			writeFileSync(join(dir, "src", `mod_${i}.ts`), `export function f${i}() {\n  return 1;   \n}\n`);
 		}
 		setProjectRoot(dir);
 
@@ -95,13 +89,7 @@ describe("Issue #470: shazam_format honors maxTokens", () => {
 		registerFormat(pi);
 		const tool = registered[0]!;
 
-		const result = await tool.execute(
-			"c3",
-			{ json: true, maxTokens: 10 },
-			undefined,
-			undefined,
-			{} as never,
-		);
+		const result = await tool.execute("c3", { json: true, maxTokens: 10 }, undefined, undefined, {} as never);
 		const text = (result.content[0] as { text: string }).text;
 		// JSON mode must produce valid JSON even with maxTokens set
 		expect(() => JSON.parse(text)).not.toThrow();
@@ -115,10 +103,7 @@ describe("Issue #470: shazam_rename_symbol honors maxTokens", () => {
 		const dir = makeTempDir();
 		mkdirSync(join(dir, "src"), { recursive: true });
 		// Target symbol that many callers reference
-		writeFileSync(
-			join(dir, "src", "target.ts"),
-			"export function myTarget() {\n  return 1;\n}\n",
-		);
+		writeFileSync(join(dir, "src", "target.ts"), "export function myTarget() {\n  return 1;\n}\n");
 		// 30 callers -- produces 30 incoming references (formatGraphRefs caps at 20)
 		for (let i = 0; i < 30; i++) {
 			writeFileSync(
@@ -187,7 +172,16 @@ describe("Issue #470: shazam_verify JSON caps lspDiagnostics", () => {
 
 	it("does not cap when output fits within maxTokens", () => {
 		const result: {
-			lspDiagnostics: { file: string; line: number; col: number; endLine: number; endCol: number; severity: string; code: string; message: string }[];
+			lspDiagnostics: {
+				file: string;
+				line: number;
+				col: number;
+				endLine: number;
+				endCol: number;
+				severity: string;
+				code: string;
+				message: string;
+			}[];
 			lspDiagnosticsTruncated?: number;
 		} = {
 			lspDiagnostics: [

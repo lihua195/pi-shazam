@@ -50,46 +50,46 @@ You are reviewing **pi-shazam**, a Pi coding agent native codebase awareness ext
 
 ### Tier 1 — Core Logic (highest blast radius)
 
-| File | Responsibility |
-|------|---------------|
-| `core/scanner.ts` | Project scanning, file discovery, `getEffectiveRoot()` |
-| `core/graph.ts` | Dependency graph construction, edge resolution |
-| `core/treesitter.ts` | Language support, symbol extraction, AST queries |
-| `core/pagerank.ts` | PageRank computation, file importance ranking |
-| `tools/_factory.ts` | Tool registration factory, parameter validation, content envelope |
-| `tools/lookup.ts` | Unified symbol/file lookup with hover info |
-| `tools/impact.ts` | Blast radius analysis, caller/callee tracing |
-| `tools/verify.ts` | Post-edit verification gate, LSP diagnostics integration |
+| File                 | Responsibility                                                    |
+| -------------------- | ----------------------------------------------------------------- |
+| `core/scanner.ts`    | Project scanning, file discovery, `getEffectiveRoot()`            |
+| `core/graph.ts`      | Dependency graph construction, edge resolution                    |
+| `core/treesitter.ts` | Language support, symbol extraction, AST queries                  |
+| `core/pagerank.ts`   | PageRank computation, file importance ranking                     |
+| `tools/_factory.ts`  | Tool registration factory, parameter validation, content envelope |
+| `tools/lookup.ts`    | Unified symbol/file lookup with hover info                        |
+| `tools/impact.ts`    | Blast radius analysis, caller/callee tracing                      |
+| `tools/verify.ts`    | Post-edit verification gate, LSP diagnostics integration          |
 
 ### Tier 2 — State & Recovery
 
-| File | Responsibility |
-|------|---------------|
-| `hooks/verify-state.ts` | Verify session state, TTL management |
-| `hooks/impact-state.ts` | Impact analysis session state |
-| `hooks/rename-state.ts` | Rename operation state tracking |
-| `core/cache.ts` | Module-level cache with TTL and invalidation |
-| `core/baseline.ts` | Git baseline tracking for change detection |
-| `lsp/manager.ts` | LSP server lifecycle, process management |
+| File                    | Responsibility                               |
+| ----------------------- | -------------------------------------------- |
+| `hooks/verify-state.ts` | Verify session state, TTL management         |
+| `hooks/impact-state.ts` | Impact analysis session state                |
+| `hooks/rename-state.ts` | Rename operation state tracking              |
+| `core/cache.ts`         | Module-level cache with TTL and invalidation |
+| `core/baseline.ts`      | Git baseline tracking for change detection   |
+| `lsp/manager.ts`        | LSP server lifecycle, process management     |
 
 ### Tier 3 — Infrastructure
 
-| File | Responsibility |
-|------|---------------|
-| `lsp/client.ts` | JSON-RPC communication, Content-Length framing |
-| `mcp/entry.ts` | MCP server entry point, stdio transport |
-| `mcp/tools.ts` | MCP tool definitions (Zod schemas, must match Pi tools) |
-| `hooks/safety.ts` | Safety guards, rate limiting |
-| `hooks/pre-edit.ts` | Pre-edit validation, file lock checks |
+| File                | Responsibility                                          |
+| ------------------- | ------------------------------------------------------- |
+| `lsp/client.ts`     | JSON-RPC communication, Content-Length framing          |
+| `mcp/entry.ts`      | MCP server entry point, stdio transport                 |
+| `mcp/tools.ts`      | MCP tool definitions (Zod schemas, must match Pi tools) |
+| `hooks/safety.ts`   | Safety guards, rate limiting                            |
+| `hooks/pre-edit.ts` | Pre-edit validation, file lock checks                   |
 
 ### Tier 4 — Entry & Commands
 
-| File | Responsibility |
-|------|---------------|
-| `index.ts` | Extension entry, all registrations |
-| `tools/overview.ts` | Project overview tool |
-| `tools/format.ts` | Formatting tool |
-| `hooks/before-start.ts` | Before-start lifecycle hook |
+| File                    | Responsibility                     |
+| ----------------------- | ---------------------------------- |
+| `index.ts`              | Extension entry, all registrations |
+| `tools/overview.ts`     | Project overview tool              |
+| `tools/format.ts`       | Formatting tool                    |
+| `hooks/before-start.ts` | Before-start lifecycle hook        |
 
 ## How to Submit Findings
 

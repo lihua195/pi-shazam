@@ -164,13 +164,13 @@ Hooks (`hooks/*.ts`) subscribe to Pi lifecycle events and inject context into th
 
 ### Lifecycle Events
 
-| Event | When | Common hooks |
-|---|---|---|
-| `before_agent_start` | Before LLM inference begins | `before-start.ts` |
-| `tool_call` | Before a tool executes | `pre-edit.ts`, `safety.ts` |
-| `tool_result` | After a tool returns | `impact-state.ts`, `rename-state.ts` |
-| `turn_end` | After LLM turn completes | `verify-state.ts` |
-| `session_shutdown` | Session ending | cleanup hooks |
+| Event                | When                        | Common hooks                         |
+| -------------------- | --------------------------- | ------------------------------------ |
+| `before_agent_start` | Before LLM inference begins | `before-start.ts`                    |
+| `tool_call`          | Before a tool executes      | `pre-edit.ts`, `safety.ts`           |
+| `tool_result`        | After a tool returns        | `impact-state.ts`, `rename-state.ts` |
+| `turn_end`           | After LLM turn completes    | `verify-state.ts`                    |
+| `session_shutdown`   | Session ending              | cleanup hooks                        |
 
 ### Debug Steps
 

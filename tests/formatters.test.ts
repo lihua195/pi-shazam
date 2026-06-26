@@ -72,7 +72,7 @@ describe("core/formatters", () => {
 		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 		try {
 			// Create a Rust-like project dir (has Cargo.toml, no package.json)
-			writeFileSync(join(dir, "Cargo.toml"), "[package]\nname = \"test\"");
+			writeFileSync(join(dir, "Cargo.toml"), '[package]\nname = "test"');
 			detectFormatters(dir);
 			// Filter for ENOENT-related warnings from readFileAdaptive
 			const enoentWarnings = warnSpy.mock.calls.filter(

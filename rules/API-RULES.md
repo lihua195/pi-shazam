@@ -11,20 +11,20 @@ and output contracts. Read this before adding or modifying any tool, hook, or co
 
 pi-shazam subscribes to these events in `index.ts`:
 
-| Event                | Handler Location           | Behavior                                                 |
-| -------------------- | -------------------------- | -------------------------------------------------------- |
-| `before_agent_start` | `index.ts`                 | Update project root, initialize LSP servers (15s timeout) |
-| `session_start`      | `index.ts`                 | Clear rename safety gate state (`clearRenameState()`)     |
-| `session_shutdown`   | `index.ts`                 | Shutdown LSP, reset scanner cache, reset lsp_enrich state |
-| `tool_execution_end` | `hooks/tool-logger.ts`     | Log tool call duration and result size to audit log       |
-| `before_agent_start` | `hooks/before-start.ts`    | Inject system prompt with project overview                |
-| `tool_execution_end` | `hooks/pre-edit.ts`        | Track edits for verify reminder gating                    |
-| `tool_execution_end` | `hooks/issue-guard.ts`     | Detect GitHub issue creation, set pending impact          |
-| `before_agent_start` | `hooks/agent-context-guard.ts` | Inject agent context instructions                    |
-| `turn_end`           | `hooks/stop-verify.ts`     | Remind agent to run shazam_verify if edits unverified     |
-| `tool_execution_end` | `hooks/failure-recovery.ts` | Handle tool failures gracefully                          |
-| `tool_execution_end` | `hooks/safety.ts`          | Pre-commit safety gate enforcement                        |
-| `before_agent_start` | `hooks/shazam-guide.ts`    | Inject tool usage guide into system prompt                |
+| Event                | Handler Location               | Behavior                                                  |
+| -------------------- | ------------------------------ | --------------------------------------------------------- |
+| `before_agent_start` | `index.ts`                     | Update project root, initialize LSP servers (15s timeout) |
+| `session_start`      | `index.ts`                     | Clear rename safety gate state (`clearRenameState()`)     |
+| `session_shutdown`   | `index.ts`                     | Shutdown LSP, reset scanner cache, reset lsp_enrich state |
+| `tool_execution_end` | `hooks/tool-logger.ts`         | Log tool call duration and result size to audit log       |
+| `before_agent_start` | `hooks/before-start.ts`        | Inject system prompt with project overview                |
+| `tool_execution_end` | `hooks/pre-edit.ts`            | Track edits for verify reminder gating                    |
+| `tool_execution_end` | `hooks/issue-guard.ts`         | Detect GitHub issue creation, set pending impact          |
+| `before_agent_start` | `hooks/agent-context-guard.ts` | Inject agent context instructions                         |
+| `turn_end`           | `hooks/stop-verify.ts`         | Remind agent to run shazam_verify if edits unverified     |
+| `tool_execution_end` | `hooks/failure-recovery.ts`    | Handle tool failures gracefully                           |
+| `tool_execution_end` | `hooks/safety.ts`              | Pre-commit safety gate enforcement                        |
+| `before_agent_start` | `hooks/shazam-guide.ts`        | Inject tool usage guide into system prompt                |
 
 **Rule**: Register `before_agent_start` handlers in the correct order — the one returning
 `{ systemPrompt }` must come after `registerBeforeStartHook`. Only the last
@@ -32,13 +32,13 @@ pi-shazam subscribes to these events in `index.ts`:
 
 ### 1.2 Slash Commands — `pi.registerCommand(name, { description, handler })`
 
-| Command                      | Description                                         |
-| ---------------------------- | --------------------------------------------------- |
-| `/shazam-setup`              | Detect and report LSP server availability            |
-| `/shazam-doctor`             | Health check: tree-sitter, LSP, cache integrity      |
-| `/shazam-install-git-hooks`  | Install pre-commit hook (`core/git-hooks.ts`)        |
-| `/shazam-remove-git-hooks`   | Remove the shazam pre-commit hook                    |
-| `/shazam-pre-commit-verify`  | Run pre-commit verification (used by git hook script)|
+| Command                     | Description                                           |
+| --------------------------- | ----------------------------------------------------- |
+| `/shazam-setup`             | Detect and report LSP server availability             |
+| `/shazam-doctor`            | Health check: tree-sitter, LSP, cache integrity       |
+| `/shazam-install-git-hooks` | Install pre-commit hook (`core/git-hooks.ts`)         |
+| `/shazam-remove-git-hooks`  | Remove the shazam pre-commit hook                     |
+| `/shazam-pre-commit-verify` | Run pre-commit verification (used by git hook script) |
 
 **Rule**: Command names are kebab-case. All commands use `pi.sendMessage()` with
 `display: true` to show results to the user. The `ctx.ui?.setStatus?.()` call is
@@ -48,9 +48,9 @@ optional and defended with `?.`.
 
 ```ts
 pi.sendMessage({
-  customType: "shazam-setup",   // kebab-case, matches command name
-  content: report,              // always string (never array)
-  display: true,                // user-visible
+	customType: "shazam-setup", // kebab-case, matches command name
+	content: report, // always string (never array)
+	display: true, // user-visible
 });
 ```
 
@@ -87,6 +87,7 @@ Launched as `node dist/mcp/entry.js <project-root>`.
 ### 2.3 MCP-Pi Parity
 
 Every MCP tool MUST have a matching Pi tool and vice versa. When changing:
+
 - Tool name → update both `mcp/tools.ts` and the tool's `register*` in `tools/`
 - Tool description → sync to both `tools/definitions.ts` and `mcp/tools.ts`
 - Tool parameters → update both TypeBox (Pi) and Zod (MCP) schemas
@@ -102,17 +103,17 @@ without adding the corresponding MCP tool.
 
 Single source of truth for all 9 tool definitions:
 
-| Tool               | Parameters (TypeBox / Zod)                              |
-| ------------------ | ------------------------------------------------------- |
-| `shazam_overview`  | `filter?`                                               |
-| `shazam_lookup`    | `name`, `file?`, `mode?`, `showCallbacks?`, `direction?`|
-| `shazam_impact`    | `files?`, `symbol?`, `withSymbols?`, `compact?`, `depth?`, `flat?`, `direction?` |
-| `shazam_verify`    | `quick?`, `lspOnly?`, `preCommit?`, `delta?`, `maxFiles?`, `noCascade?`, `noSecrets?` |
-| `shazam_changes`   | *(none)*                                                |
-| `shazam_format`    | `dryRun?`, `file?`                                      |
-| `shazam_find_tests`| `sourceFile?`, `module?`                                |
-| `shazam_rename_symbol` | `symbol`, `newName`, `dryRun?`                       |
-| `shazam_safe_delete`  | `symbol`, `dryRun?`                                  |
+| Tool                   | Parameters (TypeBox / Zod)                                                            |
+| ---------------------- | ------------------------------------------------------------------------------------- |
+| `shazam_overview`      | `filter?`                                                                             |
+| `shazam_lookup`        | `name`, `file?`, `mode?`, `showCallbacks?`, `direction?`                              |
+| `shazam_impact`        | `files?`, `symbol?`, `withSymbols?`, `compact?`, `depth?`, `flat?`, `direction?`      |
+| `shazam_verify`        | `quick?`, `lspOnly?`, `preCommit?`, `delta?`, `maxFiles?`, `noCascade?`, `noSecrets?` |
+| `shazam_changes`       | _(none)_                                                                              |
+| `shazam_format`        | `dryRun?`, `file?`                                                                    |
+| `shazam_find_tests`    | `sourceFile?`, `module?`                                                              |
+| `shazam_rename_symbol` | `symbol`, `newName`, `dryRun?`                                                        |
+| `shazam_safe_delete`   | `symbol`, `dryRun?`                                                                   |
 
 **Rule**: Both `typeboxParams` (for Pi) and `zodParams` (for MCP) are defined in
 `tools/definitions.ts`. Import from here; never duplicate schemas.
@@ -130,9 +131,9 @@ Single source of truth for all 9 tool definitions:
 
 ```ts
 const mergedSchema = Type.Object({
-  ...spec.params.properties,
-  json: Type.Optional(Type.Boolean()),
-  maxTokens: Type.Optional(Type.Number()),
+	...spec.params.properties,
+	json: Type.Optional(Type.Boolean()),
+	maxTokens: Type.Optional(Type.Number()),
 });
 ```
 
@@ -187,6 +188,7 @@ The `status` is `"ok"` or `"error"`. On error: `{ "result": { "message": "..." }
 ### 4.3 Truncation — `truncateOutput(lines, maxTokens)`
 
 When `maxTokens` is provided and output exceeds the budget:
+
 - High-priority lines (`##`, `###`, `**key:**`) are always kept
 - Low-priority lines are replaced with `... and N more (truncated)`
 - Token estimate: ~4 chars per token (`estimateTokens()` in `core/output.ts`)

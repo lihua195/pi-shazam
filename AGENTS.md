@@ -14,6 +14,7 @@
 
 **Opportunistic fixes — fix on sight, report in completion report:**
 When encountering a pre-existing issue that is unrelated to the current task, fix it immediately — without asking — if and only if ALL of the following are true:
+
 1. No refactoring involved (moving, renaming, restructuring code).
 2. No new dependencies required.
 3. The fix is self-contained and low-risk (a typo, a missing null check, an unused import, an empty catch block, an obvious off-by-one, a broken log message).
@@ -91,23 +92,29 @@ Trigger only when the task or milestone is fully completed:
 老板您好，已完成 [一句话总结]。
 
 **做了什么**
+
 - [业务层面]：[通俗说明变更内容和原因]
 
 **结果**
+
 - [什么变了]：[用户视角描述变更效果]
 - [影响范围]：[受影响的页面 / 功能 / 模块]
 
 **已确认**
+
 - [验证项 1]：[验证方式和结果]
 - [验证项 2]：[验证方式和结果]
 
 **顺手修了这些** _(非本次任务引入的遗留问题，已在本次一并修复)_
+
 - [文件 / 位置]：[问题描述，做了什么]
 
 **需要你决策**
+
 - [需人工判断的事项]：[为什么需要你决定]
 
 **待跟进** _(发现但未修复——改动太大或风险过高)_
+
 - #N：[简述] → [为何未在本次修复]
 ```
 
@@ -159,7 +166,7 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 - Read `rules/API-RULES.md` before adding or modifying Pi tools, MCP tools, or slash commands. ExtensionAPI contract details.
 - Read `rules/DATA-STATE.md` before working with module-level state, caches, or session lifecycle.
 - Read `rules/VERIFICATION.md` before marking work complete. 6-layer verification gate definition.
-- Read `rules/ERROR-HANDLING.md` before handling errors. _logWarn pattern, LSP degradation, catch-or-propagate rules.
+- Read `rules/ERROR-HANDLING.md` before handling errors. \_logWarn pattern, LSP degradation, catch-or-propagate rules.
 - Read `rules/LOGGING.md` before adding logs. Channel separation, audit log rotation, redaction requirements.
 - Read `rules/SECURITY.md` before handling secrets, file paths, or project root validation.
 - Read `rules/PERFORMANCE.md` before optimizing. PageRank, graph building, caching, and benchmark thresholds.
@@ -168,27 +175,27 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 
 ## When to Read Companion Files
 
-| File | Directive | Trigger |
-|------|-----------|---------|
-| `docs/INSTRUCTION.md` | You MUST read this file BEFORE making any change. It is the single source of truth for Pi extension API contracts, architecture layer boundaries, tool registration patterns, content format contracts, release process, and verification gates. Do not guess any contract. | Any code change, tool/hook creation, or release |
-| `SKILL.md` | You MUST read this file BEFORE using any `shazam_*` tool. It documents every tool's parameters, behavior, return format, and usage patterns with concrete examples. Do not guess parameter names or output shapes. | Before calling a shazam tool for the first time, or when uncertain about parameters |
-| `README.md` | Reference for user-facing setup, install, and feature descriptions. Do not duplicate its content in AGENTS.md. | User onboarding, release announcements |
-| `CHANGELOG.md` | Reference for release history and version tracking. Update when releasing a new version. | Before creating a release, before investigating regression |
-| `rules/LOCAL_CI.md` | You MUST read this file and run EVERY check BEFORE committing code or reporting task completion. A commit that fails any check is a broken commit. 13 steps: deps, types, format, tests, build, dist, hooks, MCP integration, benchmarks, security, contracts, MCP smoke, Pi smoke. | Before every commit, before reporting task completion |
-| `rules/OPS.md` | Release operations checklist — documentation sync (CHANGELOG, README, AGENTS, SKILL, MCP README), version bump, local CI, GitHub Release, npm/MCP/Pi verification, branch cleanup, git clean state. Run through ALL checklist items when publishing. | Before every release |
-| `rules/LLM-REVIEW-GUIDE.md` | Read before performing a code review on this project. Contains project-specific review rules, risk tiers, and sanity checks. NEVER submit review findings that violate the DO NOT REPORT rules. | Before performing a code review |
+| File                        | Directive                                                                                                                                                                                                                                                                           | Trigger                                                                             |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `docs/INSTRUCTION.md`       | You MUST read this file BEFORE making any change. It is the single source of truth for Pi extension API contracts, architecture layer boundaries, tool registration patterns, content format contracts, release process, and verification gates. Do not guess any contract.         | Any code change, tool/hook creation, or release                                     |
+| `SKILL.md`                  | You MUST read this file BEFORE using any `shazam_*` tool. It documents every tool's parameters, behavior, return format, and usage patterns with concrete examples. Do not guess parameter names or output shapes.                                                                  | Before calling a shazam tool for the first time, or when uncertain about parameters |
+| `README.md`                 | Reference for user-facing setup, install, and feature descriptions. Do not duplicate its content in AGENTS.md.                                                                                                                                                                      | User onboarding, release announcements                                              |
+| `CHANGELOG.md`              | Reference for release history and version tracking. Update when releasing a new version.                                                                                                                                                                                            | Before creating a release, before investigating regression                          |
+| `rules/LOCAL_CI.md`         | You MUST read this file and run EVERY check BEFORE committing code or reporting task completion. A commit that fails any check is a broken commit. 13 steps: deps, types, format, tests, build, dist, hooks, MCP integration, benchmarks, security, contracts, MCP smoke, Pi smoke. | Before every commit, before reporting task completion                               |
+| `rules/OPS.md`              | Release operations checklist — documentation sync (CHANGELOG, README, AGENTS, SKILL, MCP README), version bump, local CI, GitHub Release, npm/MCP/Pi verification, branch cleanup, git clean state. Run through ALL checklist items when publishing.                                | Before every release                                                                |
+| `rules/LLM-REVIEW-GUIDE.md` | Read before performing a code review on this project. Contains project-specific review rules, risk tiers, and sanity checks. NEVER submit review findings that violate the DO NOT REPORT rules.                                                                                     | Before performing a code review                                                     |
 
 ## Commands
 
-| Command | Purpose |
-|---------|---------|
-| `npm install --legacy-peer-deps` | Install dependencies (legacy-peer-deps required for tree-sitter) |
-| `npm run build` | Compile TS -> `dist/` |
-| `npm run typecheck` | `tsc --noEmit` — type validation without emit |
-| `npm run dev` | `tsc --watch` — incremental compilation |
-| `npm test` | Run all tests via vitest |
-| `npm run ci` | Typecheck + test + build + verify dist + integration + benchmark + security |
-| `npm publish` | **DO NOT use directly** — Publishing is done via GitHub Actions (see Release & Publish workflow) |
+| Command                          | Purpose                                                                                          |
+| -------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `npm install --legacy-peer-deps` | Install dependencies (legacy-peer-deps required for tree-sitter)                                 |
+| `npm run build`                  | Compile TS -> `dist/`                                                                            |
+| `npm run typecheck`              | `tsc --noEmit` — type validation without emit                                                    |
+| `npm run dev`                    | `tsc --watch` — incremental compilation                                                          |
+| `npm test`                       | Run all tests via vitest                                                                         |
+| `npm run ci`                     | Typecheck + test + build + verify dist + integration + benchmark + security                      |
+| `npm publish`                    | **DO NOT use directly** — Publishing is done via GitHub Actions (see Release & Publish workflow) |
 
 ## Development Environment
 
@@ -265,10 +272,10 @@ Key entry points — shazam_overview "Suggested Reading Order" provides the full
 Project documentation lives under `docs/`. Each guide covers a specific topic —
 when working on that topic, read the corresponding guide first.
 
-| Guide | Description |
-|-------|-------------|
-| `docs/INSTRUCTION.md` | **Single source of truth** for all development, maintenance, and release. Covers Pi ExtensionAPI contract, architecture layers and design principles, development workflow including tool/hook/MCP creation, release & publish process, tech stack management, testing patterns and verification gates, key files reference. Read before any change. |
-| `docs/kimi-code-hooks.md` | How to write Kimi Code hooks (shell scripts triggered by lifecycle events). Covers `config.toml` `[[hooks]]` setup, stdin JSON protocol, exit codes, all 15 lifecycle events. Use when adding hooks to Kimi Code's config.toml (external system, not pi-shazam). |
+| Guide                     | Description                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `docs/INSTRUCTION.md`     | **Single source of truth** for all development, maintenance, and release. Covers Pi ExtensionAPI contract, architecture layers and design principles, development workflow including tool/hook/MCP creation, release & publish process, tech stack management, testing patterns and verification gates, key files reference. Read before any change. |
+| `docs/kimi-code-hooks.md` | How to write Kimi Code hooks (shell scripts triggered by lifecycle events). Covers `config.toml` `[[hooks]]` setup, stdin JSON protocol, exit codes, all 15 lifecycle events. Use when adding hooks to Kimi Code's config.toml (external system, not pi-shazam).                                                                                     |
 
 > See [INSTRUCTION.md](./docs/INSTRUCTION.md) sections 1.3 and 3.9 for hook API conventions.
 

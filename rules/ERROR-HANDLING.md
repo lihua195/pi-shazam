@@ -2,13 +2,13 @@
 
 All error handling in pi-shazam follows predictable patterns. Every `catch` branch must either handle the error (with a log) or propagate it. Empty catch blocks are forbidden.
 
-## 1. _logWarn Pattern
+## 1. \_logWarn Pattern
 
 The single warning/error logging function for the `core/` layer.
 
 ```ts
 // Defined in core/output.ts
-export function _logWarn(tag: string, message: string, err?: unknown): void
+export function _logWarn(tag: string, message: string, err?: unknown): void;
 ```
 
 - `tag` — identifies the source module (e.g., `"graph"`, `"pagerank"`, `"scanner"`, `"encoding"`)
@@ -35,6 +35,7 @@ Every `catch` block must satisfy one of these:
 2. **Propagate + log**: Log the error context, then re-throw (or throw a wrapped error).
 
 Every error log must include:
+
 - What operation failed (e.g., "failed to parse file", "LSP initialize timed out")
 - Input context (file path, symbol name, tool name — whatever identifies the failed request)
 - The original error message (from `err.message` or `String(err)`)
@@ -42,25 +43,25 @@ Every error log must include:
 ```ts
 // Correct — handle with logging
 try {
-  const tree = parser.parse(source);
+	const tree = parser.parse(source);
 } catch (err) {
-  _logWarn("treesitter", `failed to parse ${filePath}`, err);
-  return null; // graceful fallback
+	_logWarn("treesitter", `failed to parse ${filePath}`, err);
+	return null; // graceful fallback
 }
 
 // Correct — propagate with logging
 try {
-  const result = await lspClient.request(method, params);
+	const result = await lspClient.request(method, params);
 } catch (err) {
-  _logWarn("lsp-client", `request ${method} failed for ${uri}`, err);
-  throw err; // caller decides what to do
+	_logWarn("lsp-client", `request ${method} failed for ${uri}`, err);
+	throw err; // caller decides what to do
 }
 
 // WRONG — empty catch, silent failure
 try {
-  await doSomething();
+	await doSomething();
 } catch {
-  // nothing — forbidden
+	// nothing — forbidden
 }
 ```
 
@@ -77,9 +78,9 @@ When an LSP server is unavailable (not installed, crashed, timed out during init
 // In a tool that optionally enriches with LSP:
 const lspResult = await tryLspEnrichment(symbols);
 if (!lspResult) {
-  output += "\n(tree-sitter only, LSP unavailable)";
+	output += "\n(tree-sitter only, LSP unavailable)";
 } else {
-  // merge LSP data into symbols
+	// merge LSP data into symbols
 }
 ```
 
@@ -91,12 +92,13 @@ LSP operations use `Promise.race` with timeout guards. Each language server has 
 
 ```ts
 const result = await Promise.race([
-  lspClient.request(method, params),
-  timeout(ms, `LSP ${method} timed out for ${language}`),
+	lspClient.request(method, params),
+	timeout(ms, `LSP ${method} timed out for ${language}`),
 ]);
 ```
 
 When a timeout fires:
+
 1. Log the timeout: `_logWarn("lsp-client", "${method} timed out after ${ms}ms for ${language}")`
 2. Clean up partially-spawned processes (kill child process if still alive)
 3. Return null or degrade to tree-sitter — do NOT leave zombie processes
@@ -111,18 +113,19 @@ LSP init timeout (15s): if `initialize` does not respond within 15 seconds, kill
 ```ts
 // Simplified from tools/_factory.ts
 try {
-  const result = await execute(params, ctx);
-  return { content: [{ type: "text", text: formatResult(result) }] };
+	const result = await execute(params, ctx);
+	return { content: [{ type: "text", text: formatResult(result) }] };
 } catch (err) {
-  _logWarn(`tool:${name}`, `execution failed`, err);
-  return {
-    content: [{ type: "text", text: `Error in ${name}: ${err.message}` }],
-    isError: true,
-  };
+	_logWarn(`tool:${name}`, `execution failed`, err);
+	return {
+		content: [{ type: "text", text: `Error in ${name}: ${err.message}` }],
+		isError: true,
+	};
 }
 ```
 
 The factory ensures:
+
 - No unhandled exception escapes to the Pi runtime
 - The LLM always receives a text response (even on error)
 - The error is logged with the tool name as the tag
@@ -135,8 +138,8 @@ When a tool encounters an error it can handle internally, it returns a structure
 
 ```ts
 return {
-  content: [{ type: "text", text: "shazam_lookup: symbol 'foo' not found in project" }],
-  isError: false, // not a crash — a valid "not found" response
+	content: [{ type: "text", text: "shazam_lookup: symbol 'foo' not found in project" }],
+	isError: false, // not a crash — a valid "not found" response
 };
 ```
 
@@ -144,12 +147,13 @@ When a tool encounters an unexpected error, the factory catches it and returns:
 
 ```ts
 return {
-  content: [{ type: "text", text: "Error in shazam_lookup: connection refused" }],
-  isError: true,
+	content: [{ type: "text", text: "Error in shazam_lookup: connection refused" }],
+	isError: true,
 };
 ```
 
 Rules:
+
 - Tools NEVER throw errors that reach the LLM directly — the factory intercepts all throws
 - "Not found" and "empty result" are valid responses, not errors (`isError: false`)
 - Crash-level failures use `isError: true`
@@ -161,17 +165,17 @@ On `session_shutdown` (handled in `index.ts`), the extension resets all mutable 
 
 ```ts
 pi.on("session_shutdown", () => {
-  // Reset scanner cache (core/scanner.ts)
-  scannerCache.clear();
+	// Reset scanner cache (core/scanner.ts)
+	scannerCache.clear();
 
-  // Reset LSP enrich state
-  lspEnrichCache.clear();
+	// Reset LSP enrich state
+	lspEnrichCache.clear();
 
-  // Shut down all LSP servers gracefully
-  lspManager.shutdownAll();
+	// Shut down all LSP servers gracefully
+	lspManager.shutdownAll();
 
-  // Reset audit log writer (flush + close)
-  auditLog.flush();
+	// Reset audit log writer (flush + close)
+	auditLog.flush();
 });
 ```
 
@@ -186,7 +190,7 @@ Files larger than 2MB are rejected before reading:
 ```ts
 const stat = await fs.stat(filePath);
 if (stat.size > 2 * 1024 * 1024) {
-  throw new FileTooLargeError(filePath, stat.size);
+	throw new FileTooLargeError(filePath, stat.size);
 }
 ```
 
@@ -214,12 +218,13 @@ Never assume UTF-8 for source files — always use the adaptive reader from `cor
 ```ts
 const result = safeGitExec(["log", "--oneline", "-10"], { cwd: projectRoot });
 if (!result) {
-  _logWarn("git-utils", "git log failed, returning empty history");
-  return [];
+	_logWarn("git-utils", "git log failed, returning empty history");
+	return [];
 }
 ```
 
 `safeGitExec`:
+
 - Spawns `git` as a child process with a timeout (default 10s)
 - Returns `{ stdout, exitCode }` on success
 - Returns `null` on timeout, spawn failure, or non-zero exit code

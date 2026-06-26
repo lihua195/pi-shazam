@@ -8,20 +8,21 @@ All file access goes through `validatePathInProject` in `tools/_factory.ts`.
 
 ```ts
 function validatePathInProject(filePath: string, projectRoot: string): string {
-  const resolved = path.resolve(projectRoot, filePath);
-  if (!resolved.startsWith(projectRoot + path.sep) && resolved !== projectRoot) {
-    throw new Error(`Path traversal blocked: ${filePath} resolves outside project root`);
-  }
-  // Also check symlink targets — resolve real path and re-validate
-  const real = fs.realpathSync(resolved);
-  if (!real.startsWith(projectRoot + path.sep) && real !== projectRoot) {
-    throw new Error(`Symlink escape blocked: ${filePath} points outside project root`);
-  }
-  return resolved;
+	const resolved = path.resolve(projectRoot, filePath);
+	if (!resolved.startsWith(projectRoot + path.sep) && resolved !== projectRoot) {
+		throw new Error(`Path traversal blocked: ${filePath} resolves outside project root`);
+	}
+	// Also check symlink targets — resolve real path and re-validate
+	const real = fs.realpathSync(resolved);
+	if (!real.startsWith(projectRoot + path.sep) && real !== projectRoot) {
+		throw new Error(`Symlink escape blocked: ${filePath} points outside project root`);
+	}
+	return resolved;
 }
 ```
 
 Rules:
+
 - Every tool that accepts a file path parameter MUST validate it through `validatePathInProject`
 - The factory (`createTool`) calls `validatePathInProject` automatically for tools that declare a `file` or `path` parameter
 - Raw `fs.readFile`, `fs.stat`, etc. MUST NOT be called with unvalidated paths anywhere in `tools/` or `core/`
@@ -33,6 +34,7 @@ Rules:
 `core/redact.ts` strips secrets from all strings before they enter any log channel.
 
 **What gets redacted**:
+
 - API key patterns: `sk-*`, `api_key=*`, `apikey: *`
 - Auth headers: `Authorization: Bearer *`, `token=*`
 - Password fields: `password=*`, `passwd=*`, `secret=*`
@@ -40,6 +42,7 @@ Rules:
 - Long hex/base64 strings (>32 chars) in contexts like headers, URLs, config values
 
 **When to redact**:
+
 - Before writing to the audit log (`core/audit-log.ts`)
 - Before passing tool parameters to `_logWarn`
 - Before including file contents or config values in log messages
@@ -69,19 +72,20 @@ All git commands go through `safeGitExec` in `core/git-utils.ts`.
 
 ```ts
 function safeGitExec(args: string[], opts: { cwd: string }): { stdout: string; exitCode: number } | null {
-  // Only whitelisted git subcommands are allowed
-  const allowed = ["log", "diff", "show", "status", "rev-parse", "ls-files", "blame", "remote"];
-  if (!allowed.includes(args[0])) {
-    _logWarn("git-utils", `blocked non-whitelisted git command: ${args[0]}`);
-    return null;
-  }
-  // Spawn git with the given args — no shell interpolation
-  const proc = spawn("git", args, { cwd: opts.cwd, timeout: 10_000 });
-  // ...
+	// Only whitelisted git subcommands are allowed
+	const allowed = ["log", "diff", "show", "status", "rev-parse", "ls-files", "blame", "remote"];
+	if (!allowed.includes(args[0])) {
+		_logWarn("git-utils", `blocked non-whitelisted git command: ${args[0]}`);
+		return null;
+	}
+	// Spawn git with the given args — no shell interpolation
+	const proc = spawn("git", args, { cwd: opts.cwd, timeout: 10_000 });
+	// ...
 }
 ```
 
 Rules:
+
 - Never use `shell: true` when spawning git — prevents command injection via crafted filenames or branch names
 - Only whitelisted git subcommands are allowed (log, diff, show, status, rev-parse, ls-files, blame, remote)
 - `cwd` is always the validated project root
@@ -141,18 +145,19 @@ LSP servers are spawned as child processes with limited scope:
 
 ```ts
 const child = spawn("node", [serverPath], {
-  stdio: "pipe",
-  cwd: projectRoot,
-  env: {
-    // Inherit PATH and minimal env vars needed for the language server
-    PATH: process.env.PATH,
-    HOME: process.env.HOME,
-    // Do NOT forward all env vars — prevents secret leakage to child processes
-  },
+	stdio: "pipe",
+	cwd: projectRoot,
+	env: {
+		// Inherit PATH and minimal env vars needed for the language server
+		PATH: process.env.PATH,
+		HOME: process.env.HOME,
+		// Do NOT forward all env vars — prevents secret leakage to child processes
+	},
 });
 ```
 
 On `session_shutdown`:
+
 1. Send LSP `shutdown` + `exit` notifications to each server
 2. Wait up to 5 seconds for graceful exit
 3. `SIGKILL` any servers still alive after the timeout

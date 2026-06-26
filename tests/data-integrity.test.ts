@@ -29,10 +29,7 @@ describe("Issue #471 Finding A: MAX_FILES truncation warning", () => {
 	function createManyFiles(dir: string, count: number): void {
 		mkdirSync(join(dir, "src"), { recursive: true });
 		for (let i = 0; i < count; i++) {
-			writeFileSync(
-				join(dir, "src", `mod_${i}.ts`),
-				`export function f${i}(): number { return ${i}; }\n`,
-			);
+			writeFileSync(join(dir, "src", `mod_${i}.ts`), `export function f${i}(): number { return ${i}; }\n`);
 		}
 	}
 
@@ -80,9 +77,7 @@ describe("Issue #471 Finding A: MAX_FILES truncation warning", () => {
 
 			const warnings = warnSpy.mock.calls.map((c) => String(c[0]));
 			// With 20 files and default MAX_FILES=20000, no truncation warning
-			const hasMaxFilesWarning = warnings.some(
-				(w) => w.includes("MAX_FILES") || w.includes("file limit"),
-			);
+			const hasMaxFilesWarning = warnings.some((w) => w.includes("MAX_FILES") || w.includes("file limit"));
 			expect(hasMaxFilesWarning).toBe(false);
 		} finally {
 			rmSync(dir, { recursive: true, force: true });

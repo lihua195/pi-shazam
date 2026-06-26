@@ -28,17 +28,17 @@ Run all Quick Gate steps first, then continue with these. Required before creati
 
 ### What each step verifies
 
-| Step | What it catches |
-|------|----------------|
-| Type check | Type errors, missing imports, interface violations |
-| Format check | Code style drift (prettier: tabs, double quotes, trailing commas, 120 width) |
-| Tests | Logic regressions, broken exports, mock mismatches |
-| Build | Compilation failures, missing dist artifacts |
-| Integration | MCP server startup, tool registration, JSON schema validation |
-| Benchmark | PageRank / graph / scan performance regressions |
-| Security audit | Known vulnerabilities in production dependencies |
-| MCP parity | Pi tool definitions match MCP tool definitions (name, description, params) |
-| Data integrity | Cache consistency, encoding edge cases, graph invariant checks |
+| Step           | What it catches                                                              |
+| -------------- | ---------------------------------------------------------------------------- |
+| Type check     | Type errors, missing imports, interface violations                           |
+| Format check   | Code style drift (prettier: tabs, double quotes, trailing commas, 120 width) |
+| Tests          | Logic regressions, broken exports, mock mismatches                           |
+| Build          | Compilation failures, missing dist artifacts                                 |
+| Integration    | MCP server startup, tool registration, JSON schema validation                |
+| Benchmark      | PageRank / graph / scan performance regressions                              |
+| Security audit | Known vulnerabilities in production dependencies                             |
+| MCP parity     | Pi tool definitions match MCP tool definitions (name, description, params)   |
+| Data integrity | Cache consistency, encoding edge cases, graph invariant checks               |
 
 ## Full CI Shortcut
 
@@ -62,27 +62,35 @@ npx vitest run tests/data-integrity.test.ts
 These are not required for every push but MUST be run in the listed scenarios.
 
 - [ ] **After dependency changes** (`package.json` or `package-lock.json` modified):
+
   ```bash
   npm install --legacy-peer-deps && npm test
   ```
+
   Verify no regressions introduced by the dependency update. The `--legacy-peer-deps` flag is required due to tree-sitter grammar peer dependency conflicts.
 
 - [ ] **Before release** (creating a GitHub Release or running `scripts/release.sh`):
+
   ```bash
   npm run ci && test -f dist/index.js && test -f dist/index.d.ts
   ```
+
   Also run the MCP parity and data integrity checks listed in Full Verification.
 
 - [ ] **After touching LSP code** (`lsp/client.ts`, `lsp/manager.ts`, `lsp/servers.ts`):
+
   ```bash
   npx vitest run tests/mcp-integration.test.ts
   ```
+
   LSP failures are environment-dependent. If a language server is not installed, the test should degrade gracefully (LSP enrichment skipped, tree-sitter only). A hard crash means a regression.
 
 - [ ] **After touching tree-sitter code** (`core/treesitter.ts`, `core/treesitter-queries.ts`):
+
   ```bash
   npm test
   ```
+
   Run the full suite because multiple tools depend on tree-sitter output (overview, lookup, find_tests, changes, impact).
 
 - [ ] **After touching graph/pagerank code** (`core/graph.ts`, `core/pagerank.ts`):

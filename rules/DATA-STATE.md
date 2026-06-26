@@ -9,25 +9,25 @@ RepoGraph data model. Read this before working with any stateful module.
 
 Every piece of mutable module-level state in pi-shazam:
 
-| Module                     | State Variable         | Type                        | Purpose                                             | Reset On                 |
-| -------------------------- | ---------------------- | --------------------------- | --------------------------------------------------- | ------------------------ |
-| `core/scanner.ts`          | `cachedGraph`          | `RepoGraph \| null`         | In-memory project graph cache                       | `session_shutdown`       |
-| `core/scanner.ts`          | `cachedProjectPath`    | `string`                    | Path the cached graph was built from                | `session_shutdown`       |
-| `core/scanner.ts`          | `_existsCache`         | `Map<string, boolean> \| null` | existsSync result cache for import resolution   | `session_shutdown`       |
-| `core/scanner.ts`          | `_scannerAdapter`      | `TreeSitterAdapter \| null` | Singleton tree-sitter adapter                       | `session_shutdown`       |
-| `core/scanner.ts`          | `_projectRootOverride` | `string \| null`            | Project root override from Pi context               | `resetProjectRoot()`     |
-| `core/scanner.ts`          | `_scanning`            | `boolean`                   | Re-entrancy guard for scanProject                   | Automatic (end of scan)  |
-| `tools/lsp_enrich.ts`      | `_openedFileMtimes`    | `Map<string, number>`       | Track didOpen'd files and their mtimes (max 500)    | `session_shutdown`       |
-| `tools/lsp_enrich.ts`      | `_ctsCtor`             | `Ctor \| null`              | CancellationTokenSource constructor (lazy loaded)   | Never (module constant)  |
-| `tools/_context.ts`        | `_manager`             | `LspManager \| null`        | Shared LSP manager reference for tools              | `session_shutdown`       |
-| `tools/_context.ts`        | `_shutdownPromise`     | `Promise<void> \| null`     | In-flight shutdown promise to prevent double-shutdown | On resolve             |
-| `hooks/rename-state.ts`    | `_reviewedSymbols`     | `Set<string>`               | Symbols reviewed via shazam_impact --symbol          | `session_start`          |
-| `hooks/verify-state.ts`    | `_verifyCalled`        | `boolean`                   | Whether shazam_verify was recently called            | `session_shutdown`, `onNewEdit()` |
-| `hooks/verify-state.ts`    | `_lastVerifyTimestamp` | `number`                    | Unix ms of last verify call                          | `session_shutdown`       |
-| `hooks/verify-state.ts`    | `_lastVerifyPassed`    | `boolean`                   | Whether last verify verdict was PASS                 | `session_shutdown`       |
-| `hooks/verify-state.ts`    | `_reminderSent`        | `boolean`                   | Whether verify reminder already sent this batch      | On verify, on new edit   |
-| `hooks/impact-state.ts`    | `_pendingImpact`       | `boolean`                   | Issue created, shazam_impact not yet run             | `session_shutdown`, TTL  |
-| `hooks/impact-state.ts`    | `_pendingImpactSetAt`  | `number \| null`            | When pending impact was set (for TTL)                | `session_shutdown`       |
+| Module                  | State Variable         | Type                           | Purpose                                               | Reset On                          |
+| ----------------------- | ---------------------- | ------------------------------ | ----------------------------------------------------- | --------------------------------- |
+| `core/scanner.ts`       | `cachedGraph`          | `RepoGraph \| null`            | In-memory project graph cache                         | `session_shutdown`                |
+| `core/scanner.ts`       | `cachedProjectPath`    | `string`                       | Path the cached graph was built from                  | `session_shutdown`                |
+| `core/scanner.ts`       | `_existsCache`         | `Map<string, boolean> \| null` | existsSync result cache for import resolution         | `session_shutdown`                |
+| `core/scanner.ts`       | `_scannerAdapter`      | `TreeSitterAdapter \| null`    | Singleton tree-sitter adapter                         | `session_shutdown`                |
+| `core/scanner.ts`       | `_projectRootOverride` | `string \| null`               | Project root override from Pi context                 | `resetProjectRoot()`              |
+| `core/scanner.ts`       | `_scanning`            | `boolean`                      | Re-entrancy guard for scanProject                     | Automatic (end of scan)           |
+| `tools/lsp_enrich.ts`   | `_openedFileMtimes`    | `Map<string, number>`          | Track didOpen'd files and their mtimes (max 500)      | `session_shutdown`                |
+| `tools/lsp_enrich.ts`   | `_ctsCtor`             | `Ctor \| null`                 | CancellationTokenSource constructor (lazy loaded)     | Never (module constant)           |
+| `tools/_context.ts`     | `_manager`             | `LspManager \| null`           | Shared LSP manager reference for tools                | `session_shutdown`                |
+| `tools/_context.ts`     | `_shutdownPromise`     | `Promise<void> \| null`        | In-flight shutdown promise to prevent double-shutdown | On resolve                        |
+| `hooks/rename-state.ts` | `_reviewedSymbols`     | `Set<string>`                  | Symbols reviewed via shazam_impact --symbol           | `session_start`                   |
+| `hooks/verify-state.ts` | `_verifyCalled`        | `boolean`                      | Whether shazam_verify was recently called             | `session_shutdown`, `onNewEdit()` |
+| `hooks/verify-state.ts` | `_lastVerifyTimestamp` | `number`                       | Unix ms of last verify call                           | `session_shutdown`                |
+| `hooks/verify-state.ts` | `_lastVerifyPassed`    | `boolean`                      | Whether last verify verdict was PASS                  | `session_shutdown`                |
+| `hooks/verify-state.ts` | `_reminderSent`        | `boolean`                      | Whether verify reminder already sent this batch       | On verify, on new edit            |
+| `hooks/impact-state.ts` | `_pendingImpact`       | `boolean`                      | Issue created, shazam_impact not yet run              | `session_shutdown`, TTL           |
+| `hooks/impact-state.ts` | `_pendingImpactSetAt`  | `number \| null`               | When pending impact was set (for TTL)                 | `session_shutdown`                |
 
 ---
 
@@ -111,14 +111,14 @@ value with `{ systemPrompt }` is used.
 
 ### 3.4 Reset Functions
 
-| Function                  | Module                  | What it clears                                |
-| ------------------------- | ----------------------- | --------------------------------------------- |
-| `resetCache()`            | `core/scanner.ts`       | `cachedGraph`, `cachedProjectPath`, exists cache, scanner adapter |
-| `resetProjectRoot()`      | `core/scanner.ts`       | `_projectRootOverride`                        |
-| `resetLspEnrichState()`   | `tools/lsp_enrich.ts`   | `_openedFileMtimes` map                       |
-| `clearRenameState()`      | `hooks/rename-state.ts` | `_reviewedSymbols` set                        |
-| `resetVerifyState()`      | `hooks/verify-state.ts` | All verify tracking flags + timestamps        |
-| `resetImpactState()`      | `hooks/impact-state.ts` | Pending impact flag + timestamp               |
+| Function                | Module                  | What it clears                                                    |
+| ----------------------- | ----------------------- | ----------------------------------------------------------------- |
+| `resetCache()`          | `core/scanner.ts`       | `cachedGraph`, `cachedProjectPath`, exists cache, scanner adapter |
+| `resetProjectRoot()`    | `core/scanner.ts`       | `_projectRootOverride`                                            |
+| `resetLspEnrichState()` | `tools/lsp_enrich.ts`   | `_openedFileMtimes` map                                           |
+| `clearRenameState()`    | `hooks/rename-state.ts` | `_reviewedSymbols` set                                            |
+| `resetVerifyState()`    | `hooks/verify-state.ts` | All verify tracking flags + timestamps                            |
+| `resetImpactState()`    | `hooks/impact-state.ts` | Pending impact flag + timestamp                                   |
 
 ---
 
@@ -128,19 +128,19 @@ value with `{ systemPrompt }` is used.
 
 ```ts
 interface Symbol {
-  id: string;           // "{file}::{name}::{line}" — stable across rebuilds
-  name: string;         // Symbol name
-  kind: string;         // "function" | "class" | "interface" | "type_alias" | "method" | ...
-  file: string;         // Relative file path
-  line: number;         // 1-based start line
-  endLine: number;      // 1-based end line
-  col: number;          // 0-based column
-  visibility: "public" | "private" | "exported";
-  docstring: string;    // JSDoc/docstring content
-  signature: string;    // Full signature text
-  returnType: string;   // Return type annotation
-  params: string;       // Parameter list text
-  pagerank: number;     // PageRank score (computed by core/pagerank.ts)
+	id: string; // "{file}::{name}::{line}" — stable across rebuilds
+	name: string; // Symbol name
+	kind: string; // "function" | "class" | "interface" | "type_alias" | "method" | ...
+	file: string; // Relative file path
+	line: number; // 1-based start line
+	endLine: number; // 1-based end line
+	col: number; // 0-based column
+	visibility: "public" | "private" | "exported";
+	docstring: string; // JSDoc/docstring content
+	signature: string; // Full signature text
+	returnType: string; // Return type annotation
+	params: string; // Parameter list text
+	pagerank: number; // PageRank score (computed by core/pagerank.ts)
 }
 ```
 
@@ -148,11 +148,11 @@ interface Symbol {
 
 ```ts
 interface Edge {
-  source: string;       // Source symbol ID
-  target: string;       // Target symbol ID
-  weight: number;       // Edge weight (1.0 default)
-  kind: string;         // "call" | "import" | "type_ref" | "extends" | "implements"
-  confidence: number;   // 0.0-1.0 confidence score
+	source: string; // Source symbol ID
+	target: string; // Target symbol ID
+	weight: number; // Edge weight (1.0 default)
+	kind: string; // "call" | "import" | "type_ref" | "extends" | "implements"
+	confidence: number; // 0.0-1.0 confidence score
 }
 ```
 
@@ -160,16 +160,16 @@ interface Edge {
 
 ```ts
 interface RepoGraph {
-  symbols: Map<string, Symbol>;                // symbol ID -> Symbol
-  outgoing: Map<string, Edge[]>;               // symbol ID -> outgoing edges
-  incoming: Map<string, Edge[]>;               // symbol ID -> incoming edges
-  fileSymbols: Map<string, string[]>;          // file -> symbol IDs in that file
-  fileImports: Map<string, string[]>;          // file -> import module specifiers
-  fileCalls: Map<string, [string, number, string][]>;   // file -> [callee, line, caller]
-  fileRefs: Map<string, [string, number][]>;            // file -> [ref, line]
-  fileImportBindings: Map<string, JSImportBinding[]>;   // file -> import bindings
-  nameIndex: Map<string, Symbol[]>;            // symbol name -> all matching symbols (O(1) lookup)
-  targetToSources: Map<string, Set<string>>;   // target ID -> source IDs (reverse index)
+	symbols: Map<string, Symbol>; // symbol ID -> Symbol
+	outgoing: Map<string, Edge[]>; // symbol ID -> outgoing edges
+	incoming: Map<string, Edge[]>; // symbol ID -> incoming edges
+	fileSymbols: Map<string, string[]>; // file -> symbol IDs in that file
+	fileImports: Map<string, string[]>; // file -> import module specifiers
+	fileCalls: Map<string, [string, number, string][]>; // file -> [callee, line, caller]
+	fileRefs: Map<string, [string, number][]>; // file -> [ref, line]
+	fileImportBindings: Map<string, JSImportBinding[]>; // file -> import bindings
+	nameIndex: Map<string, Symbol[]>; // symbol name -> all matching symbols (O(1) lookup)
+	targetToSources: Map<string, Set<string>>; // target ID -> source IDs (reverse index)
 }
 ```
 

@@ -23,9 +23,7 @@ vi.mock("node:fs", async (importOriginal) => {
 		readFileSync: vi.fn((...args: Parameters<typeof actual.readFileSync>) => {
 			const path = String(args[0]);
 			if (racePaths.has(path)) {
-				const err = new Error(
-					`ENOENT: no such file or directory, open '${path}'`,
-				) as NodeJS.ErrnoException;
+				const err = new Error(`ENOENT: no such file or directory, open '${path}'`) as NodeJS.ErrnoException;
 				err.code = "ENOENT";
 				throw err;
 			}
@@ -40,12 +38,7 @@ vi.mock("node:child_process", async (importOriginal) => {
 		...actual,
 		execFileSync: vi.fn((cmd: string, args: string[], opts?: Record<string, unknown>) => {
 			// Return hooks dir path for "git rev-parse --git-path hooks"
-			if (
-				cmd === "git" &&
-				args[0] === "rev-parse" &&
-				args[1] === "--git-path" &&
-				args[2] === "hooks"
-			) {
+			if (cmd === "git" && args[0] === "rev-parse" && args[1] === "--git-path" && args[2] === "hooks") {
 				const cwd = (opts?.cwd as string) || ".";
 				return `${join(cwd, ".git/hooks")}\n`;
 			}
@@ -62,11 +55,7 @@ vi.mock("node:child_process", async (importOriginal) => {
 // readFileSync is mocked but passes through to real impl for non-race paths,
 // so it can be used to verify file contents in assertions.
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
-import {
-	installPreCommitHook,
-	isPreCommitHookInstalled,
-	removePreCommitHook,
-} from "../core/git-hooks.js";
+import { installPreCommitHook, isPreCommitHookInstalled, removePreCommitHook } from "../core/git-hooks.js";
 
 let tmpDir: string;
 let hooksDir: string;
