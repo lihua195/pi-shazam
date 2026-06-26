@@ -74,6 +74,15 @@ export function setProjectRoot(root: string): void {
 }
 
 /**
+ * Clear the project root override set via setProjectRoot().
+ * After this call, getEffectiveRoot() falls back to process.cwd().
+ * Used by tests to avoid leaking an override across test suites.
+ */
+export function resetProjectRoot(): void {
+	_projectRootOverride = null;
+}
+
+/**
  * Get the effective project root, respecting any override set via setProjectRoot().
  * Returns the override if set, otherwise process.cwd().
  */

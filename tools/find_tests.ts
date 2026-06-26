@@ -45,7 +45,7 @@ export function registerFindTests(pi: ExtensionAPI): void {
 			}
 			const result = executeFindTests(graph, (params.project as string) || ".", { sourceFile, module });
 			return json
-				? buildEnvelope("shazam_find_tests", (params.project as string) ?? process.cwd(), "ok", result)
+				? buildEnvelope("shazam_find_tests", getEffectiveRoot(), "ok", result)
 				: formatFindTestsResult(result, sourceFile, module);
 		},
 	});
