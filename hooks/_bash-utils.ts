@@ -153,6 +153,22 @@ function _tokenizeOne(cmd: string): string[] {
  *   - Command separators: | ; && || split into segments before tokenizing
  */
 export function tokenizeCommand(cmd: string): string[] {
+	return tokenizeSegments(cmd).flat();
+}
+
+/**
+ * Tokenize a bash command into per-segment argv arrays.
+ *
+ * Splits the command on `|`, `;`, `&&`, `||` (outside quotes and $(…)),
+ * then tokenizes each segment independently. Returns one argv array per
+ * segment, preserving segment boundaries.
+ *
+ * #467: callers that previously checked `argv[0]` (which was the first
+ * token of the first segment after flattening) missed destructive
+ * commands chained after a benign prefix (e.g. `echo safe && git commit`).
+ * Segment-aware detection lets callers check `seg[0]` for every segment.
+ */
+export function tokenizeSegments(cmd: string): string[][] {
 	const raw = cmd;
 
 	/* ---- split into segments at | ; && || (outside quotes / $()) ---- */
@@ -206,13 +222,7 @@ export function tokenizeCommand(cmd: string): string[] {
 	}
 
 	/* ---- tokenize each segment ---- */
-	const tokens: string[] = [];
-	for (const seg of segments) {
-		for (const t of _tokenizeOne(seg)) {
-			tokens.push(t);
-		}
-	}
-	return tokens;
+	return segments.map((seg) => _tokenizeOne(seg));
 }
 
 /**

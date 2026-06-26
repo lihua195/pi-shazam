@@ -193,6 +193,24 @@ describe("hooks/issue-guard", () => {
 		emit("session_start", { type: "session_start" });
 		expect(hasPendingImpact()).toBe(false);
 	});
+
+	it("should detect gh issue create chained AFTER a benign command (#467)", () => {
+		// Previously: argv[0] was "echo", so isGhIssueCreate was false and
+		// the pending-impact flag was never set for a chained gh issue create.
+		const { pi, emit } = createMockPi();
+		registerIssueGuard(pi);
+
+		emit("tool_call", makeBashToolCall('echo safe && gh issue create --title "fix: crash"'));
+		expect(hasPendingImpact()).toBe(true);
+	});
+
+	it("should detect gh issue create chained via ; (#467)", () => {
+		const { pi, emit } = createMockPi();
+		registerIssueGuard(pi);
+
+		emit("tool_call", makeBashToolCall('ls; gh issue create --title "bug: memory leak"'));
+		expect(hasPendingImpact()).toBe(true);
+	});
 });
 
 // ---------------------------------------------------------------------------

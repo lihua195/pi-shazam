@@ -5,10 +5,12 @@ import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import {
 	markVerifyCalled,
 	hasRecentVerify,
+	hasRecentPassingVerify,
 	resetVerifyState,
 	onNewEdit,
 	markReminderSent,
 	wasReminderSent,
+	resetReminderSent,
 } from "../hooks/verify-state.js";
 
 describe("hooks/verify-state", () => {
@@ -120,16 +122,65 @@ describe("hooks/verify-state", () => {
 		});
 
 		it("should allow reminder after verify + new edit cycle", () => {
-			// Send reminder, then verify
-			markReminderSent();
-			markVerifyCalled();
-			expect(wasReminderSent()).toBe(false);
+		// Send reminder, then verify
+		markReminderSent();
+		markVerifyCalled();
+		expect(wasReminderSent()).toBe(false);
 
-			// New edit after verify: reminder should be allowed again
-			onNewEdit();
-			expect(wasReminderSent()).toBe(false);
-			markReminderSent();
-			expect(wasReminderSent()).toBe(true);
+		// New edit after verify: reminder should be allowed again
+		onNewEdit();
+		expect(wasReminderSent()).toBe(false);
+		markReminderSent();
+		expect(wasReminderSent()).toBe(true);
+	});
+
+	it("resetReminderSent clears the reminder flag (#467)", () => {
+		markReminderSent();
+		expect(wasReminderSent()).toBe(true);
+		resetReminderSent();
+		expect(wasReminderSent()).toBe(false);
+	});
+	});
+
+	// -------------------------------------------------------------------------
+	// FAIL verdict parsing (text-based fallback) -- #467 Finding 1
+	//
+	// The text fallback regex only matched "[FAIL] NOT READY". A bare [FAIL]
+	// with any other suffix (e.g. "[FAIL] 5 errors found") or a "Verdict: FAIL"
+	// line bypassed the check, producing a false PASS (hasRecentPassingVerify
+	// returned true despite a FAIL verdict). The fix also matches a standalone
+	// [FAIL] token and a "Verdict: FAIL" line.
+	// -------------------------------------------------------------------------
+	describe("FAIL verdict parsing (text fallback, #467)", () => {
+		beforeEach(() => {
+			resetVerifyState();
+		});
+
+		it("treats '[FAIL] NOT READY' as not passing", () => {
+			markVerifyCalled("### Status: [FAIL] NOT READY");
+			expect(hasRecentPassingVerify()).toBe(false);
+		});
+
+		it("treats a bare '[FAIL]' with other suffix as not passing (#467)", () => {
+			// Previously bypassed: regex required "[FAIL] NOT READY" literally.
+			markVerifyCalled("[FAIL] 5 errors found, 2 warnings");
+			expect(hasRecentPassingVerify()).toBe(false);
+		});
+
+		it("treats 'Verdict: FAIL' line as not passing (#467)", () => {
+			// Non-preCommit verify emits "### Verdict: FAIL" (no [FAIL] token).
+			markVerifyCalled("### Verdict: FAIL");
+			expect(hasRecentPassingVerify()).toBe(false);
+		});
+
+		it("treats '[PASS]' as passing", () => {
+			markVerifyCalled("[PASS] READY");
+			expect(hasRecentPassingVerify()).toBe(true);
+		});
+
+		it("treats 'Verdict: PASS' as passing (#467)", () => {
+			markVerifyCalled("### Verdict: PASS");
+			expect(hasRecentPassingVerify()).toBe(true);
 		});
 	});
 });

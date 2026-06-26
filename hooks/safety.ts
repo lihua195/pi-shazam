@@ -11,7 +11,7 @@
 
 import type { ExtensionAPI } from "../types/pi-extension.js";
 import { hasRecentPassingVerify } from "./verify-state.js";
-import { tokenizeCommand, extractCommandFromEvent } from "./_bash-utils.js";
+import { tokenizeCommand, tokenizeSegments, extractCommandFromEvent } from "./_bash-utils.js";
 import { _logWarn } from "../core/output.js";
 
 /**
@@ -32,6 +32,15 @@ const HIGH_RISK_PATTERNS: Array<{ regex: RegExp; label: string }> = [
 	{ regex: /^\.\s+\S/, label: "source (.)" },
 	{ regex: /\b(curl|wget)\b[^|]*\|\s*(sh|bash|zsh)\b/, label: "curl|sh" },
 	{ regex: /\bbase64\b[^|]*\|\s*(sh|bash)\b/, label: "base64|sh" },
+	// #467: two-step download-then-execute RCE. The direct pipe form
+	// (curl ... | sh) is caught above, but `curl -o file && sh file`
+	// and `wget -O file; bash file` write to disk first then execute,
+	// bypassing the pipe pattern. Match download-to-file (-o/-O) followed
+	// by an sh/bash/zsh invocation on the downloaded file.
+	{
+		regex: /\b(curl|wget)\b[^|;&]*(-o|-O)\s+\S+[^|;&]*(&&|;)\s*(sh|bash|zsh)\b/,
+		label: "download-execute",
+	},
 	{ regex: /`[^`]+`/, label: "backtick substitution" },
 	{ regex: /<\(/, label: "process substitution" },
 ];
@@ -175,14 +184,23 @@ export function registerSafetyHooks(pi: ExtensionAPI): void {
 
 		// -- Check 2: Pre-commit gate --
 		// Auto-block commit when shazam_verify was not run recently.
-		// Uses argv-based detection to avoid false positives.
-		const argv = tokenizeCommand(cmd);
-		const isGitCommit = argv[0] === "git" && argv.length >= 2 && argv[1] === "commit";
-		if (isGitCommit) {
-			// Skip if --no-verify or -n flag is present
-			// Use argv.some to handle combined short flags like -nq, -qn
+		// #467: segment-aware detection. Previously only argv[0] was checked,
+		// so a chained command like `echo safe && git commit` bypassed the
+		// gate entirely (argv[0] was "echo"). Now scan every segment for a
+		// `git commit` invocation so the gate fires regardless of any benign
+		// prefix chained before the commit.
+		const segments = tokenizeSegments(cmd);
+		const gitCommitSeg = segments.find(
+			(seg) => seg[0] === "git" && seg.length >= 2 && seg[1] === "commit",
+		);
+		if (gitCommitSeg) {
+			// Skip if --no-verify or -n flag is present in the commit segment.
+			// Scope the check to the commit segment so a benign `echo --no-verify`
+			// chained before the commit cannot bypass the gate.
+			// Use seg.some to handle combined short flags like -nq, -qn.
 			const hasNoVerify =
-				argv.includes("--no-verify") || argv.some((a) => a.startsWith("-") && !a.startsWith("--") && a.includes("n"));
+				gitCommitSeg.includes("--no-verify") ||
+				gitCommitSeg.some((a) => a.startsWith("-") && !a.startsWith("--") && a.includes("n"));
 			if (hasNoVerify) {
 				return;
 			}
