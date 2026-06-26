@@ -9,6 +9,7 @@
 
 import { spawn, type ChildProcess } from "node:child_process";
 import * as path from "node:path";
+import { fileURLToPath } from "node:url";
 import { _logWarn } from "../core/output.js";
 import { createRequire } from "node:module";
 
@@ -135,16 +136,25 @@ export function pathToUri(filePath: string): string {
 
 export function uriToPath(uri: string): string {
 	if (uri.startsWith("file://")) {
-		let p = uri.slice("file://".length);
-		if (!p.startsWith("/")) {
-			p = "/" + p;
-		}
+		// Delegate to fileURLToPath so drive-letter URIs (file:///C:/...)
+		// produce native paths on every platform, symmetric with pathToUri
+		// (#429). The previous manual slice+decode returned "/C:/proj/foo.ts"
+		// on Windows, which path.relative could not relativize (#466).
 		try {
-			return decodeURIComponent(p);
-		} catch {
-			// Log the raw path for debugging (silent fallback is confusing)
-			console.warn(`[pi-shazam] uriToPath: decodeURIComponent failed for URI: ${uri.slice(0, 200)}`);
-			return p;
+			return fileURLToPath(uri);
+		} catch (err) {
+			// Malformed file URI: fall back to the manual slice+decode so a
+			// single bad URI never crashes convertDiagnostics/convertLocation.
+			_logWarn("uriToPath", `fileURLToPath failed for URI: ${uri.slice(0, 200)}`, err);
+			let p = uri.slice("file://".length);
+			if (!p.startsWith("/")) {
+				p = "/" + p;
+			}
+			try {
+				return decodeURIComponent(p);
+			} catch {
+				return p;
+			}
 		}
 	}
 	return uri;
