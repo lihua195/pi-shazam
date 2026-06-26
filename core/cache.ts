@@ -12,6 +12,7 @@ import { homedir } from "node:os";
 import { createHash } from "node:crypto";
 import { serializeGraphV2, deserializeGraphV2 } from "./graph.js";
 import type { RepoGraph, GraphCacheData as GraphCacheDataExport } from "./graph.js";
+import { _logWarn } from "./output.js";
 
 // -- Cache directory management -----------------------------------------------
 
@@ -35,7 +36,7 @@ export function getProjectCacheDir(projectPath: string): string {
 		// Cache directory is a best-effort optimization. If we cannot create it
 		// (EACCES, EROFS, ENOSPC, ENAMETOOLONG), degrade gracefully: log a
 		// warning and continue without caching. The scan itself still works.
-		console.warn(`[pi-shazam] getProjectCacheDir: cannot create cache directory ${cacheDir}: ${err}`);
+		_logWarn("getProjectCacheDir", `cannot create cache directory ${cacheDir}`, err);
 	}
 	return cacheDir;
 }
@@ -55,7 +56,7 @@ function atomicRename(tmpPath: string, targetPath: string): void {
 			try {
 				unlinkSync(targetPath);
 			} catch {
-				console.warn("[pi-shazam] atomicRename: unlinkSync target failed (may not exist)");
+				_logWarn("atomicRename", "unlinkSync target failed (may not exist)");
 			}
 			renameSync(tmpPath, targetPath);
 		} else {
@@ -77,9 +78,7 @@ export function saveGraphCache(graph: RepoGraph, fileMtimes: Map<string, number>
 		// M2: Enforce size limit on save too, not just load — prevents OOM on huge projects.
 		// Use Buffer.byteLength to match the byte-count gate at load time (stat.size is in bytes).
 		if (Buffer.byteLength(json, "utf-8") > MAX_CACHE_SIZE) {
-			console.warn(
-				`[pi-shazam] saveGraphCache: serialized graph too large (${Buffer.byteLength(json, "utf-8")} bytes), skipping cache`,
-			);
+			_logWarn("saveGraphCache", `serialized graph too large (${Buffer.byteLength(json, "utf-8")} bytes), skipping cache`);
 			return;
 		}
 		writeFileSync(tmpPath, json, "utf-8");
@@ -89,7 +88,7 @@ export function saveGraphCache(graph: RepoGraph, fileMtimes: Map<string, number>
 		try {
 			unlinkSync(tmpPath);
 		} catch {
-			console.warn("[pi-shazam] saveGraphCache: failed to clean up tmp file");
+			_logWarn("saveGraphCache", "failed to clean up tmp file");
 		}
 		throw err;
 	}
@@ -106,7 +105,7 @@ export function loadGraphCache(cachePath: string): GraphCacheData | null {
 	try {
 		const cacheStat = statSync(cachePath);
 		if (cacheStat.size > MAX_CACHE_SIZE) {
-			console.warn(`[pi-shazam] Cache file too large (${cacheStat.size} bytes), skipping`);
+			_logWarn("loadGraphCache", `cache file too large (${cacheStat.size} bytes), skipping`);
 			return null;
 		}
 		const raw = readFileSync(cachePath, "utf-8");
@@ -122,7 +121,7 @@ export function loadGraphCache(cachePath: string): GraphCacheData | null {
 
 		return { graph, fileMtimes, timestamp: data.timestamp };
 	} catch (err) {
-		console.warn(`[pi-shazam] loadGraphCache: failed to parse graph cache: ${err}`);
+		_logWarn("loadGraphCache", "failed to parse graph cache", err);
 		return null;
 	}
 }

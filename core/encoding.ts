@@ -9,6 +9,7 @@
 import { readFileSync, statSync } from "node:fs";
 import { readFile as readFileAsync, stat as statAsync } from "node:fs/promises";
 import iconv from "iconv-lite";
+import { _logWarn } from "./output.js";
 
 // Tree-sitter's MAX_PARSE_SIZE -- skip files larger than 2MB
 // Lowered from 10MB to reduce OOM risk on resource-constrained environments
@@ -68,7 +69,7 @@ export function readFileAdaptive(filePath: string): string {
 		// ENOENT is expected when callers read optional config files (e.g. package.json)
 		// and handle the missing-file case via try/catch (#459).
 		if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
-			console.warn(`[pi-shazam] readFileAdaptive: stat failed for ${filePath}: ${err}`);
+			_logWarn("readFileAdaptive", `stat failed for ${filePath}`, err);
 		}
 		// stat failed (permission, missing) -- fall through to readFileSync which will error with a clearer message
 	}
@@ -136,7 +137,7 @@ export async function readFileAdaptiveAsync(filePath: string): Promise<string> {
 		// Only warn for non-ENOENT errors (permission, I/O, etc.).
 		// ENOENT is expected when callers read optional config files (#459).
 		if ((err as NodeJS.ErrnoException)?.code !== "ENOENT") {
-			console.warn(`[pi-shazam] readFileAdaptiveAsync: stat failed for ${filePath}: ${err}`);
+			_logWarn("readFileAdaptiveAsync", `stat failed for ${filePath}`, err);
 		}
 		// stat failed -- fall through to readFile which will error with a clearer message
 	}
@@ -290,8 +291,8 @@ function tryDecode(buffer: Buffer, encoding: string): string | null {
 		// the encoding is wrong -- reject to try the next fallback.
 		if (_replacementRatio(str) > 0.05) return null;
 		return str;
-	} catch {
-		console.warn("[pi-shazam] tryDecode: encoding decode failed");
+	} catch (err) {
+		_logWarn("tryDecode", `encoding decode failed for ${encoding}`, err);
 		return null;
 	}
 }

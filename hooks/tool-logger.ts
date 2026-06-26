@@ -66,7 +66,7 @@ function write(entry: Record<string, unknown>): void {
 		} catch (err) {
 			if (!_writeFailed) {
 				_writeFailed = true;
-				console.warn(`[pi-shazam] Audit log write failed: ${err instanceof Error ? err.message : String(err)}`);
+				_logWarn("write", "audit log write failed", err);
 			}
 		}
 	});

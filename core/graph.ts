@@ -5,6 +5,8 @@
  * All other core/ modules depend on these types.
  */
 
+import { _logWarn } from "./output.js";
+
 // -- Core data types ----------------------------------------------------------
 
 /** A code symbol (function, class, interface, etc.) */
@@ -268,7 +270,7 @@ export function deserializeGraphV2(data: SerializedGraphV2): RepoGraph {
 	for (const e of data.edges) {
 		// H6: Skip edges with dangling source/target (corrupted or version-mismatched cache)
 		if (!graph.symbols.has(e.source) || !graph.symbols.has(e.target)) {
-			console.warn(`[pi-shazam] deserializeGraphV2: skipping dangling edge ${e.source} -> ${e.target}`);
+			_logWarn("deserializeGraphV2", `skipping dangling edge ${e.source} -> ${e.target}`);
 			continue;
 		}
 		const edge: Edge = {

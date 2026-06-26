@@ -21,7 +21,7 @@ import { join } from "node:path";
 import type { LspManager } from "../lsp/manager.js";
 import { getToolDefinition } from "../tools/definitions.js";
 import { validatePathInProject } from "../tools/_factory.js";
-import { truncateOutput } from "../core/output.js";
+import { _logWarn, truncateOutput } from "../core/output.js";
 import { redact } from "../core/redact.js";
 import { AUDIT_LOG_DIR, rotateAuditLog } from "../core/audit-log.js";
 
@@ -54,7 +54,7 @@ async function logMCP(entry: Record<string, unknown>): Promise<void> {
 				"utf-8",
 			);
 		} catch {
-			console.warn("[pi-shazam mcp] logMCP: audit log write failed");
+			_logWarn("logMCP", "audit log write failed");
 		}
 	});
 }

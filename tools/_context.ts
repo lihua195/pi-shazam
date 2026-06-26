@@ -8,6 +8,7 @@
  * Set during extension init in index.ts, read by LSP-using tools.
  */
 import type { LspManager } from "../lsp/manager.js";
+import { _logWarn } from "../core/output.js";
 
 let _manager: LspManager | null = null;
 let _shutdownPromise: Promise<void> | null = null;
@@ -24,9 +25,7 @@ export async function setLspManager(mgr: LspManager): Promise<void> {
 		try {
 			await prev.shutdown();
 		} catch (err) {
-			console.warn(
-				`[pi-shazam] Previous LspManager shutdown failed: ${err instanceof Error ? err.message : String(err)}`,
-			);
+			_logWarn("setLspManager", "previous LspManager shutdown failed", err);
 		}
 	}
 	_manager = mgr;

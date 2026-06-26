@@ -15,7 +15,7 @@ import type { RepoGraph } from "../core/graph.js";
 import { createTool, validatePathInProject } from "./_factory.js";
 import { buildEnvelope } from "./_factory.js";
 import { isNonSourceFile } from "../core/filter.js";
-import { getNextForTool, formatNextSection } from "../core/output.js";
+import { _logWarn, getNextForTool, formatNextSection } from "../core/output.js";
 import { readFileAdaptive } from "../core/encoding.js";
 import { getEffectiveRoot } from "../core/scanner.js";
 
@@ -188,7 +188,7 @@ function extractTests(
 			tests.push(m[1]!);
 		}
 	} catch (err) {
-		console.warn("[find_tests] failed to read " + file + ": " + err);
+		_logWarn("find_tests", `failed to read ${file}`, err);
 	}
 
 	return {

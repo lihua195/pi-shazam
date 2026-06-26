@@ -16,6 +16,7 @@ import { calculatePageRank } from "./pagerank.js";
 import { readFileAdaptive, FileTooLargeError } from "./encoding.js";
 import { getProjectCacheDir, saveGraphCache, loadGraphCache } from "./cache.js";
 import { SKIP_DIRS } from "./filter.js";
+import { _logWarn } from "./output.js";
 
 // -- Constants ----------------------------------------------------------------
 
@@ -135,9 +136,10 @@ function getFileMtimes(root: string, files: string[]): Map<string, number> {
 		try {
 			mtimes.set(relPath, statSync(join(root, relPath)).mtimeMs);
 		} catch (err) {
-			// Log but continue -- file may have been deleted between collection and stat
-			if (err instanceof Error && err.message.includes("ENOENT")) continue;
-			console.warn(`[pi-shazam] getFileMtimes: failed to stat ${relPath}: ${err}`);
+			// Log but continue -- file may have been deleted between collection and stat.
+			// Use errno code check instead of substring-matching the message (#461).
+			if ((err as NodeJS.ErrnoException).code === "ENOENT") continue;
+			_logWarn("getFileMtimes", `failed to stat ${relPath}`, err);
 		}
 	}
 	return mtimes;
@@ -416,7 +418,7 @@ function parseFile(adapter: TreeSitterAdapter, root: string, relPath: string, mt
 			// Expected for large files -- skip silently
 			return null;
 		}
-		console.warn(`[pi-shazam] parseFile: failed to parse ${relPath}: ${err}`);
+		_logWarn("parseFile", `failed to parse ${relPath}`, err);
 		return null;
 	}
 }
@@ -905,10 +907,9 @@ function _walkDirectory(
 	} catch (err) {
 		// Log directory read failures (fixes #133, #160)
 		if (err instanceof Error && (err.message.includes("EACCES") || err.message.includes("EPERM"))) {
-			console.warn(`[pi-shazam] _walkDirectory: permission denied: ${dir}`);
+			_logWarn("_walkDirectory", `permission denied: ${dir}`, err);
 		} else {
-			const code = (err as NodeJS.ErrnoException)?.code ?? String(err);
-			console.warn(`[pi-shazam] _walkDirectory: unexpected error reading ${dir}: ${code}`);
+			_logWarn("_walkDirectory", `unexpected error reading ${dir}`, err);
 		}
 		return;
 	}
@@ -932,7 +933,7 @@ function _walkDirectory(
 					// Symlink cycle detection: skip if we already visited this realpath
 					const realPath = realpathSync(join(dir, entry.name));
 					if (visitedSymlinks.has(realPath)) {
-						console.warn(`[pi-shazam] _walkDirectory: skipping symlink cycle: ${relPath}`);
+						_logWarn("_walkDirectory", `skipping symlink cycle: ${relPath}`);
 						continue;
 					}
 					visitedSymlinks.add(realPath);
@@ -940,9 +941,7 @@ function _walkDirectory(
 					// prevent traversal outside project root (C4: path traversal)
 					const resolvedRoot = resolve(root);
 					if (!realPath.startsWith(resolvedRoot + "/") && realPath !== resolvedRoot) {
-						console.warn(
-							`[pi-shazam] _walkDirectory: symlink target outside project root, skipping: ${relPath} -> ${realPath}`,
-						);
+						_logWarn("_walkDirectory", `symlink target outside project root, skipping: ${relPath} -> ${realPath}`);
 						continue;
 					}
 					_walkDirectory(realPath, depth + 1, options);
@@ -953,9 +952,7 @@ function _walkDirectory(
 				const realPath = realpathSync(join(dir, entry.name));
 				const resolvedRoot = resolve(root);
 				if (!realPath.startsWith(resolvedRoot + "/") && realPath !== resolvedRoot) {
-					console.warn(
-						`[pi-shazam] _walkDirectory: symlink target outside project root, skipping: ${relPath} -> ${realPath}`,
-					);
+					_logWarn("_walkDirectory", `symlink target outside project root, skipping: ${relPath} -> ${realPath}`);
 					continue;
 				}
 				const ext = entry.name.slice(entry.name.lastIndexOf(".")).toLowerCase();
@@ -963,7 +960,7 @@ function _walkDirectory(
 					files.push(relPath);
 				}
 			} catch {
-				console.warn(`[pi-shazam] _walkDirectory: broken symlink: ${relPath}`);
+				_logWarn("_walkDirectory", `broken symlink: ${relPath}`);
 				continue; // broken symlink, skip
 			}
 		} else if (entry.isFile()) {

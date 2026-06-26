@@ -423,7 +423,7 @@ async function runLspDiagnostics(
 	const lspManager = getLspManager();
 	if (!lspManager) {
 		// Log fallback to subprocess diagnostics (fixes #149)
-		console.warn("[pi-shazam] LSP manager not available, falling back to subprocess diagnostics");
+		_logWarn("runLspDiagnostics", "LSP manager not available, falling back to subprocess diagnostics");
 		return runSubprocessDiagnostics(projectRoot);
 	}
 
@@ -456,14 +456,12 @@ async function runLspDiagnostics(
 				serversUsed.add(serverName);
 			} else if (error) {
 				failedOpens.push(filePath);
-				console.warn(
-					`[pi-shazam] LSP didOpen failed for ${filePath}: ${error instanceof Error ? error.message : String(error)}`,
-				);
+				_logWarn("runLspDiagnostics", `LSP didOpen failed for ${filePath}`, error);
 			}
 		} else {
 			// Promise rejected -- this shouldn't happen with internal error handling,
 			// but log it for observability
-			console.warn(`[pi-shazam] LSP didOpen unexpected rejection: ${result.reason}`);
+			_logWarn("runLspDiagnostics", `LSP didOpen unexpected rejection: ${result.reason}`);
 		}
 	}
 
@@ -539,9 +537,7 @@ async function runLspDiagnostics(
 
 	// Annotate output if files failed to open
 	if (failedOpens.length > 0) {
-		console.warn(
-			`[pi-shazam] LSP didOpen failed for ${failedOpens.length} file(s): ${failedOpens.slice(0, 5).join(", ")}${failedOpens.length > 5 ? "..." : ""}`,
-		);
+		_logWarn("runLspDiagnostics", `LSP didOpen failed for ${failedOpens.length} file(s): ${failedOpens.slice(0, 5).join(", ")}${failedOpens.length > 5 ? "..." : ""}`);
 	}
 
 	return {
