@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.1] - 2026-06-28
+
+### Bug Fixes
+
+- **fix: add prettier auto-format step to release script** -- `scripts/release.sh` now runs `npx prettier --write .` between version sync and build, ensuring `sed` edits and manual CHANGELOG changes don't produce unformatted releases.
+- **style: fix prettier formatting in CHANGELOG.md** -- 0.20.0 release contained an unformatted CHANGELOG entry that CI flagged.
+
+### Refactoring
+
+- **refactor: remove dead sed commands from release script** -- `mcp/entry.ts` reads version dynamically from `package.json` (#485); `AGENTS.md` version table was removed by project-init re-run. Removed 8 dead `sed` lines that were no-ops.
+
 ## [0.20.0] - 2026-06-28
 
 ### Features
