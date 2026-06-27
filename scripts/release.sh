@@ -5,7 +5,7 @@
 #
 # This script:
 # 1. Bumps version in package.json
-# 2. Syncs version to all surfaces (mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md)
+# 2. Syncs version to docs/INSTRUCTION.md (mcp/entry.ts reads package.json at runtime)
 # 3. Builds and tests
 # 4. Commits and tags
 # 5. Pushes to GitHub
@@ -61,25 +61,12 @@ NEW_VERSION=$(npm version "$BUMP_TYPE" --no-git-tag-version)
 NEW_VERSION="${NEW_VERSION#v}" # Remove 'v' prefix
 log "New version: $NEW_VERSION"
 
-# Step 4: Sync version to all surfaces
-log "Step 4: Syncing version to all surfaces..."
-
-# mcp/entry.ts
-sed -i "s/version: \"[0-9]*\.[0-9]*\.[0-9]*\"/version: \"$NEW_VERSION\"/" mcp/entry.ts
-
-# AGENTS.md
-sed -i "s/[0-9]*\.[0-9]*\.[0-9]* — synced across all surfaces/$NEW_VERSION — synced across all surfaces/" AGENTS.md
-sed -i "s/| \`package.json\` | [0-9]*\.[0-9]*\.[0-9]*/| \`package.json\` | $NEW_VERSION/" AGENTS.md
-sed -i "s/| MCP server (\`mcp\/entry.ts\`) | [0-9]*\.[0-9]*\.[0-9]*/| MCP server (\`mcp\/entry.ts\`) | $NEW_VERSION/" AGENTS.md
-sed -i "s/| Global npm install | [0-9]*\.[0-9]*\.[0-9]*/| Global npm install | $NEW_VERSION/" AGENTS.md
-sed -i "s/| GitHub Release | v[0-9]*\.[0-9]*\.[0-9]*/| GitHub Release | v$NEW_VERSION/" AGENTS.md
-sed -i "s/| Git tag | v[0-9]*\.[0-9]*\.[0-9]*/| Git tag | v$NEW_VERSION/" AGENTS.md
-sed -i "s/| npm registry | [0-9]*\.[0-9]*\.[0-9]*/| npm registry | $NEW_VERSION/" AGENTS.md
-
-# docs/INSTRUCTION.md
+# Step 4: Sync version to docs/INSTRUCTION.md (only file that still hardcodes it)
+log "Step 4: Syncing version to docs/INSTRUCTION.md..."
+# mcp/entry.ts reads version dynamically from package.json at runtime (#485).
+# AGENTS.md no longer contains a version table (removed by project-init re-run).
 sed -i "s/version: \"[0-9]*\.[0-9]*\.[0-9]*\"/version: \"$NEW_VERSION\"/" docs/INSTRUCTION.md
-
-log "Version synced to: package.json, mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md"
+log "Version synced to: package.json, docs/INSTRUCTION.md"
 
 # Step 5: Auto-fix format (sed edits and manual CHANGELOG changes may introduce format issues)
 log "Step 5: Auto-fixing format..."
