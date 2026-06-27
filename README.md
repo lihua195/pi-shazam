@@ -45,13 +45,15 @@ For Kimi Code, CodeBuddy, Qwen Code, Claude, Codex, Qoder, Trae, and any MCP-com
 
 ## Slash Commands
 
+Setup and hook installation run automatically on session start. No manual commands needed.
+
 | Command                     | When                 | Purpose                                                              |
 | --------------------------- | -------------------- | -------------------------------------------------------------------- |
-| `/shazam-setup`             | After install        | Detect and report LSP server availability with install instructions  |
-| `/shazam-install-git-hooks` | After install        | Install git pre-commit hook that runs `shazam_verify`                |
+| `/shazam-setup`             | Automatic (on start) | Detect and report LSP server availability with install instructions  |
+| `/shazam-install-git-hooks` | Automatic (on start) | Install git pre-commit hook that runs `shazam_verify`                |
 | `/shazam-doctor`            | When troubleshooting | Health check: tree-sitter grammars, LSP servers, cache integrity     |
 | `/shazam-remove-git-hooks`  | When uninstalling    | Remove the shazam git pre-commit hook                                |
-| `/shazam-pre-commit-verify` | Automatic            | Run pre-commit verification (called by git hook; not for manual use) |
+| `/shazam-pre-commit-verify` | Automatic (by hook)  | Run pre-commit verification (called by git hook; not for manual use) |
 
 ## Supported Languages
 

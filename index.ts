@@ -13,7 +13,12 @@ import type { ExtensionAPI, ExtensionCommandContext } from "./types/pi-extension
 import { LspManager } from "./lsp/manager.js";
 import { generateSetupReport } from "./lsp/setup.js";
 import { setLspManager, awaitPreviousShutdown } from "./tools/_context.js";
-import { installPreCommitHook, removePreCommitHook, runPreCommitVerify } from "./core/git-hooks.js";
+import {
+	installPreCommitHook,
+	isPreCommitHookInstalled,
+	removePreCommitHook,
+	runPreCommitVerify,
+} from "./core/git-hooks.js";
 import { setProjectRoot as scannerSetProjectRoot } from "./core/scanner.js";
 import { _logWarn } from "./core/output.js";
 
@@ -119,9 +124,34 @@ export default async function (pi: ExtensionAPI): Promise<void> {
 		}
 	});
 
-	// Reset rename safety gate state on new session (issue #326)
+	// Reset rename safety gate state on new session (issue #326).
+	// Also auto-report LSP setup status and auto-install git pre-commit hook
+	// so the user gets a fully configured project without running any commands.
 	pi.on("session_start", () => {
 		clearRenameState();
+
+		// Auto-report LSP server availability
+		try {
+			const report = generateSetupReport(projectRoot);
+			pi.sendMessage({
+				customType: "shazam-setup",
+				content: report,
+				display: true,
+			});
+		} catch (err) {
+			_logWarn("auto-setup", "Failed to generate LSP setup report", err);
+		}
+
+		// Auto-install git pre-commit hook
+		try {
+			if (!isPreCommitHookInstalled(projectRoot)) {
+				installPreCommitHook(projectRoot);
+				log("Git pre-commit hook auto-installed");
+			}
+		} catch (err) {
+			// Silently skip — hook managers (husky/lefthook) or non-git projects
+			_logWarn("auto-git-hooks", "Git hook auto-install skipped", err);
+		}
 	});
 
 	// -- Hooks ----------------------------------------------------------------
