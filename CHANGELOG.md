@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.20.0] - 2026-06-28
+
+### Features
+
+- **feat: auto-run LSP setup report and auto-install git pre-commit hook on session start** -- `/shazam-setup` and `/shazam-install-git-hooks` now run automatically on `session_start`, eliminating the need for manual commands. Users get LSP server availability reports and git pre-commit hooks configured out of the box. All commands remain registered for manual re-run.
+
+### Documentation
+
+- **docs: restructure README Installation section** -- clearly separates *Native Extension (Pi only)* and *MCP Server (all other agents)* with one-line descriptions under each heading for instant recognition. Kimi Code moved to MCP section.
+- **docs: add When column to Slash Commands table** -- distinguishes setup, diagnostic, and automatic commands at a glance.
+- **docs: add per-platform MCP config examples** -- CodeBuddy, Kimi Code, Qwen Code, Claude, Codex, Qoder, Trae config snippets in README and MCP README.
+- **docs: remove Contributing section and move MCP JSON config into README Installation section** -- streamlined user-facing documentation.
+
+### Chore
+
+- **chore: re-run project-init** -- regenerated AGENTS.md, README.md, rules/, and scripts/ from latest project-init skill.
+- **style: fix prettier formatting in mcp/entry.ts**
+
 ## [0.19.9] - 2026-06-26
 
 ### Bug Fixes
