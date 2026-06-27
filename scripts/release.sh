@@ -81,22 +81,26 @@ sed -i "s/version: \"[0-9]*\.[0-9]*\.[0-9]*\"/version: \"$NEW_VERSION\"/" docs/I
 
 log "Version synced to: package.json, mcp/entry.ts, AGENTS.md, docs/INSTRUCTION.md"
 
-# Step 5: Build
-log "Step 5: Building..."
+# Step 5: Auto-fix format (sed edits and manual CHANGELOG changes may introduce format issues)
+log "Step 5: Auto-fixing format..."
+npx prettier --write . || warn "Prettier auto-fix had warnings (non-fatal)"
+
+# Step 6: Build
+log "Step 6: Building..."
 npm run build || error "Build failed"
 
-# Step 6: Commit and tag
-log "Step 6: Committing and tagging..."
+# Step 7: Commit and tag
+log "Step 7: Committing and tagging..."
 git add -A
 git commit -m "chore: bump version to $NEW_VERSION"
 git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
 
-# Step 7: Push to GitHub
-log "Step 7: Pushing to GitHub..."
+# Step 8: Push to GitHub
+log "Step 8: Pushing to GitHub..."
 git push origin main --tags
 
-# Step 8: Create GitHub Release with detailed notes from CHANGELOG
-log "Step 8: Creating GitHub Release..."
+# Step 9: Create GitHub Release with detailed notes from CHANGELOG
+log "Step 9: Creating GitHub Release..."
 
 # Extract current version section from CHANGELOG.md for release notes
 CHANGELOG_SECTION=$(awk -v ver="$NEW_VERSION" '
@@ -138,8 +142,8 @@ gh release create "v$NEW_VERSION" \
 
 log "GitHub Release created with CHANGELOG content. npm publish will be triggered automatically."
 
-# Step 8.5: Clean up merged remote branches (both merge-commit and squash-merged)
-log "Step 8.5: Cleaning up merged remote branches..."
+# Step 9.5: Clean up merged remote branches (both merge-commit and squash-merged)
+log "Step 9.5: Cleaning up merged remote branches..."
 
 # Phase A: git branch --merged (catches regular merge commits)
 MERGED_BRANCHES=$(git branch -r --merged origin/main | grep -v "origin/main\|origin/HEAD" | sed 's/  origin\///')
@@ -166,8 +170,8 @@ fi
 
 log "  Remote branch cleanup complete."
 
-# Step 9: Wait for npm publish
-log "Step 9: Waiting for npm publish (watching GitHub Actions)..."
+# Step 10: Wait for npm publish
+log "Step 10: Waiting for npm publish (watching GitHub Actions)..."
 sleep 5
 
 # Get the latest workflow run
@@ -176,8 +180,8 @@ if [[ -n "$RUN_ID" ]]; then
     gh run watch "$RUN_ID" || warn "Could not watch workflow. Check manually: gh run list --workflow=publish.yml"
 fi
 
-# Step 10: Update local installations
-log "Step 10: Updating local installations..."
+# Step 11: Update local installations
+log "Step 11: Updating local installations..."
 
 # Update global npm (use @latest to avoid locking version)
 log "Updating global npm..."
@@ -187,8 +191,8 @@ npm install -g pi-shazam@latest --legacy-peer-deps 2>&1 | tail -3
 log "Updating Pi extension..."
 pi install npm:pi-shazam@latest 2>&1 | tail -5
 
-# Step 11: Verify
-log "Step 11: Verifying installations..."
+# Step 12: Verify
+log "Step 12: Verifying installations..."
 
 echo ""
 echo "=== Verification ==="
