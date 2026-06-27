@@ -71,7 +71,3 @@ pi install npm:pi-shazam
 ## License
 
 [MIT](LICENSE)
-
-## Contributing
-
-Development guide: [AGENTS.md](./AGENTS.md), release: `bash scripts/release.sh`.
