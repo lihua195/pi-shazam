@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **docs: restructure README Installation section** -- clearly separates *Native Extension (Pi only)* and *MCP Server (all other agents)* with one-line descriptions under each heading for instant recognition. Kimi Code moved to MCP section.
+- **docs: restructure README Installation section** -- clearly separates _Native Extension (Pi only)_ and _MCP Server (all other agents)_ with one-line descriptions under each heading for instant recognition. Kimi Code moved to MCP section.
 - **docs: add When column to Slash Commands table** -- distinguishes setup, diagnostic, and automatic commands at a glance.
 - **docs: add per-platform MCP config examples** -- CodeBuddy, Kimi Code, Qwen Code, Claude, Codex, Qoder, Trae config snippets in README and MCP README.
 - **docs: remove Contributing section and move MCP JSON config into README Installation section** -- streamlined user-facing documentation.
