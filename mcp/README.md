@@ -1,58 +1,14 @@
 # pi-shazam MCP Server
 
-Exposes pi-shazam's codebase analysis tools to any MCP-compatible AI client (Cursor, Claude Desktop, Windsurf, Qoder, etc.) via `npx pi-shazam-mcp`.
+Exposes pi-shazam's codebase analysis tools to any MCP-compatible AI client via `npx pi-shazam-mcp`.
 
 ## Setup
 
-### Cursor / Claude Desktop
+Add the following to your MCP client's server configuration. Replace `/path/to/project` with your project root (or omit it to use the current working directory).
 
-Add to your MCP config (`~/.cursor/mcp.json` or `claude_desktop_config.json`):
+### CodeBuddy
 
-```json
-{
-	"mcpServers": {
-		"pi-shazam": {
-			"command": "npx",
-			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp"]
-		}
-	}
-}
-```
-
-### Qoder CLI
-
-```json
-{
-	"mcpServers": {
-		"pi-shazam": {
-			"command": "npx",
-			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp"]
-		}
-	}
-}
-```
-
-### Kimi Code
-
-In VS Code, open Settings (Cmd+,) → search "Kimi Code" → MCP Servers → add a server with:
-
-- Name: `pi-shazam`
-- Command: `npx pi-shazam-mcp`
-
-Or directly edit `kimi_mcp.json`:
-
-```json
-{
-	"mcpServers": {
-		"pi-shazam": {
-			"command": "npx",
-			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp"]
-		}
-	}
-}
-```
-
-### Specifying a project root
+Config file: `mcp.json`
 
 ```json
 {
@@ -65,7 +21,95 @@ Or directly edit `kimi_mcp.json`:
 }
 ```
 
-Defaults to the current working directory.
+### Kimi Code
+
+Config file: `kimi_mcp.json`
+
+```json
+{
+	"mcpServers": {
+		"pi-shazam": {
+			"command": "npx",
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp", "/path/to/project"]
+		}
+	}
+}
+```
+
+### Qwen Code
+
+Config file: `mcp.json`
+
+```json
+{
+	"mcpServers": {
+		"pi-shazam": {
+			"command": "npx",
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp", "/path/to/project"]
+		}
+	}
+}
+```
+
+### Claude
+
+Config file: `claude_desktop_config.json`
+
+```json
+{
+	"mcpServers": {
+		"pi-shazam": {
+			"command": "npx",
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp", "/path/to/project"]
+		}
+	}
+}
+```
+
+### Codex
+
+Config file: `mcp.json`
+
+```json
+{
+	"mcpServers": {
+		"pi-shazam": {
+			"command": "npx",
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp", "/path/to/project"]
+		}
+	}
+}
+```
+
+### Qoder
+
+Config file: `mcp.json`
+
+```json
+{
+	"mcpServers": {
+		"pi-shazam": {
+			"command": "npx",
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp", "/path/to/project"]
+		}
+	}
+}
+```
+
+### Trae
+
+Config file: `mcp.json`
+
+```json
+{
+	"mcpServers": {
+		"pi-shazam": {
+			"command": "npx",
+			"args": ["-y", "-p", "pi-shazam@latest", "pi-shazam-mcp", "/path/to/project"]
+		}
+	}
+}
+```
 
 ## Available Tools (9)
 

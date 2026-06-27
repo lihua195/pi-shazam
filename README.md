@@ -10,16 +10,7 @@ Codebase awareness toolkit for the Pi coding agent — 9 structural analysis too
 pi install npm:pi-shazam
 ```
 
-### Manual link
-
-```bash
-git clone https://github.com/gjczone/pi-shazam.git
-cd pi-shazam
-npm install --legacy-peer-deps && npm run build
-ln -s "$(pwd)/dist" ~/.pi/agent/extensions/pi-shazam
-```
-
-### MCP (Cursor, Claude Desktop, Windsurf, etc.)
+### MCP (CodeBuddy, Kimi Code, Qwen Code, Claude, Codex, Qoder, Trae, etc.)
 
 ```bash
 npx pi-shazam-mcp
