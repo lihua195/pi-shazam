@@ -157,11 +157,11 @@ Rewrites the Python CLI project [repomap](https://github.com/gjczone/repomap) as
 
 ## shazam Tools — USE THEM
 
-You have access to pi-shazam — 9 code analysis tools. You WILL use every one of them. They are NOT optional.
+You have access to pi-shazam — 7 code analysis tools. You WILL use every one of them. They are NOT optional.
 
 **`shazam_overview` is ALREADY in your context.** It was auto-injected before you started reading. READ it. The project structure, top files, and hotspots are right there above this section. If you can see the overview output in your context — Do NOT call `shazam_overview`. If you do NOT see it — call it immediately. It is the single most important tool. You cannot work blind.
 
-Here are the other 8 tools. You MUST call them. Memorize them. Use them or fail.
+Here are the other 6 tools. You MUST call them. Memorize them. Use them or fail.
 
 | Tool                   | What it does                                                                       | You MUST call it when                                                             |
 | ---------------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |

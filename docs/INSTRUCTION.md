@@ -275,7 +275,6 @@ index.ts                    <- Pi extension entry, default export(pi: ExtensionA
   │   ├── verify.ts         <- Post-edit diagnostics gate
   │   ├── format.ts         <- Auto-fix lint/format
   │   ├── changes.ts       <- Git change summary with risk level
-  │   ├── rename_symbol.ts  <- Symbol rename
   │   └── rename_symbol.ts  <- Symbol rename
   ├── hooks/                <- Automatic (not LLM-visible)
   │   ├── before-start.ts   <- Inject overview into system prompt
