@@ -70,7 +70,7 @@ describe("smoke: overview", () => {
 describe("smoke: lookup", () => {
 	it("finds a known symbol (scanProject)", async () => {
 		const { executeLookupAsync } = await import("../tools/lookup.js");
-		const result = await executeLookupAsync(graph, "scanProject", ".", "symbol");
+		const result = await executeLookupAsync(graph, "scanProject", ".", "both", false);
 		expect(result).toBeTruthy();
 		expect(typeof result).toBe("string");
 		expect(result.length).toBeGreaterThan(50);
@@ -79,7 +79,7 @@ describe("smoke: lookup", () => {
 
 	it("looks up a known file (index.ts)", async () => {
 		const { executeLookupAsync } = await import("../tools/lookup.js");
-		const result = await executeLookupAsync(graph, "index.ts", ".", "file");
+		const result = await executeLookupAsync(graph, "index.ts", ".", "both", false);
 		expect(result).toBeTruthy();
 		expect(typeof result).toBe("string");
 		expect(result.length).toBeGreaterThan(50);

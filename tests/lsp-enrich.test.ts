@@ -66,7 +66,7 @@ describe("lsp_enrich helpers", () => {
 
 		it("returns empty array when manager has no active servers", async () => {
 			const ctx: LspEnrichContext = {
-				getServerForFile: () => null,
+				getServerForFile: async () => null,
 				getActiveServers: () => [],
 				trackOpenedFile: () => {},
 			};

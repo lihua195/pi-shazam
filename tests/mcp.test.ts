@@ -100,7 +100,7 @@ describe("MCP: tool output format", () => {
 
 	it("overview hotspots returns text content", async () => {
 		const { _computeHotspots } = await import("../tools/overview.js");
-		const result = _computeHotspots(getGraph());
+		const result = _computeHotspots(getGraph(), 10);
 		expect(Array.isArray(result)).toBe(true);
 		expect(result.length).toBeGreaterThan(0);
 	});

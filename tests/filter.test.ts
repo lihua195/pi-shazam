@@ -40,13 +40,19 @@ function buildGraph(
 	return graph;
 }
 
-function sym(id: string, file: string, name: string, kind: string, visibility: "internal" | "exported"): Symbol {
+function sym(
+	id: string,
+	file: string,
+	name: string,
+	kind: string,
+	visibility: "public" | "private" | "exported",
+): Symbol {
 	return createSymbol(id, name, kind, file, 1, { visibility });
 }
 
 describe("core/filter findOrphans", () => {
 	it("should report internal symbols with zero incoming refs as orphans", () => {
-		const graph = buildGraph([sym("src/util.ts::helper::1", "src/util.ts", "helper", "function", "internal")]);
+		const graph = buildGraph([sym("src/util.ts::helper::1", "src/util.ts", "helper", "function", "private")]);
 		const result = findOrphans(graph);
 		expect(result.internal).toHaveLength(1);
 		expect(result.internal[0].name).toBe("helper");
@@ -164,7 +170,9 @@ describe("core/filter findOrphans", () => {
 			{ kind: "namespace", localName: "Utils", importedName: "*", module: "./utils", line: 1 },
 		]);
 		// Simulate `used` being referenced via `Utils.used`
-		graph.incoming.set("src/utils.ts::used::1", [{ from: "src/main.ts::main::1", weight: 1 }]);
+		graph.incoming.set("src/utils.ts::used::1", [
+			{ source: "src/main.ts::main::1", target: "src/utils.ts::used::1", weight: 1, kind: "call", confidence: 1 },
+		]);
 		const result = findOrphans(graph);
 		const names = result.internal.map((s) => s.name);
 		expect(names).not.toContain("used");

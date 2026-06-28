@@ -86,7 +86,7 @@ describe("MCP integration: overview pipeline", () => {
 describe("MCP integration: hotspots pipeline", () => {
 	it("should produce valid MCP content from hotspots", async () => {
 		const { _computeHotspots } = await import("../tools/overview.js");
-		const result = _computeHotspots(graph);
+		const result = _computeHotspots(graph, 10);
 		const text = JSON.stringify(result);
 		const envelope = wrapMcp(text);
 		assertMcpEnvelope(envelope);
@@ -254,7 +254,7 @@ describe("MCP integration: end-to-end handler simulation", () => {
 	it("should simulate the MCP hotspots handler pattern", async () => {
 		const { _computeHotspots } = await import("../tools/overview.js");
 
-		const hotspots = _computeHotspots(graph);
+		const hotspots = _computeHotspots(graph, 10);
 		const text = JSON.stringify(hotspots);
 		const mcpResult = { content: [{ type: "text" as const, text }] };
 

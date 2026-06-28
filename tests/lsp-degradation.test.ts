@@ -116,12 +116,16 @@ describe("LSP degradation when vscode-jsonrpc/node is missing", () => {
 		// definition should return ok with null data when file not opened
 		const defResult = await client.definition("/test/file.ts", 0, 0);
 		expect(defResult.status).toBe("ok");
-		expect(defResult.data).toBeNull();
+		if (defResult.status === "ok") {
+			expect(defResult.data).toBeNull();
+		}
 
 		// references should return ok with null data
 		const refResult = await client.references("/test/file.ts", 0, 0);
 		expect(refResult.status).toBe("ok");
-		expect(refResult.data).toBeNull();
+		if (refResult.status === "ok") {
+			expect(refResult.data).toBeNull();
+		}
 	});
 
 	it("should reject initialize() when rpc module is missing", async () => {
