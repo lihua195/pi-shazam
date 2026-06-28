@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.0] - 2026-06-28
+
+### Features
+
+- **feat(#489): auto-detect entry points in overview** — `shazam_overview` now shows a categorized Entry Points section (CLI main functions, JS/TS event handlers). Detects `def main()` (Python), `func main()` (Go), `fn main()` (Rust), `void main()` (Dart), plus Python CLI framework symbols (click.command, typer) and event handlers with `on*`/`Listener`/`Handler` patterns.
+- **feat(#490): fuzzy concept search in lookup** — `shazam_lookup` adds `mode=search` for semantic concept discovery across the full symbol metadata corpus (name, kind, signature, docstring). Token-overlap scoring weighted by PageRank surfaces high-impact matches first. Natural language auto-detection: when symbol lookup returns 0 results and the query looks like natural language (multi-word, question patterns), automatically falls back to search mode — no need to remember `mode=search`.
+- **feat(#491): data structure catalog in overview** — `shazam_overview` now shows a Key Data Structures table listing the project's core types (class, interface, struct, enum, type_alias, trait, mixin, extension) sorted by PageRank with docstring descriptions. Excludes functions, methods, constructors.
+
+### Bug Fixes
+
+- **fix(#492): heredoc false positives in safety hook** — Added `stripQuotedHeredocs()` to strip bodies of quoted bash heredocs (`<<'EOF'`, `<<"EOF"`, `<<-'EOF'`) before pattern matching. Prevents backtick substitution, eval, source, curl|sh, and other HIGH_RISK patterns from false-triggering on literal text inside heredocs (e.g., Markdown code blocks in `gh issue create <<'EOF'`).
+- **fix: clearPendingImpact never called in production** — `shazam_impact` now calls `clearPendingImpact()` when executed, fixing a bug where the issue-guard hook's pending-impact flag blocked all write/edit operations for 30 minutes after creating any GitHub issue.
+
 ## [0.20.3] - 2026-06-28
 
 ### Bug Fixes
