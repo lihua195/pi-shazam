@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.22.0] - 2026-06-28
+
+### Features
+
+- **feat(#497): LSP diagnostic reliability detection** — When >50% of >20 LSP diagnostics match infrastructure error patterns (Cannot find module, Cannot find name, property does not exist on type '{}'), LSP is deemed unreliable and `shazam_verify` falls back to `tsc --noEmit` subprocess diagnostics that produce real, actionable errors.
+- **feat(#497): error output truncation with full-export escape hatch** — `shazam_verify` now caps displayed errors at 10, with `... and N more errors` summary. Full diagnostics are automatically saved to `.shazam/last-verify.json` for agent inspection.
+- **feat(#497): LSP notification LRU eviction** — LSP client now uses `delete-then-set` on the diagnostics notifications Map, ensuring eviction discards the least-recently-updated entry rather than the first-inserted one. Prevents silent data loss for frequently-checked files in long sessions.
+
+### Bug Fixes
+
+- **fix(#497): subprocess diagnostics now re-throws ENOENT** — When `npx`/`tsc` is not in PATH, the error is properly surfaced as a warning diagnostic instead of silently returning empty "all clear" results.
+- **fix(#497): subprocess diagnostics no longer inflates error counts** — Replaced fragile `includes("error")` severity classification with regex parsing of standard `file:line:col - error|warning CODE: message` format. Continuation lines and summary lines are now correctly skipped.
+- **fix(#497): symbol/file path disambiguation in lookup** — Symbols named like filenames (e.g. a const named `config.json`) are no longer misclassified as file paths. `shazam_lookup` now checks the graph for a matching symbol before dispatching to `_executeFileDetail`.
+- **fix(#497): JSON mode now surfaces lspReliable** — `shazam_verify --json` output now includes `lspReliable` and `lspReliableMessage` fields so LLMs can detect LSP degradation programmatically.
+- **fix: `\_isFilePath` traversal guard bypass** — When a symbol name matches both a file-like pattern and a known graph symbol, the path traversal guard now skips validation (which would fail via `realpathSync`) and routes to symbol lookup.
+
+### Removals
+
+- **removed shazam_find_tests** — The tool had two design flaws (only searched same-directory test files, required exact base name match) that made it unreliable. Replaced by `ls tests/*<name>*` and `grep -rl "from.*<module>" tests/`.
+- **removed shazam_safe_delete** — Redundant with `shazam_lookup --direction incoming`. Same information, one less tool.
+- **removed `executeFindTests` dead code from shazam_impact** — The "Discovered Tests for Target Files" section always returned 0 results (due to the same bugs as shazam_find_tests). Now removed from both text and JSON output.
+- **Tool count: 9 → 7** — Cleaned up all doc references (SKILL.md, AGENTS.md, README.md, docs/, rules/, mcp/README.md), NEXT_RULES entries, before-start.ts hints, MCP registrations, and test cases.
+
 ## [0.21.1] - 2026-06-28
 
 ### Bug Fixes
