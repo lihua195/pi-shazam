@@ -19,6 +19,23 @@ import { getGraphEdgeCount } from "../core/graph.js";
 import { diffFromBaseline } from "../core/baseline.js";
 import { assessRisk } from "../core/risk.js";
 import { isNonSourceFile, findOrphans } from "../core/filter.js";
+
+// Test file patterns for preCommit LSP diagnostic filtering.
+// Matches common test file naming conventions across languages.
+const TEST_FILE_PATTERNS: readonly RegExp[] = [
+	/\.(test|spec|e2e)\.(ts|js|tsx|jsx|mts|mjs)$/,
+	/(?:^|\/)(?:test_[^/]+\.py|[^/]+_test\.py)$/,
+	/(?:^|\/)[^/]+_test\.go$/,
+	/(?:^|\/)(?:test_[^/]+\.rs|[^/]+_test\.rs)$/,
+];
+
+const TEST_DIRS = new Set(["__tests__", "test", "tests", "__test__", "spec"]);
+
+function isTestFile(filePath: string): boolean {
+	if (TEST_FILE_PATTERNS.some((p) => p.test(filePath))) return true;
+	const parts = filePath.replace(/\\/g, "/").split("/");
+	return parts.some((p) => TEST_DIRS.has(p));
+}
 import { execFile } from "node:child_process";
 import { getGitChangedFiles } from "../core/git-utils.js";
 import { getEffectiveRoot } from "../core/scanner.js";
@@ -212,12 +229,17 @@ export async function executeVerifyJsonAsync(projectRoot: string, options: Verif
 		};
 	}
 
-	const lspErrors = lspDiagnostics.filter((d) => d.severity === "error").length;
-	const lspWarnings = lspDiagnostics.filter((d) => d.severity === "warning").length;
+	const lspErrors = (preCommit ? lspDiagnostics.filter((d) => !isTestFile(d.file)) : lspDiagnostics).filter(
+		(d) => d.severity === "error",
+	).length;
+	const lspWarnings = (preCommit ? lspDiagnostics.filter((d) => !isTestFile(d.file)) : lspDiagnostics).filter(
+		(d) => d.severity === "warning",
+	).length;
 	const risk = _assessVerifyRisk(graph, internalOrphans, gitChangedFiles, preCommit, lspErrors, lspWarnings);
 
 	let verdict = "PASS";
-	if (lspDiagnostics.some((d) => d.severity === "error")) {
+	const verdictDiags = preCommit ? lspDiagnostics.filter((d) => !isTestFile(d.file)) : lspDiagnostics;
+	if (verdictDiags.some((d) => d.severity === "error")) {
 		verdict = "FAIL";
 	} else if (!lspAvailable && !quick && !lspOnly) {
 		verdict = "WARN";
@@ -395,8 +417,13 @@ export async function executeVerifyTextAsync(projectRoot: string, options: Verif
 		lines.push("### Orphan Symbols: None detected", "");
 	}
 
-	const lspErrors = lspResult.diagnostics.filter((d) => d.severity === "error").length;
-	const lspWarnings = lspResult.diagnostics.filter((d) => d.severity === "warning").length;
+	// Count LSP errors/warnings, excluding test files in preCommit mode
+	// (test files are validated by the test runner, not the pre-commit gate)
+	const sourceDiagnostics = preCommit
+		? lspResult.diagnostics.filter((d) => !isTestFile(d.file))
+		: lspResult.diagnostics;
+	const lspErrors = sourceDiagnostics.filter((d) => d.severity === "error").length;
+	const lspWarnings = sourceDiagnostics.filter((d) => d.severity === "warning").length;
 	const risk = _assessVerifyRisk(graph, internalOrphans, gitChangedFiles, preCommit, lspErrors, lspWarnings);
 	lines.push("### Risk Level");
 	lines.push(`**${risk.level}** - ${risk.reason}`);
@@ -407,7 +434,7 @@ export async function executeVerifyTextAsync(projectRoot: string, options: Verif
 	if (preCommit) {
 		// Reuse the LSP result from above -- do NOT call runLspDiagnostics again
 		// (collectDiagnostics is destructive, second call returns empty results)
-		const hasLspErrors = lspResult.diagnostics.some((d) => d.severity === "error");
+		const hasLspErrors = sourceDiagnostics.some((d) => d.severity === "error");
 		const isReady = !hasLspErrors && risk.level === "low" && internalOrphans.length === 0;
 		lines.push("### Pre-Commit Verdict");
 		lines.push(`**Status:** ${isReady ? "[PASS] READY" : "[FAIL] NOT READY"}`);
