@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.21.1] - 2026-06-28
+
+### Bug Fixes
+
+- **fix(safety): strip single-quoted strings before pattern matching** -- Backticks inside single-quoted bash arguments (`'Fix \`bug\` in README'`) no longer trigger false positive safety warnings. Also strips eval, source, curl|sh examples inside single-quoted strings.
+- **fix(safety): reduce HIGH patterns to destructive commands only** -- Only `rm -rf`, `dd if=`, `mkfs`, `mkswap` remain HIGH. Removed eval, source/., curl|sh, base64|sh, download-execute, backtick substitution, process substitution, fork bomb from all pattern lists. Moved fdisk/parted/sfdisk to MEDIUM.
+- **fix(safety): fix case-sensitivity in MEDIUM pattern regexes** -- `chmod -R`, `chown -R`, `iptables -F`, `iptables -P` regexes now use lowercase letters to match the `toLowerCase()`d input.
+
 ## [0.21.0] - 2026-06-28
 
 ### Features

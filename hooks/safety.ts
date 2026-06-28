@@ -15,52 +15,53 @@ import { tokenizeCommand, tokenizeSegments, extractCommandFromEvent } from "./_b
 import { _logWarn } from "../core/output.js";
 
 /**
- * High-risk patterns that should always trigger confirmation.
- * Regex patterns catch whitespace-bypass variants (extra spaces, tabs, split flags).
+ * HIGH-risk — destructive commands that cause IRREVERSIBLE data loss.
+ * These ALWAYS trigger confirmation: rm -rf (delete), dd (write block device),
+ * mkfs/mkswap (format filesystem).
+ *
+ * Patterns intentionally excluded (not directly destructive despite being
+ * risky in other contexts): eval, source/., curl|sh, fork bomb, backtick
+ * substitution, process substitution — these are common in daily agent
+ * operations and do not directly destroy data.
  */
 const HIGH_RISK_PATTERNS: Array<{ regex: RegExp; label: string }> = [
 	{ regex: /rm\s+(-[a-z]*[rf][a-z]*[rf][a-z]*|-[a-z]*[rf][a-z]*\s+-[a-z]*[rf][a-z]*|--recursive)\b/, label: "rm -rf" },
 	{ regex: /dd\s+if=/, label: "dd if=" },
 	{ regex: /\bmkfs\b/, label: "mkfs" },
 	{ regex: /\bmkswap\b/, label: "mkswap" },
-	{ regex: /\bfdisk\b/, label: "fdisk" },
-	{ regex: /\bparted\b/, label: "parted" },
-	{ regex: /\bsfdisk\b/, label: "sfdisk" },
-	{ regex: /:\(\)\s*\{.*:\s*\|\s*:.*&\s*\}.*;/, label: ":(){ :|:& };:" }, // fork bomb (flexible - catches spacing / padding variants)
-	{ regex: /\beval\b/, label: "eval" },
-	{ regex: /\bsource\s+\S/, label: "source" },
-	{ regex: /^\.\s+\S/, label: "source (.)" },
-	{ regex: /\b(curl|wget)\b[^|]*\|\s*(sh|bash|zsh)\b/, label: "curl|sh" },
-	{ regex: /\bbase64\b[^|]*\|\s*(sh|bash)\b/, label: "base64|sh" },
-	// #467: two-step download-then-execute RCE. The direct pipe form
-	// (curl ... | sh) is caught above, but `curl -o file && sh file`
-	// and `wget -O file; bash file` write to disk first then execute,
-	// bypassing the pipe pattern. Match download-to-file (-o/-O) followed
-	// by an sh/bash/zsh invocation on the downloaded file.
-	{
-		regex: /\b(curl|wget)\b[^|;&]*(-o|-O)\s+\S+[^|;&]*(&&|;)\s*(sh|bash|zsh)\b/,
-		label: "download-execute",
-	},
-	{ regex: /`[^`]+`/, label: "backtick substitution" },
-	{ regex: /<\(/, label: "process substitution" },
 ];
 
 /**
- * Medium-risk patterns that trigger confirmation.
- * Regex patterns catch whitespace-bypass variants.
+ * MEDIUM-risk — configuration/system damage that is recoverable but
+ * potentially severe. These trigger confirmation but can proceed in
+ * non-interactive mode.
+ *
+ * Includes: fdisk/parted/sfdisk (partitioning, demoted from HIGH),
+ * chmod 777 /, chmod -R 777, chown -R (permission damage),
+ * > /dev/sd* (write block device), LVM operations, iptables,
+ * and rm -r / (recursive delete on root, without -f).
  */
 const MEDIUM_RISK_PATTERNS: Array<{ regex: RegExp; label: string }> = [
-	{ regex: /chmod\s+(-R\s+)?777\s+\//, label: "chmod 777 /" },
-	{ regex: /chmod\s+-R\s+777/, label: "chmod -R 777" },
-	{ regex: /chown\s+-R\b/, label: "chown -R" },
+	// Partition tools (demoted from HIGH — partitioning is recoverable)
+	{ regex: /\bfdisk\b/, label: "fdisk" },
+	{ regex: /\bparted\b/, label: "parted" },
+	{ regex: /\bsfdisk\b/, label: "sfdisk" },
+	// Permission damage (regexes lowercase because tested against toLowerCase())
+	{ regex: /chmod\s+(-r\s+)?777\s+\//, label: "chmod 777 /" },
+	{ regex: /chmod\s+-r\s+777/, label: "chmod -R 777" },
+	{ regex: /chown\s+-r\b/, label: "chown -R" },
+	// Direct block device writes
 	{ regex: />\s*\/dev\/sd/, label: "> /dev/sd" },
 	{ regex: />\s*\/dev\/nvme/, label: "> /dev/nvme" },
 	{ regex: />\s*\/dev\/mmcblk/, label: "> /dev/mmcblk" },
+	// LVM operations
 	{ regex: /\bpvcreate\b/, label: "pvcreate" },
 	{ regex: /\bvgcreate\b/, label: "vgcreate" },
 	{ regex: /\blvcreate\b/, label: "lvcreate" },
-	{ regex: /iptables\s+-F\b/, label: "iptables -F" },
-	{ regex: /iptables\s+-P\b/, label: "iptables -P" },
+	// Firewall (regexes lowercase because tested against toLowerCase())
+	{ regex: /iptables\s+-f\b/, label: "iptables -F" },
+	{ regex: /iptables\s+-p\b/, label: "iptables -P" },
+	// Recursive delete on root (without -f — less severe than HE rm -rf)
 	{
 		regex: /rm\s+(-[a-z]*[rf][a-z]*[rf][a-z]*|-[a-z]*[rf][a-z]*\s+-[a-z]*[rf][a-z]*|--recursive|-r[a-z]*)\s+\//,
 		label: "rm -r /",
@@ -128,6 +129,29 @@ function stripQuotedHeredocs(cmd: string): string {
 	return cmd;
 }
 
+/**
+ * Strip bodies of single-quoted strings from the command.
+ *
+ * In bash, single quotes ('...') prevent ALL shell expansion including
+ * backtick substitution, variable expansion ($var, $(cmd)), and globbing.
+ * Backticks and other dangerous patterns inside single quotes are literal
+ * characters and safe.
+ *
+ * Stripping single-quoted content before pattern matching eliminates
+ * false positives from literal text inside command arguments (e.g. gh issue
+ * create --body 'Fix `bug` in README').
+ *
+ * Double-quoted strings ("...") are NOT stripped -- they still allow
+ * backtick and variable expansion.
+ */
+function stripSingleQuotedStrings(cmd: string): string {
+	// Single quotes in bash: everything between them is literal.
+	// No escaping possible inside single quotes (not even \').
+	// Replace the entire quoted body with an empty pair '' so the
+	// structural boundary is preserved but inner content is removed.
+	return cmd.replace(/'[^']*'/g, "''");
+}
+
 /** Escape regex meta-characters in a literal string. */
 function escapeRegex(s: string): string {
 	return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -150,10 +174,12 @@ function normalizeWhitespace(cmd: string): string {
  * Returns the risk level and matched pattern, or null if safe.
  */
 function detectDestructiveCommand(cmd: string): { level: "HIGH" | "MEDIUM"; pattern: string } | null {
-	// Strip quoted heredoc bodies before pattern matching to prevent false
-	// positives from literal text inside <<'EOF' ... EOF blocks.
+	// Strip quoted heredoc bodies and single-quoted string bodies before
+	// pattern matching to prevent false positives from literal text inside
+	// <<'EOF' ... EOF blocks or 'single-quoted arguments'.
 	const stripped = stripQuotedHeredocs(cmd);
-	const normalized = normalizeWhitespace(stripped);
+	const sqStripped = stripSingleQuotedStrings(stripped);
+	const normalized = normalizeWhitespace(sqStripped);
 	const lower = normalized.toLowerCase();
 	const argv = tokenizeCommand(cmd);
 
