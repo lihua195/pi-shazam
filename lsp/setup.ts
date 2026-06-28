@@ -158,6 +158,77 @@ export function generateSetupReport(projectRoot: string, languages?: string[]): 
 }
 
 /**
+ * Generate a brief one-line summary for UI notifications and status bar.
+ * Returns both a compact notification string and status bar text.
+ */
+export function generateSetupSummary(
+	projectRoot: string,
+	languages?: string[],
+): {
+	notifyMessage: string;
+	notifyType: "info" | "warning" | "error";
+	statusText: string;
+	allPass: boolean;
+	availableLangs: string[];
+	missingLangs: string[];
+} {
+	const detections = detectLspServers(projectRoot, languages);
+	const available = detections.filter((d) => d.status === "available");
+	const missing = detections.filter((d) => d.status === "missing");
+	const availableLangs = available.map((d) => d.language);
+	const missingLangs = missing.map((d) => d.language);
+
+	if (detections.length === 0) {
+		return {
+			notifyMessage: "pi-shazam: 未检测到支持的语言，LSP 功能不可用",
+			notifyType: "warning",
+			statusText: "LSP: 无",
+			allPass: false,
+			availableLangs: [],
+			missingLangs: [],
+		};
+	}
+
+	if (missing.length === 0) {
+		// All servers available
+		const langList = availableLangs.map((l) => `${l} ✓`).join(", ");
+		return {
+			notifyMessage: `pi-shazam: LSP 就绪 — ${langList}`,
+			notifyType: "info",
+			statusText: `LSP: ${langList}`,
+			allPass: true,
+			availableLangs,
+			missingLangs: [],
+		};
+	}
+
+	if (available.length === 0) {
+		// All missing
+		const langList = missingLangs.join(", ");
+		return {
+			notifyMessage: `pi-shazam: LSP 服务器缺失 — ${langList}，运行 /shazam-setup 查看安装指引`,
+			notifyType: "warning",
+			statusText: `LSP: ${langList} ✗`,
+			allPass: false,
+			availableLangs: [],
+			missingLangs,
+		};
+	}
+
+	// Mixed: some available, some missing
+	const passList = availableLangs.map((l) => `${l} ✓`).join(", ");
+	const failList = missingLangs.map((l) => `${l} ✗`).join(", ");
+	return {
+		notifyMessage: `pi-shazam: LSP — ${passList}，缺失 ${failList}，运行 /shazam-setup 查看详情`,
+		notifyType: "warning",
+		statusText: `LSP: ${passList}，${failList}`,
+		allPass: false,
+		availableLangs,
+		missingLangs,
+	};
+}
+
+/**
  * Get the install instructions as a simple key-value map
  * for use in tool outputs.
  */

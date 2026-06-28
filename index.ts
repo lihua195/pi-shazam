@@ -11,7 +11,7 @@
 
 import type { ExtensionAPI, ExtensionCommandContext } from "./types/pi-extension.js";
 import { LspManager } from "./lsp/manager.js";
-import { generateSetupReport } from "./lsp/setup.js";
+import { generateSetupReport, generateSetupSummary } from "./lsp/setup.js";
 import { setLspManager, awaitPreviousShutdown } from "./tools/_context.js";
 import {
 	installPreCommitHook,
@@ -127,17 +127,30 @@ export default async function (pi: ExtensionAPI): Promise<void> {
 	// Reset rename safety gate state on new session (issue #326).
 	// Also auto-report LSP setup status and auto-install git pre-commit hook
 	// so the user gets a fully configured project without running any commands.
-	pi.on("session_start", () => {
+	pi.on("session_start", (_event, ctx) => {
 		clearRenameState();
 
 		// Auto-report LSP server availability
 		try {
-			const report = generateSetupReport(projectRoot);
-			pi.sendMessage({
-				customType: "shazam-setup",
-				content: report,
-				display: true,
-			});
+			const summary = generateSetupSummary(projectRoot);
+
+			// Brief toast notification — always shown so user knows LSP status
+			ctx.ui.notify(summary.notifyMessage, summary.notifyType);
+
+			// Status bar — persistent indicator
+			ctx.ui.setStatus("lsp", summary.statusText);
+
+			// Only send the detailed report as a chat message when there are
+			// problems (missing servers) — avoids cluttering the chat when
+			// everything is fine.
+			if (!summary.allPass) {
+				const report = generateSetupReport(projectRoot);
+				pi.sendMessage({
+					customType: "shazam-setup",
+					content: report,
+					display: true,
+				});
+			}
 		} catch (err) {
 			_logWarn("auto-setup", "Failed to generate LSP setup report", err);
 		}
