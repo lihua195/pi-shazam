@@ -134,16 +134,12 @@ export default async function (pi: ExtensionAPI): Promise<void> {
 		try {
 			const summary = generateSetupSummary(projectRoot);
 
-			// Brief toast notification — always shown so user knows LSP status
-			ctx.ui.notify(summary.notifyMessage, summary.notifyType);
-
-			// Status bar — persistent indicator
+			// Status bar — persistent indicator, always visible
 			ctx.ui.setStatus("lsp", summary.statusText);
 
-			// Only send the detailed report as a chat message when there are
-			// problems (missing servers) — avoids cluttering the chat when
-			// everything is fine.
+			// Toast + chat report — only when LSP is not fully ready
 			if (!summary.allPass) {
+				ctx.ui.notify(summary.notifyMessage, summary.notifyType);
 				const report = generateSetupReport(projectRoot);
 				pi.sendMessage({
 					customType: "shazam-setup",
