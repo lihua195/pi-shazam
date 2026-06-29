@@ -20,7 +20,7 @@ import type {
 } from "../types/pi-extension.js";
 import { Type, type TProperties, type TObject } from "typebox";
 import type { RepoGraph } from "../core/graph.js";
-import { scanProject, getEffectiveRoot } from "../core/scanner.js";
+import { scanProject, getEffectiveRoot, resetCache } from "../core/scanner.js";
 import { truncateOutput, _logWarn } from "../core/output.js";
 import { setLastToolTiming } from "./_context.js";
 import { resolve, relative, isAbsolute } from "node:path";
@@ -165,10 +165,8 @@ export function createTool<T extends TProperties>(pi: ExtensionAPI, spec: ToolSp
 			const project = getEffectiveRoot();
 			// L7: Avoid mutating caller's params object -- use spread to create a new one
 			const effectiveParams = { ...params, project };
-			if (params.refresh) {
-				const { resetCache } = await import("../core/scanner.js");
-				resetCache();
-			}
+			// Always refresh the graph cache for accurate results
+			resetCache();
 			const graph = scanProject(".");
 
 			let text: string;

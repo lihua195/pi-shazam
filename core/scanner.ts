@@ -122,9 +122,11 @@ export function resetCache(): void {
 	cachedGraph = null;
 	cachedProjectPath = "";
 	cachedFiles = new Map();
-	_projectRootOverride = null;
 	clearExistsCache();
 	_scannerAdapter = null;
+	// _projectRootOverride is NOT cleared -- it is configuration set by
+	// index.ts from Pi's ctx.cwd, not scan cache data. Clearing it would
+	// cause tools to use the wrong project root until the next session.
 }
 
 /**

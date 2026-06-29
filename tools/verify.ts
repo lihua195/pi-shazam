@@ -64,6 +64,7 @@ import { getNextForTool, formatNextSection, truncateOutput, estimateTokens, _log
 import { getLspManager } from "./_context.js";
 import { lspCodeActions } from "./lsp_enrich.js";
 import { createTool } from "./_factory.js";
+import { resetCache } from "../core/scanner.js";
 import { setLastToolTiming } from "./_context.js";
 import { uriToPath } from "../lsp/client.js";
 
@@ -77,7 +78,7 @@ export function registerVerify(pi: ExtensionAPI): void {
 		analysis (git diff, risk level, orphan detection, graph diffs).
 		Verdict: PASS / WARN / FAIL. Use --quick for a fast git-change-only
 		check (~2s). Use --lspOnly for diagnostics only. Use --preCommit for
-		stricter thresholds. Use --refresh to force a full re-scan, bypassing caches.`,
+		stricter thresholds. Always performs a fresh scan (cache bypassed).`,
 		params: Type.Object({
 			quick: Type.Optional(Type.Boolean()),
 			lspOnly: Type.Optional(Type.Boolean()),
@@ -86,17 +87,14 @@ export function registerVerify(pi: ExtensionAPI): void {
 			maxFiles: Type.Optional(Type.Number()),
 			noCascade: Type.Optional(Type.Boolean()),
 			noSecrets: Type.Optional(Type.Boolean()),
-			refresh: Type.Optional(Type.Boolean()),
+
 		}),
 		customExecute: async (_toolCallId, params, _signal, _onUpdate, _ctx): Promise<AgentToolResult> => {
 			const json = params.json ?? false;
 			const maxTokens = params.maxTokens;
 			const projectRoot = getEffectiveRoot();
-			const refresh = (params.refresh as boolean) ?? false;
-			if (refresh) {
-				const { resetCache } = await import("../core/scanner.js");
-				resetCache();
-			}
+			// Always refresh the graph cache so verify sees current file state
+			resetCache();
 			const options: VerifyOptions = {
 				quick: (params.quick as boolean) ?? false,
 				lspOnly: (params.lspOnly as boolean) ?? false,
