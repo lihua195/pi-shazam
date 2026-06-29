@@ -140,7 +140,84 @@ describe("hooks/safety HIGH-risk patterns (rm -rf, dd, mkfs, mkswap)", () => {
 			| undefined;
 		expect(result).toBeDefined();
 		expect(result?.block).toBe(true);
-		expect(result?.reason).toMatch(/rm -r/);
+		expect(result?.reason).toMatch(/rm -rf/);
+	});
+
+	it("should NOT block rm -r on subdirectory without force (safe, prompts per file)", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = await handler.current!(buildBashEvent("rm -r ./dist"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should NOT block rm -r on temp directory without force", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = await handler.current!(buildBashEvent("rm -r ./temp/old-build"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should NOT block rm -R (capital R) on subdirectory without force", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = await handler.current!(buildBashEvent("rm -R ./node_modules/.cache/some"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should block rm -rf on root as HIGH risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("rm -rf /"), ctx)) as
+			| { block: boolean; reason?: string }
+			| undefined;
+		expect(result).toBeDefined();
+		expect(result?.block).toBe(true);
+	});
+
+	it("should block rm --recursive --force as HIGH risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("rm --recursive --force ./dir"), ctx)) as
+			| { block: boolean; reason?: string }
+			| undefined;
+		expect(result).toBeDefined();
+		expect(result?.block).toBe(true);
+		expect(result?.reason).toMatch(/rm -rf/);
+	});
+
+	it("should block rm -frv (combined flags) as HIGH risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("rm -frv ./build"), ctx)) as
+			| { block: boolean; reason?: string }
+			| undefined;
+		expect(result).toBeDefined();
+		expect(result?.block).toBe(true);
+	});
+
+	it("should block rm -r -f (separate flags) as HIGH risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("rm -r -f ./out"), ctx)) as
+			| { block: boolean; reason?: string }
+			| undefined;
+		expect(result).toBeDefined();
+		expect(result?.block).toBe(true);
+	});
+
+	it("should NOT block plain rm without recursive flag", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = await handler.current!(buildBashEvent("rm ./file.txt"), ctx);
+		expect(result).toBeUndefined();
 	});
 
 	it("should block dd if= as HIGH risk", async () => {
@@ -257,7 +334,7 @@ describe("hooks/safety git commit bypass (issue #394)", () => {
 			| undefined;
 		expect(result).toBeDefined();
 		expect(result?.block).toBe(true);
-		expect(result?.reason).toMatch(/rm -r/);
+		expect(result?.reason).toMatch(/rm -rf/);
 	});
 
 	it("should detect HIGH-risk command after git commit (|| rm -rf /)", async () => {
@@ -537,7 +614,7 @@ describe("hooks/safety quoted heredoc false positives (#492)", () => {
 		expect(result).toBeUndefined();
 	});
 
-	it("should fall back to original command for unterminated heredoc — rm -rf still triggers", async () => {
+	it("should fall back to original command for unterminated heredoc -- rm -rf still triggers", async () => {
 		const { pi, handler } = buildFakePi();
 		registerSafetyHooks(pi);
 		const ctx = buildCtx();
@@ -547,7 +624,7 @@ describe("hooks/safety quoted heredoc false positives (#492)", () => {
 			| undefined;
 		expect(result).toBeDefined();
 		expect(result?.block).toBe(true);
-		expect(result?.reason).toMatch(/rm -r/);
+		expect(result?.reason).toMatch(/rm -rf/);
 	});
 
 	it("should NOT trigger for rm -rf text inside quoted heredoc (#492)", async () => {
@@ -559,17 +636,25 @@ describe("hooks/safety quoted heredoc false positives (#492)", () => {
 	});
 });
 
-describe("hooks/safety MEDIUM-risk patterns (fdisk, chmod, iptables, ...)", () => {
+describe("hooks/safety MEDIUM-risk patterns (partition tools, chmod, iptables, ...)", () => {
 	beforeEach(() => {
 		resetVerifyState();
 		markVerifyCalled("[PASS] READY");
 	});
 
-	it("should trigger on fdisk as MEDIUM risk", async () => {
+	it("should NOT trigger on fdisk -l (read-only list partitions)", async () => {
 		const { pi, handler } = buildFakePi();
 		registerSafetyHooks(pi);
 		const ctx = buildCtx();
-		const result = (await handler.current!(buildBashEvent("fdisk -l /dev/sda"), ctx)) as
+		const result = await handler.current!(buildBashEvent("fdisk -l /dev/sda"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should trigger on fdisk without -l (interactive/mutating) as MEDIUM risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("fdisk /dev/sda"), ctx)) as
 			| { block: boolean; reason?: string }
 			| undefined;
 		expect(result).toBeDefined();
@@ -577,11 +662,27 @@ describe("hooks/safety MEDIUM-risk patterns (fdisk, chmod, iptables, ...)", () =
 		expect(result?.reason).toMatch(/fdisk/);
 	});
 
-	it("should trigger on parted as MEDIUM risk", async () => {
+	it("should NOT trigger on parted print (read-only)", async () => {
 		const { pi, handler } = buildFakePi();
 		registerSafetyHooks(pi);
 		const ctx = buildCtx();
-		const result = (await handler.current!(buildBashEvent("parted /dev/sda print"), ctx)) as
+		const result = await handler.current!(buildBashEvent("parted /dev/sda print"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should NOT trigger on parted -l (list all devices, read-only)", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = await handler.current!(buildBashEvent("parted -l"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should trigger on parted mklabel (mutating) as MEDIUM risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("parted /dev/sda mklabel gpt"), ctx)) as
 			| { block: boolean; reason?: string }
 			| undefined;
 		expect(result).toBeDefined();
@@ -589,16 +690,52 @@ describe("hooks/safety MEDIUM-risk patterns (fdisk, chmod, iptables, ...)", () =
 		expect(result?.reason).toMatch(/parted/);
 	});
 
-	it("should trigger on sfdisk as MEDIUM risk", async () => {
+	it("should NOT trigger on sfdisk -l (read-only list)", async () => {
 		const { pi, handler } = buildFakePi();
 		registerSafetyHooks(pi);
 		const ctx = buildCtx();
-		const result = (await handler.current!(buildBashEvent("sfdisk -l /dev/sda"), ctx)) as
+		const result = await handler.current!(buildBashEvent("sfdisk -l /dev/sda"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should NOT trigger on sfdisk -d (read-only dump)", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = await handler.current!(buildBashEvent("sfdisk -d /dev/sda"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should trigger on sfdisk without -l/-d (mutating) as MEDIUM risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		// sfdisk reads partition table from stdin when no -l/-d flags
+		const result = (await handler.current!(buildBashEvent("sfdisk /dev/sda"), ctx)) as
 			| { block: boolean; reason?: string }
 			| undefined;
 		expect(result).toBeDefined();
 		expect(result?.block).toBe(true);
 		expect(result?.reason).toMatch(/sfdisk/);
+	});
+
+	it("should NOT trigger on sudo fdisk -l (read-only with sudo prefix)", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = await handler.current!(buildBashEvent("sudo fdisk -l /dev/sda"), ctx);
+		expect(result).toBeUndefined();
+	});
+
+	it("should trigger on sudo fdisk (mutating with sudo prefix) as MEDIUM risk", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("sudo fdisk /dev/sda"), ctx)) as
+			| { block: boolean; reason?: string }
+			| undefined;
+		expect(result).toBeDefined();
+		expect(result?.block).toBe(true);
 	});
 
 	it("should trigger on chmod 777 / as MEDIUM risk", async () => {
@@ -646,7 +783,20 @@ describe("hooks/safety MEDIUM-risk patterns (fdisk, chmod, iptables, ...)", () =
 			| undefined;
 		expect(result).toBeDefined();
 		expect(result?.block).toBe(true);
-		expect(result?.reason).toMatch(/rm -r/);
+		expect(result?.reason).toMatch(/rm -r \//);
+	});
+
+	it("should trigger on rm -r -f / as HIGH risk (force recursive root)", async () => {
+		const { pi, handler } = buildFakePi();
+		registerSafetyHooks(pi);
+		const ctx = buildCtx();
+		const result = (await handler.current!(buildBashEvent("rm -r -f /"), ctx)) as
+			| { block: boolean; reason?: string }
+			| undefined;
+		expect(result).toBeDefined();
+		expect(result?.block).toBe(true);
+		// rm -rf on root is HIGH, not MEDIUM
+		expect(result?.reason).toMatch(/rm -rf/);
 	});
 
 	it("should NOT block curl -o && sh (download-execute pattern removed)", async () => {

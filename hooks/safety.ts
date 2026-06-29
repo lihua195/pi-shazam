@@ -11,13 +11,17 @@
 
 import type { ExtensionAPI } from "../types/pi-extension.js";
 import { hasRecentPassingVerify } from "./verify-state.js";
-import { tokenizeCommand, tokenizeSegments, extractCommandFromEvent } from "./_bash-utils.js";
+import { tokenizeSegments, extractCommandFromEvent } from "./_bash-utils.js";
 import { _logWarn } from "../core/output.js";
 
 /**
  * HIGH-risk — destructive commands that cause IRREVERSIBLE data loss.
- * These ALWAYS trigger confirmation: rm -rf (delete), dd (write block device),
- * mkfs/mkswap (format filesystem).
+ * These ALWAYS trigger confirmation: rm -rf (force-recursive delete),
+ * dd (write block device), mkfs/mkswap (format filesystem).
+ *
+ * rm regex requires BOTH -r/--recursive AND -f/--force in some combination
+ * (short flags combined like -rf, separate short flags, or long flags).
+ * Bare --recursive without --force is NOT high risk (rm prompts per file).
  *
  * Patterns intentionally excluded (not directly destructive despite being
  * risky in other contexts): eval, source/., curl|sh, fork bomb, backtick
@@ -25,7 +29,11 @@ import { _logWarn } from "../core/output.js";
  * operations and do not directly destroy data.
  */
 const HIGH_RISK_PATTERNS: Array<{ regex: RegExp; label: string }> = [
-	{ regex: /rm\s+(-[a-z]*[rf][a-z]*[rf][a-z]*|-[a-z]*[rf][a-z]*\s+-[a-z]*[rf][a-z]*|--recursive)\b/, label: "rm -rf" },
+	{
+		regex:
+			/rm\s+(-[a-z]*[rf][a-z]*[rf][a-z]*|-[a-z]*[rf][a-z]*\s+-[a-z]*[rf][a-z]*|--recursive\s+.*--force|--force\s+.*--recursive)\b/,
+		label: "rm -rf",
+	},
 	{ regex: /dd\s+if=/, label: "dd if=" },
 	{ regex: /\bmkfs\b/, label: "mkfs" },
 	{ regex: /\bmkswap\b/, label: "mkswap" },
@@ -36,16 +44,14 @@ const HIGH_RISK_PATTERNS: Array<{ regex: RegExp; label: string }> = [
  * potentially severe. These trigger confirmation but can proceed in
  * non-interactive mode.
  *
- * Includes: fdisk/parted/sfdisk (partitioning, demoted from HIGH),
- * chmod 777 /, chmod -R 777, chown -R (permission damage),
+ * Includes: chmod 777 /, chmod -R 777, chown -R (permission damage),
  * > /dev/sd* (write block device), LVM operations, iptables,
  * and rm -r / (recursive delete on root, without -f).
+ *
+ * Partition tools (fdisk/parted/sfdisk) are handled via argv-based detection
+ * in detectDestructiveCommand() to allow read-only operations (-l, print).
  */
 const MEDIUM_RISK_PATTERNS: Array<{ regex: RegExp; label: string }> = [
-	// Partition tools (demoted from HIGH — partitioning is recoverable)
-	{ regex: /\bfdisk\b/, label: "fdisk" },
-	{ regex: /\bparted\b/, label: "parted" },
-	{ regex: /\bsfdisk\b/, label: "sfdisk" },
 	// Permission damage (regexes lowercase because tested against toLowerCase())
 	{ regex: /chmod\s+(-r\s+)?777\s+\//, label: "chmod 777 /" },
 	{ regex: /chmod\s+-r\s+777/, label: "chmod -R 777" },
@@ -61,7 +67,8 @@ const MEDIUM_RISK_PATTERNS: Array<{ regex: RegExp; label: string }> = [
 	// Firewall (regexes lowercase because tested against toLowerCase())
 	{ regex: /iptables\s+-f\b/, label: "iptables -F" },
 	{ regex: /iptables\s+-p\b/, label: "iptables -P" },
-	// Recursive delete on root (without -f — less severe than HE rm -rf)
+	// Recursive delete on root (without -f — less severe than HIGH rm -rf)
+	// Covered by argv detection for rm; kept as regex fallback for non-standard invocations
 	{
 		regex: /rm\s+(-[a-z]*[rf][a-z]*[rf][a-z]*|-[a-z]*[rf][a-z]*\s+-[a-z]*[rf][a-z]*|--recursive|-r[a-z]*)\s+\//,
 		label: "rm -r /",
@@ -169,8 +176,88 @@ function normalizeWhitespace(cmd: string): string {
 }
 
 /**
+ * Check if a short flag token (e.g. -rfv, -l) contains a given flag character.
+ * Returns true for combined flags like -rf containing 'r' or 'f'.
+ */
+function _shortFlagHas(token: string, ch: string): boolean {
+	if (!token.startsWith("-") || token.startsWith("--")) return false;
+	return [...token.slice(1)].includes(ch);
+}
+
+/**
+ * Check if argv contains a given flag. Handles:
+ * - Short flag: -r (checks combined flags like -rfv)
+ * - Long flag: --recursive
+ */
+function _argvHasFlag(argv: string[], shortCh: string | null, longFlag: string | null): boolean {
+	return argv.some((a) => {
+		if (longFlag && a === longFlag) return true;
+		if (shortCh && _shortFlagHas(a, shortCh)) return true;
+		return false;
+	});
+}
+
+/**
+ * Check if any non-option argument in argv is the root path "/".
+ * Skips argv[0] (command name) and flags/option-arguments.
+ */
+function _argvTargetsRoot(argv: string[]): boolean {
+	for (let i = 1; i < argv.length; i++) {
+		const a = argv[i];
+		if (a === "--") {
+			// Everything after -- is positional
+			for (let j = i + 1; j < argv.length; j++) {
+				if (argv[j] === "/") return true;
+			}
+			return false;
+		}
+		if (a === "/") return true;
+	}
+	return false;
+}
+
+/**
+ * Find the segment containing a command matching the given name(s),
+ * skipping common prefixes like sudo/nice/command.
+ * Returns the argv segment starting from the command itself (prefix stripped), or null.
+ */
+function _findCommandSegment(segments: string[][], ...names: string[]): string[] | null {
+	const PREFIXES = new Set(["sudo", "nice", "command", "busybox", "ionice", "chroot", "strace", "timeout"]);
+	for (const seg of segments) {
+		if (seg.length === 0) continue;
+		const cmd0 = seg[0]?.toLowerCase() ?? "";
+		// Direct match on seg[0]
+		if (names.some((n) => cmd0 === n || cmd0.endsWith("/" + n))) {
+			return seg;
+		}
+		// Match after known prefix (sudo, nice, etc.)
+		if (seg.length > 1 && PREFIXES.has(cmd0)) {
+			const cmd1 = seg[1]?.toLowerCase() ?? "";
+			if (names.some((n) => cmd1 === n || cmd1.endsWith("/" + n))) {
+				return seg.slice(1);
+			}
+		}
+	}
+	return null;
+}
+
+/**
+ * Check if a parted command line is read-only (contains "print" subcommand).
+ */
+function _isPartedReadOnly(argv: string[]): boolean {
+	// parted [opts] [device [cmd]] -- if "print" appears as a positional arg, it's read-only.
+	// Parted flags: -h/-v/-l/-m/-s (-s is script mode, but if cmd is print it's still read-only)
+	for (let i = 1; i < argv.length; i++) {
+		const a = argv[i];
+		if (a === "print") return true;
+		if (a === "--") break;
+	}
+	return false;
+}
+
+/**
  * Check if a command matches any destructive pattern.
- * Uses argv-based parsing for robust matching.
+ * Uses argv-based parsing for robust matching with precise flag detection.
  * Returns the risk level and matched pattern, or null if safe.
  */
 function detectDestructiveCommand(cmd: string): { level: "HIGH" | "MEDIUM"; pattern: string } | null {
@@ -181,28 +268,57 @@ function detectDestructiveCommand(cmd: string): { level: "HIGH" | "MEDIUM"; patt
 	const sqStripped = stripSingleQuotedStrings(stripped);
 	const normalized = normalizeWhitespace(sqStripped);
 	const lower = normalized.toLowerCase();
-	const argv = tokenizeCommand(cmd);
 
-	// Check via argv for more precise detection
-	const argv0 = argv[0]?.toLowerCase() ?? "";
-	const isRm = argv0 === "rm" || argv0.endsWith("/rm");
+	// Parse into segments for per-command analysis (handles sudo prefix, chained cmds)
+	const segments = tokenizeSegments(cmd);
 
-	// rm detection: check for recursive flag
-	if (isRm) {
-		const hasRecursive = argv.some((a) => {
-			if (a === "--recursive") return true;
-			if (a === "-r" || a === "-R") return true;
-			// Split combined short flags like -rfv, -Rf to check for individual r/R
-			if (a.startsWith("-") && !a.startsWith("--") && a.length > 2) {
-				return [...a.slice(1)].some((ch) => ch === "r" || ch === "R");
-			}
-			return false;
-		});
-		if (hasRecursive) {
-			return { level: "HIGH", pattern: "rm -r" };
+	// --- rm: argv-based precise detection ---
+	// Only flag rm -rf (force+recursive) as HIGH, rm -r / as MEDIUM.
+	// Plain rm -r ./subdir (no force, not root) is safe in dev workflows.
+	const rmSeg = _findCommandSegment(segments, "rm");
+	if (rmSeg) {
+		const hasRecursive = _argvHasFlag(rmSeg, "r", "--recursive") || _argvHasFlag(rmSeg, "R", null);
+		const hasForce = _argvHasFlag(rmSeg, "f", "--force");
+		const targetsRoot = _argvTargetsRoot(rmSeg);
+
+		if (hasRecursive && hasForce) {
+			return { level: "HIGH", pattern: "rm -rf" };
+		}
+		if (hasRecursive && targetsRoot) {
+			return { level: "MEDIUM", pattern: "rm -r /" };
+		}
+		// hasRecursive but no force and not root: safe (rm prompts per file), no popup
+	}
+
+	// --- Partition tools: allow read-only operations ---
+	const fdiskSeg = _findCommandSegment(segments, "fdisk");
+	if (fdiskSeg) {
+		// fdisk -l / fdisk --list = list partitions (read-only, safe)
+		const isReadOnly = _argvHasFlag(fdiskSeg, "l", "--list");
+		if (!isReadOnly) {
+			return { level: "MEDIUM", pattern: "fdisk" };
 		}
 	}
 
+	const sfdiskSeg = _findCommandSegment(segments, "sfdisk");
+	if (sfdiskSeg) {
+		// sfdisk -l (list), sfdisk -d (dump) = read-only, safe
+		const isReadOnly = _argvHasFlag(sfdiskSeg, "l", "--list") || _argvHasFlag(sfdiskSeg, "d", "--dump");
+		if (!isReadOnly) {
+			return { level: "MEDIUM", pattern: "sfdisk" };
+		}
+	}
+
+	const partedSeg = _findCommandSegment(segments, "parted");
+	if (partedSeg) {
+		// parted -l (list all), parted [dev] print = read-only, safe
+		const isReadOnly = _argvHasFlag(partedSeg, "l", "--list") || _isPartedReadOnly(partedSeg);
+		if (!isReadOnly) {
+			return { level: "MEDIUM", pattern: "parted" };
+		}
+	}
+
+	// Fallback to regex patterns for commands not covered by argv analysis
 	for (const { regex, label } of HIGH_RISK_PATTERNS) {
 		if (regex.test(lower)) {
 			return { level: "HIGH", pattern: label };
