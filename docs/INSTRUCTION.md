@@ -507,16 +507,16 @@ function write(line: string) {
 
 **Existing hooks in pi-shazam:**
 
-| Hook                  | Event                       | Purpose                                               |
-| --------------------- | --------------------------- | ----------------------------------------------------- |
-| `before-start.ts`     | `before_agent_start`        | Inject project structure overview into system prompt  |
-| `pre-edit.ts`         | `tool_call` + `tool_result` | Detect multi-file edits, warn about blast radius      |
-| `shazam-guide.ts`     | `tool_result` + `tool_call` | Auto-format + nudge agent to use shazam tools         |
-| `tool-logger.ts`      | `tool_call` + `tool_result` | Log shazam calls to audit dir                         |
-| `safety.ts`           | `tool_call` (bash)          | Destructive command confirmation + pre-commit gate    |
-| `stop-verify.ts`      | `tool_result` + `turn_end`  | Remind to verify before ending turn                   |
-| `failure-recovery.ts` | `tool_result`               | Detect consecutive failures, suggest alternatives     |
-| `verify-state.ts`     | (shared module)             | Shared verify tracking state for safety + stop-verify |
+| Hook                  | Event                       | Purpose                                              |
+| --------------------- | --------------------------- | ---------------------------------------------------- |
+| `before-start.ts`     | `before_agent_start`        | Inject project structure overview into system prompt |
+| `pre-edit.ts`         | `tool_call` + `tool_result` | Detect multi-file edits, warn about blast radius     |
+| `shazam-guide.ts`     | `tool_result` + `tool_call` | Auto-format + nudge agent to use shazam tools        |
+| `tool-logger.ts`      | `tool_call` + `tool_result` | Log shazam calls to audit dir                        |
+| `precommit-verify.ts` | `tool_call` (bash)          | Auto-run shazam_verify on git commit (non-blocking)  |
+| `stop-verify.ts`      | `tool_result` + `turn_end`  | Remind to verify before ending turn                  |
+| `failure-recovery.ts` | `tool_result`               | Detect consecutive failures, suggest alternatives    |
+| `verify-state.ts`     | (shared module)             | Shared verify tracking state for stop-verify         |
 
 ### 3.10 MCP Server — Non-Pi Client Wrapping
 

@@ -41,14 +41,13 @@ For Kimi Code, CodeBuddy, Qwen Code, Claude, Codex, Qoder, Trae, and any MCP-com
 | `shazam_format`        | When `shazam_verify` reports format errors | Auto-fix formatting (prettier, biome, eslint, ruff, cargo fmt, gofmt)                                             |
 | `shazam_rename_symbol` | Before renaming any symbol                 | LSP cross-file symbol rename with atomic writes                                                                   |
 
-## Manual Slash Commands
+## Slash Commands
 
-Setup and hook installation run automatically on session start. Only two manual commands are available:
+Setup and hook installation run automatically on session start. No manual setup commands needed.
 
-| Command                 | When                 | Purpose                                                          |
-| ----------------------- | -------------------- | ---------------------------------------------------------------- |
-| `/shazam-doctor`        | When troubleshooting | Health check: tree-sitter grammars, LSP servers, cache integrity |
-| `/shazam-toggle-safety` | When bypassing       | Toggle destructive-command safety checks on/off                  |
+| Command          | When                 | Purpose                                                            |
+| ---------------- | -------------------- | ------------------------------------------------------------------ |
+| `/shazam-doctor` | When troubleshooting | Health check: LSP status, recent errors, slow calls, safety status |
 
 ## Supported Languages
 

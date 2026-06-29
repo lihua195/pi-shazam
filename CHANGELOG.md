@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.0] - 2026-06-29
+
+### Removals
+
+- **removed hooks/safety.ts** — Destructive command detection (rm -rf popup) and pre-commit gate deleted entirely. These gates blocked automated subagents (Swarm, workflow phases) from committing. Permission management is not pi-shazam's responsibility.
+- **removed /shazam-toggle-safety command** — No longer needed without safety hook.
+- **removed /shazam-setup, /shazam-install-git-hooks, /shazam-remove-git-hooks, /shazam-pre-commit-verify commands** — All setup/hook behavior is now auto on session start.
+
+### Features
+
+- **feat(logging): unified internal event log** — Added `internal.log` (JSONL, 10MB/5-file rotation). Added `_logInternal()` for structured event logging across tools and hooks. Added per-stage timing instrumentation (`nestedTiming`) to all 6 tools, recorded in `shazam-calls.log`.
+- **feat(precommit-verify): auto-run shazam_verify on git commit** — New hook detects `git commit` without `--no-verify`, auto-executes `shazam_verify --preCommit`, and sends results to the LLM via steer message. Non-blocking — safe for subagents.
+- **feat(doctor): enhanced diagnostics** — `/shazam-doctor` now surfaces recent errors from `internal.log`, slow calls (>500ms) with bottleneck breakdown from `shazam-calls.log`, and safety status.
+
+### Changes
+
+- **changed: all hooks are non-blocking** — `agent-context-guard.ts` changed from block to warn. `issue-guard.ts` no longer sets pending-impact flags. `precommit-verify.ts` auto-runs verify instead of just reminding. Zero hooks block subagent operations.
+- **changed: pre-commit git hook only runs on main branch** — Feature branch commits skip verification (CI is the authoritative gate).
+- **changed: git pre-commit hook respects feature branches** — Only runs `tsc --noEmit` etc. on main/master. Automated subagents working on feature branches are no longer blocked.
+
+### Bug Fixes
+
+- **fix(sanitize): escape backslashes before backticks in \_sanitizeMarkdown** — Fixes CodeQL alert `js/incomplete-sanitization` (High severity). Input containing pre-escaped backticks could break markdown formatting.
+
 ## [0.22.1] - 2026-06-29
 
 ### Features
