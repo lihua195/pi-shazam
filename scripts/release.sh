@@ -4,14 +4,17 @@
 # Usage: ./scripts/release.sh [patch|minor|major]
 #
 # This script:
-# 1. Bumps version in package.json
-# 2. Syncs version to docs/INSTRUCTION.md (mcp/entry.ts reads package.json at runtime)
-# 3. Builds and tests
-# 4. Commits and tags
-# 5. Pushes to GitHub
-# 6. Creates GitHub Release (triggers npm publish)
-# 7. Updates local Pi extension
-# 8. Updates global npm install
+# 1. Verifies working directory is clean
+# 2. Runs typecheck and tests
+# 3. Bumps version in package.json
+# 3.5. Verifies CHANGELOG.md has entry for the new version (FAILS FAST if missing)
+# 4. Syncs version to docs/INSTRUCTION.md
+# 5. Auto-fixes formatting
+# 6. Builds
+# 7. Commits and tags
+# 8. Pushes to GitHub
+# 9. Creates GitHub Release (triggers npm publish)
+# 10. Updates local Pi extension + global npm install
 
 set -e
 
@@ -60,6 +63,14 @@ log "Step 3: Bumping version ($BUMP_TYPE)..."
 NEW_VERSION=$(npm version "$BUMP_TYPE" --no-git-tag-version)
 NEW_VERSION="${NEW_VERSION#v}" # Remove 'v' prefix
 log "New version: $NEW_VERSION"
+
+# Step 3.5: Verify CHANGELOG.md has an entry for the new version
+log "Step 3.5: Verifying CHANGELOG entry..."
+if ! grep -q "^## \[$NEW_VERSION\]" CHANGELOG.md 2>/dev/null; then
+    error "CHANGELOG.md is missing a section for [${NEW_VERSION}].
+  Add a \"## [${NEW_VERSION}] - YYYY-MM-DD\" entry to CHANGELOG.md first, then re-run this script."
+fi
+log "CHANGELOG entry found for v$NEW_VERSION"
 
 # Step 4: Sync version to docs/INSTRUCTION.md (only file that still hardcodes it)
 log "Step 4: Syncing version to docs/INSTRUCTION.md..."
