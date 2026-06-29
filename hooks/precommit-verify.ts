@@ -5,8 +5,8 @@
  * runs `shazam_verify --preCommit` and sends the results to the LLM.
  *
  * Does NOT block the commit -- the LLM sees the results and can decide
- * to fix issues or proceed anyway. Automated subagents (Swarm, workflow
- * phases) are unaffected -- steer messages don't interrupt them.
+ * to fix issues. --no-verify is available only when the LLM is certain
+ * the reported issues are false positives.
  *
  * Quality enforcement happens in CI, not in pre-commit hooks.
  */
@@ -71,7 +71,7 @@ export function registerPrecommitVerify(pi: ExtensionAPI): void {
 							"",
 							truncated,
 							"",
-							"Fix any issues above before committing, or use `git commit --no-verify` to skip.",
+							"Please fix any issues above before committing.",
 						].join("\n"),
 						display: false,
 					},
