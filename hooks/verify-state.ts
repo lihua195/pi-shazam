@@ -1,0 +1,154 @@
+/**
+ * pi-shazam hooks/verify-state -- Shared verify tracking state.
+ *
+ * Single source of truth for "was shazam_verify called recently?"
+ * Used by both stop-verify.ts (turn-end reminder).
+ *
+ * State machine:
+ *   idle -> verified (markVerifyCalled) -> idle (onNewEdit or timeout)
+ */
+
+import { _logWarn } from "../core/output.js";
+
+const FIVE_MINUTES_MS = 5 * 60 * 1000;
+
+let _verifyCalled = false;
+let _lastVerifyTimestamp = 0;
+let _lastVerifyPassed = false;
+
+/**
+ * Tracks whether a verification reminder has already been sent for the
+ * current batch of unverified edits. Prevents the same reminder from
+ * firing on every turn_end until the agent runs shazam_verify.
+ *
+ * Reset when: new edits occur, verify is called, or session resets.
+ */
+let _reminderSent = false;
+
+/**
+ * Record that shazam_verify completed, with optional content for verdict parsing.
+ * The content parameter is the concatenated text from the tool result's content blocks.
+ *
+ * Parses the structured envelope (verdict/riskLevel/errors).
+ * When content is undefined or unparseable, defaults to fail-closed (not PASS).
+ */
+export function markVerifyCalled(content?: string): void {
+	_verifyCalled = true;
+	_lastVerifyTimestamp = Date.now();
+	_reminderSent = false;
+
+	if (content) {
+		// Try parsing structured JSON envelope first
+		try {
+			const parsed = JSON.parse(content);
+			const result = parsed?.result;
+			const verdict = result?.verdict ?? parsed?.verdict;
+			const errors = result?.errors ?? parsed?.errors;
+			const riskLevel = result?.riskLevel ?? parsed?.riskLevel;
+
+			if (verdict === "PASS") {
+				_lastVerifyPassed = true;
+				return;
+			}
+			if (verdict === "FAIL") {
+				_lastVerifyPassed = false;
+				return;
+			}
+			// No verdict field: check errors
+			if (Array.isArray(errors) && errors.length > 0) {
+				_lastVerifyPassed = false;
+				return;
+			}
+			if (riskLevel === "high") {
+				_lastVerifyPassed = false;
+				return;
+			}
+			// Structured envelope but no clear verdict: fail-closed
+			_lastVerifyPassed = false;
+			return;
+		} catch (err) {
+			// Not JSON: use text-based parsing
+			_logWarn("markVerifyCalled", "JSON.parse failed for verify content", err);
+		}
+
+		// #467: previously only "[FAIL] NOT READY" was matched, so a bare
+		// "[FAIL] 5 errors" or a "Verdict: FAIL" line bypassed detection
+		// and was treated as a PASS. Match any [FAIL] token and any
+		// "Verdict: FAIL" line.
+		const isFail =
+			/\[FAIL\]/i.test(content) ||
+			/Verdict:\s*FAIL/i.test(content) ||
+			/risk\s*[:=]\s*['"]?\*\*high\*\*/i.test(content) ||
+			/Errors:\s*([1-9]\d*)/.test(content);
+		_lastVerifyPassed = !isFail;
+	} else {
+		// No content to parse -- fail-closed: assume not passed
+		_lastVerifyPassed = false;
+	}
+}
+
+/**
+ * Check if shazam_verify was called within the last 5 minutes
+ * and no new edits have occurred since.
+ */
+export function hasRecentVerify(): boolean {
+	if (!_verifyCalled) return false;
+	return _lastVerifyTimestamp > Date.now() - FIVE_MINUTES_MS;
+}
+
+/**
+ * Check if the most recent verify within the last 5 minutes passed
+ * (verdict was not FAIL). Returns false if verify was not run or failed.
+ */
+export function hasRecentPassingVerify(): boolean {
+	if (!_verifyCalled) return false;
+	if (!_lastVerifyPassed) return false;
+	return _lastVerifyTimestamp > Date.now() - FIVE_MINUTES_MS;
+}
+
+/**
+ * Signal that a new write/edit occurred after the last verify.
+ * Resets the verify flag so reminders re-trigger for unverified edits.
+ */
+export function onNewEdit(): void {
+	_verifyCalled = false;
+	_lastVerifyPassed = false;
+	_reminderSent = false;
+}
+
+/**
+ * Reset all state. Called on session_start/session_shutdown and in tests.
+ */
+export function resetVerifyState(): void {
+	_verifyCalled = false;
+	_lastVerifyTimestamp = 0;
+	_lastVerifyPassed = false;
+	_reminderSent = false;
+}
+
+/**
+ * Record that a verification reminder was sent for the current batch
+ * of unverified edits. Prevents the same reminder from firing again
+ * on subsequent turn_end events.
+ */
+export function markReminderSent(): void {
+	_reminderSent = true;
+}
+
+/**
+ * Check whether a reminder has already been sent for the current
+ * batch of unverified edits.
+ */
+export function wasReminderSent(): boolean {
+	return _reminderSent;
+}
+
+/**
+ * Reset only the reminder-sent flag (not the full verify state).
+ * Used when a verify attempt errors out: the previous reminder's
+ * dedup flag must be cleared so a future turn_end can re-remind.
+ * (#467 Finding 4: _reminderSent was stuck true after verify error.)
+ */
+export function resetReminderSent(): void {
+	_reminderSent = false;
+}

@@ -1,0 +1,222 @@
+#!/bin/bash
+# pi-shazam release script — ensures local Pi and MCP are always in sync
+#
+# Usage: ./scripts/release.sh [patch|minor|major]
+#
+# This script:
+# 1. Verifies working directory is clean
+# 2. Runs typecheck and tests
+# 3. Bumps version in package.json
+# 3.5. Verifies CHANGELOG.md has entry for the new version (FAILS FAST if missing)
+# 4. Syncs version to docs/INSTRUCTION.md
+# 5. Auto-fixes formatting
+# 6. Builds
+# 7. Commits and tags
+# 8. Pushes to GitHub
+# 9. Creates GitHub Release (triggers npm publish)
+# 10. Updates local Pi extension + global npm install
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+log() {
+    echo -e "${GREEN}[release]${NC} $1"
+}
+
+warn() {
+    echo -e "${YELLOW}[warn]${NC} $1"
+}
+
+error() {
+    echo -e "${RED}[error]${NC} $1"
+    exit 1
+}
+
+# Parse arguments
+BUMP_TYPE="${1:-patch}"
+if [[ ! "$BUMP_TYPE" =~ ^(patch|minor|major)$ ]]; then
+    error "Usage: $0 [patch|minor|major]"
+fi
+
+# Step 1: Check working directory is clean
+log "Step 1: Checking working directory..."
+if [[ -n $(git status --porcelain) ]]; then
+    error "Working directory not clean. Commit or stash changes first."
+fi
+
+# Step 2: Run tests
+log "Step 2: Running tests..."
+npm run typecheck || error "Type check failed"
+npm test || error "Tests failed"
+
+# Step 3: Bump version
+log "Step 3: Bumping version ($BUMP_TYPE)..."
+NEW_VERSION=$(npm version "$BUMP_TYPE" --no-git-tag-version)
+NEW_VERSION="${NEW_VERSION#v}" # Remove 'v' prefix
+log "New version: $NEW_VERSION"
+
+# Step 3.5: Verify CHANGELOG.md has an entry for the new version
+log "Step 3.5: Verifying CHANGELOG entry..."
+if ! grep -q "^## \[$NEW_VERSION\]" CHANGELOG.md 2>/dev/null; then
+    error "CHANGELOG.md is missing a section for [${NEW_VERSION}].
+  Add a \"## [${NEW_VERSION}] - YYYY-MM-DD\" entry to CHANGELOG.md first, then re-run this script."
+fi
+log "CHANGELOG entry found for v$NEW_VERSION"
+
+# Step 4: Sync version to docs/INSTRUCTION.md (only file that still hardcodes it)
+log "Step 4: Syncing version to docs/INSTRUCTION.md..."
+# mcp/entry.ts reads version dynamically from package.json at runtime (#485).
+# AGENTS.md no longer contains a version table (removed by project-init re-run).
+sed -i "s/version: \"[0-9]*\.[0-9]*\.[0-9]*\"/version: \"$NEW_VERSION\"/" docs/INSTRUCTION.md
+log "Version synced to: package.json, docs/INSTRUCTION.md"
+
+# Step 5: Auto-fix format (sed edits and manual CHANGELOG changes may introduce format issues)
+log "Step 5: Auto-fixing format..."
+npx prettier --write . || warn "Prettier auto-fix had warnings (non-fatal)"
+
+# Step 6: Build
+log "Step 6: Building..."
+npm run build || error "Build failed"
+
+# Step 7: Commit and tag
+log "Step 7: Committing and tagging..."
+git add -A
+git commit -m "chore: bump version to $NEW_VERSION"
+git tag -a "v$NEW_VERSION" -m "Version $NEW_VERSION"
+
+# Step 8: Push to GitHub
+log "Step 8: Pushing to GitHub..."
+git push origin main --tags
+
+# Step 9: Create GitHub Release with detailed notes from CHANGELOG
+log "Step 9: Creating GitHub Release..."
+
+# Extract current version section from CHANGELOG.md for release notes
+CHANGELOG_SECTION=$(awk -v ver="$NEW_VERSION" '
+  /^## \[/ { if (found) exit; if ($0 ~ ver) { found=1; next } }
+  found { print }
+' CHANGELOG.md 2>/dev/null)
+
+# Get previous version for diff link
+PREV_VERSION=$(grep -oP '\[\K[0-9]+\.[0-9]+\.[0-9]+' CHANGELOG.md | sed -n '2p')
+DIFF_LINK=""
+if [[ -n "$PREV_VERSION" ]]; then
+    DIFF_LINK="**Full Changelog**: https://github.com/gjczone/pi-shazam/compare/v${PREV_VERSION}...v${NEW_VERSION}"
+fi
+
+# Build release notes
+RELEASE_NOTES="# v$NEW_VERSION
+
+## What's Changed
+
+${CHANGELOG_SECTION}
+
+## Upgrade
+
+\`\`\`bash
+pi install npm:pi-shazam@latest
+\`\`\`
+
+Or for MCP clients:
+\`\`\`json
+{ \"mcpServers\": { \"pi-shazam\": { \"command\": \"npx\", \"args\": [\"-y\", \"-p\", \"pi-shazam@latest\", \"pi-shazam-mcp\"] } } }
+\`\`\`
+
+${DIFF_LINK}"
+
+gh release create "v$NEW_VERSION" \
+    --title "v$NEW_VERSION" \
+    --notes "$RELEASE_NOTES" \
+    --verify-tag
+
+log "GitHub Release created with CHANGELOG content. npm publish will be triggered automatically."
+
+# Step 9.5: Clean up merged remote branches (both merge-commit and squash-merged)
+log "Step 9.5: Cleaning up merged remote branches..."
+
+# Phase A: git branch --merged (catches regular merge commits)
+MERGED_BRANCHES=$(git branch -r --merged origin/main | grep -v "origin/main\|origin/HEAD" | sed 's/  origin\///')
+if [[ -n "$MERGED_BRANCHES" ]]; then
+    for BRANCH in $MERGED_BRANCHES; do
+        log "  Deleting merged remote branch (--merged): $BRANCH"
+        git push origin --delete "$BRANCH" 2>/dev/null || warn "Failed to delete $BRANCH"
+    done
+fi
+
+# Phase B: gh pr list (catches squash-merged branches that --merged misses)
+# Squash merge creates a new commit on main, so git branch --merged cannot detect them.
+# Instead, check closed PRs whose head branch still exists on the remote.
+SQUASH_MERGED=$(gh pr list --state merged --json headRefName --limit 50 --jq '.[].headRefName' 2>/dev/null)
+if [[ -n "$SQUASH_MERGED" ]]; then
+    for BRANCH in $SQUASH_MERGED; do
+        # Only delete if the remote branch still exists
+        if git ls-remote --heads origin "$BRANCH" | grep -q "$BRANCH"; then
+            log "  Deleting squash-merged remote branch: $BRANCH"
+            git push origin --delete "$BRANCH" 2>/dev/null || warn "Failed to delete $BRANCH"
+        fi
+    done
+fi
+
+log "  Remote branch cleanup complete."
+
+# Step 10: Wait for npm publish
+log "Step 10: Waiting for npm publish (watching GitHub Actions)..."
+sleep 5
+
+# Get the latest workflow run
+RUN_ID=$(gh run list --workflow=publish.yml --limit=1 --json databaseId --jq '.[0].databaseId')
+if [[ -n "$RUN_ID" ]]; then
+    gh run watch "$RUN_ID" || warn "Could not watch workflow. Check manually: gh run list --workflow=publish.yml"
+fi
+
+# Step 11: Update local installations
+log "Step 11: Updating local installations..."
+
+# Update global npm (use @latest to avoid locking version)
+log "Updating global npm..."
+npm install -g pi-shazam@latest --legacy-peer-deps 2>&1 | tail -3
+
+# Update Pi extension (use @latest to avoid locking version)
+log "Updating Pi extension..."
+pi install npm:pi-shazam@latest 2>&1 | tail -5
+
+# Step 12: Verify
+log "Step 12: Verifying installations..."
+
+echo ""
+echo "=== Verification ==="
+
+# Get installed versions
+GLOBAL_VERSION=$(npm ls -g pi-shazam 2>/dev/null | grep pi-shazam | sed 's/.*@//' | sed 's/ .*//')
+PI_VERSION=$(cat ~/.pi/agent/npm/node_modules/pi-shazam/package.json 2>/dev/null | grep '"version"' | sed 's/.*"//' | sed 's/".*//')
+NPM_VERSION=$(npm view pi-shazam version)
+
+echo "Global npm: v$GLOBAL_VERSION"
+echo "Pi extension: v$PI_VERSION"
+echo "npm registry: v$NPM_VERSION"
+
+# Verify they match
+if [[ "$GLOBAL_VERSION" == "$NEW_VERSION" && "$PI_VERSION" == "$NEW_VERSION" ]]; then
+    echo ""
+    log "All installations synced to v$NEW_VERSION"
+else
+    warn "Version mismatch detected! Manual sync may be needed."
+    warn "Run: npm install -g pi-shazam@latest --legacy-peer-deps && pi install npm:pi-shazam@latest"
+fi
+
+echo ""
+log "Release v$NEW_VERSION complete!"
+log ""
+log "Next steps:"
+log "  - Test MCP: pi-shazam-mcp"
+log "  - Test Pi: pi -p 'call shazam_overview briefly'"
+log "  - Check GitHub: gh release view v$NEW_VERSION"

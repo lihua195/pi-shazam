@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.worktrees/
+*.js
+*.d.ts
+*.map
+!types/**/*.d.ts
+.repomap/
+.cache/
+.pi/
+.pi-shazam/
+.qoder/
+*.tgz
+.agents/
+.pi/swarm/state/
+.zcode
+.shazam/

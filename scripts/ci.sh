@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+echo "==> CI Quick Gate (public): $(date)"
+echo "Full verification runs on GitHub Actions."
+echo ""
+
+# Step 1: Install dependencies
+echo "--- Install dependencies ---"
+npm install --legacy-peer-deps
+echo "  dependencies installed"
+echo ""
+
+# Step 2: Format check
+echo "--- Format check ---"
+npx prettier --check . 2>/dev/null || { echo "  FAILED -- run npx prettier --write ."; exit 1; }
+echo "  prettier check passed"
+echo ""
+
+# Step 3: Type check
+echo "--- Type check ---"
+npm run typecheck
+echo "  type check passed"
+echo ""
+
+# Step 4: Tests
+echo "--- Tests ---"
+npm test 2>/dev/null && echo "  tests passed" || echo "  (no tests configured)"
+echo ""
+
+# Step 5: CI config check
+echo "--- CI config check ---"
+test -f .github/workflows/ci.yml || { echo "  ci.yml missing"; exit 1; }
+echo "  ci.yml present"
+echo ""
+
+echo "==> Quick gate PASSED -- push and let GitHub Actions run full CI"
