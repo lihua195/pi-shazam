@@ -64,7 +64,6 @@ import { getNextForTool, formatNextSection, truncateOutput, estimateTokens, _log
 import { getLspManager } from "./_context.js";
 import { lspCodeActions } from "./lsp_enrich.js";
 import { createTool } from "./_factory.js";
-import { resetCache } from "../core/scanner.js";
 import { setLastToolTiming } from "./_context.js";
 import { uriToPath } from "../lsp/client.js";
 
@@ -93,7 +92,9 @@ export function registerVerify(pi: ExtensionAPI): void {
 			const json = params.json ?? false;
 			const maxTokens = params.maxTokens;
 			const projectRoot = getEffectiveRoot();
-			// Always refresh the graph cache so verify sees current file state
+			// Force fresh graph for verify. Cache is useful for read tools
+			// but verify must always see the current file state.
+			const { resetCache } = await import("../core/scanner.js");
 			resetCache();
 			const options: VerifyOptions = {
 				quick: (params.quick as boolean) ?? false,
