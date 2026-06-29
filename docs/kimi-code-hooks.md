@@ -218,8 +218,7 @@ Tool-specific `tool_input` shapes:
 | Pi Hook                         | Kimi-Code 对应                                | 关键差异                                                                                     |
 | ------------------------------- | --------------------------------------------- | -------------------------------------------------------------------------------------------- |
 | `before-start.ts`               | `session-context.sh` (UserPromptSubmit)       | Pi 用 `before_agent_start` event；Kimi-Code 用 `UserPromptSubmit` + 一次性标记               |
-| `safety.ts` (destructive)       | `check-destructive.sh`                        | Pi 用 `ctx.ui.confirm()` 交互式对话框；Kimi-Code 用 exit 2 直接阻断                          |
-| `safety.ts` (pre-commit)        | `pre-commit-guard.sh`                         | Pi 用 `ctx.ui.select()` 选择 + shazam_verify 门禁；Kimi-Code 验证标记 + 5 分钟 TTL           |
+# safety.ts rows removed in v0.23.0 — destructive detection and pre-commit gate deleted
 | `shazam-guide.ts`               | `shazam-guide.sh`                             | Pi 在 tool_call 事件注入建议；Kimi-Code 在 PreToolUse 事件注入                               |
 | `pre-edit.ts`                   | `watchdog.sh` (multi-edit)                    | Pi 用内存 Map 追踪；Kimi-Code 用 temp 文件持久化                                             |
 | `shazam-guide.ts` (auto-format) | `auto-fix.sh`                                 | Pi 在 `tool_result` 后自动运行；Kimi-Code 在 `PostToolUse` 后运行                            |

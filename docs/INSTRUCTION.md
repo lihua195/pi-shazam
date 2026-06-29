@@ -280,12 +280,12 @@ index.ts                    <- Pi extension entry, default export(pi: ExtensionA
   │   ├── before-start.ts   <- Inject overview into system prompt
   │   ├── pre-edit.ts       <- Detect multi-file edits, warn about blast radius
   │   ├── shazam-guide.ts   <- Auto-format + contextual tool suggestions
-  │   ├── safety.ts         <- Destructive command confirmation + pre-commit gate
+  │   ├── precommit-verify.ts <- Auto-run shazam_verify on git commit (non-blocking)
   │   ├── stop-verify.ts    <- Remind to verify before ending turn
   │   ├── failure-recovery.ts <- Detect consecutive failures, suggest alternatives
   │   ├── tool-logger.ts    <- Log shazam calls to audit dir
-  │   ├── issue-guard.ts    <- Detect gh issue create, set pending impact flag
-  │   └── agent-context-guard.ts <- Block agent spawn without structural context
+  │   ├── issue-guard.ts    <- Log gh issue creation events
+  │   └── agent-context-guard.ts <- Warn on review tasks without context
   └── mcp/                  <- MCP server for non-Pi clients
       ├── entry.ts          <- McpServer + StdioServerTransport init
       └── tools.ts          <- 9 MCP tool registrations wrapping core

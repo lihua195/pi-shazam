@@ -127,7 +127,6 @@ export function createTool<T extends TProperties>(pi: ExtensionAPI, spec: ToolSp
 		...spec.params.properties,
 		json: Type.Optional(Type.Boolean()),
 		maxTokens: Type.Optional(Type.Number()),
-		refresh: Type.Optional(Type.Boolean()),
 	});
 
 	if (spec.customExecute) {

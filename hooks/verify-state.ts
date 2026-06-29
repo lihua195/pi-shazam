@@ -2,7 +2,7 @@
  * pi-shazam hooks/verify-state -- Shared verify tracking state.
  *
  * Single source of truth for "was shazam_verify called recently?"
- * Used by both safety.ts (pre-commit gate) and stop-verify.ts (turn-end reminder).
+ * Used by both stop-verify.ts (turn-end reminder).
  *
  * State machine:
  *   idle -> verified (markVerifyCalled) -> idle (onNewEdit or timeout)
