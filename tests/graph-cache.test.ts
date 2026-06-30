@@ -70,7 +70,7 @@ describe("Graph serialization V2 round-trip", () => {
 		]);
 		const serialized = serializeGraphV2(graph, fileMtimes);
 
-		expect(serialized.version).toBe(2);
+		expect(serialized.version).toBe(3);
 		expect(serialized.symbols.length).toBe(3);
 		expect(serialized.edges.length).toBe(1);
 		expect(serialized.fileSymbols).toBeDefined();

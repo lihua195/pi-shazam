@@ -113,7 +113,7 @@ export function loadGraphCache(cachePath: string): GraphCacheData | null {
 		}
 		const raw = readFileSync(cachePath, "utf-8");
 		const data = JSON.parse(raw);
-		if (!data || data.version !== 2 || !Array.isArray(data.symbols) || !Array.isArray(data.edges)) return null;
+		if (!data || data.version !== 3 || !Array.isArray(data.symbols) || !Array.isArray(data.edges)) return null;
 		if (Date.now() - data.timestamp > CACHE_MAX_AGE_MS) return null;
 
 		const graph = deserializeGraphV2(data);

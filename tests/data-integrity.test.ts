@@ -90,7 +90,7 @@ describe("Issue #471 Finding A: MAX_FILES truncation warning", () => {
 describe("Issue #471 Finding B: deserializeGraphV2 null guards", () => {
 	function makeBaseData() {
 		return {
-			version: 2,
+			version: 3,
 			symbols: [],
 			edges: [],
 			timestamp: Date.now(),

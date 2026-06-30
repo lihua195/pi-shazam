@@ -184,7 +184,7 @@ export function serializeEdge(edge: Edge): SerializedEdge {
 }
 
 export interface SerializedGraphV2 {
-	version: 2;
+	version: 3;
 	timestamp: number;
 	symbols: SerializedSymbol[];
 	edges: SerializedEdge[];
@@ -231,7 +231,7 @@ export function serializeGraphV2(graph: RepoGraph, fileMtimes: Map<string, numbe
 	for (const [k, v] of fileMtimes) fileMtimesObj[k] = v;
 
 	return {
-		version: 2,
+		version: 3,
 		timestamp: Date.now(),
 		symbols,
 		edges,

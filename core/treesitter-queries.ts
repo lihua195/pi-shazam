@@ -94,9 +94,52 @@ export const QUERIES: QueryDict = {
 	`,
 		type: `\
 	(extends_type_clause (type_identifier) @name)
+	(extends_type_clause (generic_type name: (type_identifier) @name))
 	(implements_clause (type_identifier) @name)
+	(implements_clause (generic_type name: (type_identifier) @name))
 	(type_annotation (type_identifier) @name)
+	(type_annotation (generic_type name: (type_identifier) @name))
+	(generic_type name: (type_identifier) @name)
 	(generic_type (type_arguments (type_identifier) @name))
+	(generic_type (type_arguments (generic_type name: (type_identifier) @name)))
+	`,
+	},
+	tsx: {
+		function: `\
+(function_declaration name: (identifier) @name) @definition.function
+(variable_declarator name: (identifier) @name value: (arrow_function)) @definition.function
+(variable_declarator name: (identifier) @name value: (function_expression)) @definition.function
+(method_definition name: (property_identifier) @name) @definition.method
+`,
+		class: `\
+(class_declaration name: (_) @name) @definition.class
+(interface_declaration name: (type_identifier) @name) @definition.interface
+(type_alias_declaration name: (type_identifier) @name) @definition.type_alias
+(enum_declaration name: (identifier) @name) @definition.enum
+`,
+		import: `\
+(import_statement source: (string) @source)
+(import_specifier name: (identifier) @name)
+(import_clause (identifier) @name)
+`,
+		call: `\
+(call_expression function: (identifier) @name) @reference.call
+(call_expression function: (member_expression property: (property_identifier) @name)) @reference.call
+`,
+		ref: `\
+	(call_expression arguments: (arguments (identifier) @name))
+	(return_statement (identifier) @name)
+	`,
+		type: `\
+	(extends_type_clause (type_identifier) @name)
+	(extends_type_clause (generic_type name: (type_identifier) @name))
+	(implements_clause (type_identifier) @name)
+	(implements_clause (generic_type name: (type_identifier) @name))
+	(type_annotation (type_identifier) @name)
+	(type_annotation (generic_type name: (type_identifier) @name))
+	(generic_type name: (type_identifier) @name)
+	(generic_type (type_arguments (type_identifier) @name))
+	(generic_type (type_arguments (generic_type name: (type_identifier) @name)))
 	`,
 	},
 	go: {
