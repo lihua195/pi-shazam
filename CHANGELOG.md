@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.23.3] - 2026-06-30
+
+### Bug Fixes
+
+- **fix(#547): remove dead impact-state surface** —
+  Removed `setPendingImpact` call from production code since it was never actually invoked, eliminating dead code path.
+
+- **fix(#554,#557): capture tsc/pyright/mypy stdout in pre-commit verify, add stale cache banner in lookup** —
+  Pre-commit verify now captures subprocess stdout (tsc, pyright, mypy). `shazam_lookup` now displays a stale cache warning when the graph is outdated.
+
+- **fix(#551,#552,#555): remove global ENOENT suppression, break writeJsonl recursion, conservative CJK token estimate** —
+  Removed global ENOENT suppression that masked genuine file-not-found errors. Fixed infinite recursion in writeJsonl failure path. Tightened CJK token estimation for more accurate truncation.
+
+- **fix(#550,#553): log error causes in catch sites and withEnrichTimeout rejections** —
+  Added error cause logging to all catch sites and `withEnrichTimeout` rejection paths for better debugging.
+
+- **fix(#546,#548,#556): serialize LSP shutdown, reset rename state on session_shutdown, clean up didClose on send failure** —
+  Serialized LSP server shutdown to prevent race conditions. Reset rename state when session ends. Properly clean up didClose notifications on send failure.
+
+- **fix(#544,#545): redact before truncating audit-log args and set isError on tool error responses** —
+  Audit-log argument redaction now happens before truncation to avoid leaking sensitive data in truncated output. Tool error responses now correctly set `isError` flag.
+
 ## [0.23.2] - 2026-06-30
 
 ### Bug Fixes
