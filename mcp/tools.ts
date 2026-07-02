@@ -7,7 +7,14 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RepoGraph } from "../core/graph.js";
 import { executeOverview, executeOverviewJson } from "../tools/overview.js";
-import { executeImpact, executeImpactJson, executeCallChain, executeCallChainJson, getFlatReferences, formatFlatReferences } from "../tools/impact.js";
+import {
+	executeImpact,
+	executeImpactJson,
+	executeCallChain,
+	executeCallChainJson,
+	getFlatReferences,
+	formatFlatReferences,
+} from "../tools/impact.js";
 import {
 	executeLookupAsync,
 	executeFileDetailAsync,
@@ -137,9 +144,7 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			}
 			let text: string;
 			if (isFilePath) {
-				text = json
-					? executeFileDetailJson(getGraph(), nameStr)
-					: await executeFileDetailAsync(getGraph(), nameStr);
+				text = json ? executeFileDetailJson(getGraph(), nameStr) : await executeFileDetailAsync(getGraph(), nameStr);
 			} else if (mode === "state") {
 				text = executeStateMap(getGraph(), nameStr);
 				if (json) {
@@ -194,63 +199,68 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			description: impactDef.description,
 			inputSchema: impactDef.zodParams,
 		},
-		withLogging("shazam_impact", async ({ files, symbol, withSymbols, compact, depth, flat, direction, maxTokens, json }) => {
-			const dir = (direction as "incoming" | "outgoing" | "both") ?? "both";
-			const d = Math.min(Math.max((depth as number) ?? 3, 1), 10);
+		withLogging(
+			"shazam_impact",
+			async ({ files, symbol, withSymbols, compact, depth, flat, direction, maxTokens, json }) => {
+				const dir = (direction as "incoming" | "outgoing" | "both") ?? "both";
+				const d = Math.min(Math.max((depth as number) ?? 3, 1), 10);
 
-			// Symbol mode: call chain analysis
-			if (symbol) {
-				// #447: Record that impact --symbol was run so the rename gate is satisfied
-				recordCallChain(symbol as string);
-				if (flat) {
-					const refs = getFlatReferences(getGraph(), symbol as string, dir);
+				// Symbol mode: call chain analysis
+				if (symbol) {
+					// #447: Record that impact --symbol was run so the rename gate is satisfied
+					recordCallChain(symbol as string);
+					if (flat) {
+						const refs = getFlatReferences(getGraph(), symbol as string, dir);
+						let text = json
+							? buildEnvelope("shazam_impact", projectRoot, "ok", refs)
+							: formatFlatReferences(refs, symbol as string);
+						if (typeof maxTokens === "number" && maxTokens > 0 && !json)
+							text = truncateOutput(text.split("\n"), maxTokens);
+						return { content: [{ type: "text", text }] };
+					}
 					let text = json
-						? buildEnvelope("shazam_impact", projectRoot, "ok", refs)
-						: formatFlatReferences(refs, symbol as string);
-					if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
+						? executeCallChainJson(getGraph(), symbol as string, Math.min(d, 10), dir)
+						: executeCallChain(getGraph(), symbol as string, Math.min(d, 10), dir);
+					if (typeof maxTokens === "number" && maxTokens > 0 && !json)
+						text = truncateOutput(text.split("\n"), maxTokens);
 					return { content: [{ type: "text", text }] };
 				}
-				let text = json
-					? executeCallChainJson(getGraph(), symbol as string, Math.min(d, 10), dir)
-					: executeCallChain(getGraph(), symbol as string, Math.min(d, 10), dir);
-				if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
-				return { content: [{ type: "text", text }] };
-			}
 
-			// File mode: impact analysis
-			const filesArr = files as string[] | undefined;
-			if (!filesArr || filesArr.length === 0) {
-				return {
-					content: [
-						{
-							type: "text",
-							text: "Error: either --symbol (for call chain) or --files (for impact analysis) is required",
-						},
-					],
-					isError: true,
-				};
-			}
-			// #445: Validate user-supplied file paths against project root (path-traversal guard)
-			for (const f of filesArr) {
-				if (!validatePathInProject(f, projectRoot)) {
+				// File mode: impact analysis
+				const filesArr = files as string[] | undefined;
+				if (!filesArr || filesArr.length === 0) {
 					return {
 						content: [
-							{ type: "text", text: `Error: File path '${f}' is outside the project root and cannot be accessed.` },
+							{
+								type: "text",
+								text: "Error: either --symbol (for call chain) or --files (for impact analysis) is required",
+							},
 						],
 						isError: true,
 					};
 				}
-			}
-			let text = json
-				? executeImpactJson(getGraph(), filesArr, d)
-				: executeImpact(getGraph(), filesArr, {
-						withSymbols: (withSymbols as boolean) ?? false,
-						compact: (compact as boolean) ?? false,
-						depth: d,
-					});
-			if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
-			return { content: [{ type: "text", text }] };
-		}),
+				// #445: Validate user-supplied file paths against project root (path-traversal guard)
+				for (const f of filesArr) {
+					if (!validatePathInProject(f, projectRoot)) {
+						return {
+							content: [
+								{ type: "text", text: `Error: File path '${f}' is outside the project root and cannot be accessed.` },
+							],
+							isError: true,
+						};
+					}
+				}
+				let text = json
+					? executeImpactJson(getGraph(), filesArr, d)
+					: executeImpact(getGraph(), filesArr, {
+							withSymbols: (withSymbols as boolean) ?? false,
+							compact: (compact as boolean) ?? false,
+							depth: d,
+						});
+				if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
+				return { content: [{ type: "text", text }] };
+			},
+		),
 	);
 
 	// shazam_verify
