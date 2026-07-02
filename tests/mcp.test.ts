@@ -243,8 +243,10 @@ describe("MCP: server starts correctly via symlink (#485)", () => {
 		const { resolve, join } = await import("node:path");
 		const { spawn } = await import("node:child_process");
 
-		// Create a temp directory with a symlink to the built entry.js
+		// Create a temp directory with a symlink to the built entry.js.
+		// Clean up stale leftovers from a previous run so symlinkSync won't hit EEXIST.
 		const tmpDir = join(tmpdir(), "pi-shazam-485-test");
+		rmSync(tmpDir, { recursive: true, force: true });
 		mkdirSync(tmpDir, { recursive: true });
 		const entryPath = resolve("dist/mcp/entry.js");
 		const symlinkPath = join(tmpDir, "pi-shazam-mcp");

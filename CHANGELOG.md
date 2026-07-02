@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.24.4] - 2026-07-02
+
+### Bug Fixes
+
+- **fix: Silence ENOENT warnings during LSP server discovery** —
+  `isExecutable()` now suppresses the expected `ENOENT` error when probing for
+  optional LSP server binaries, matching `_logWarn`'s documented ENOENT early-return
+  pattern. Only real errors (permission denied, I/O error) are logged.
+
+- **fix: Clean up stale temp dir before MCP symlink test (#485)** —
+  `tests/mcp.test.ts` now runs `rmSync` before `mkdirSync` to avoid `EEXIST` on
+  leftover symlinks from previous test runs. Worktree copy uses a unique temp dir
+  name to avoid collisions when vitest runs files in parallel.
+
 ## [0.24.3] - 2026-07-02
 
 ### Bug Fixes

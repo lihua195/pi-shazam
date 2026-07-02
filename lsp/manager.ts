@@ -262,7 +262,12 @@ function isExecutable(filePath: string): boolean {
 		// eslint-disable-next-line no-bitwise
 		return (st.mode & 0o111) !== 0;
 	} catch (err) {
-		_logWarn("isExecutable", `statSync failed for ${filePath}`, err);
+		// ENOENT is expected during optional LSP server discovery —
+		// the binary simply isn't installed. Only warn on real errors
+		// (permission denied, I/O error, etc.). See _logWarn JSDoc.
+		if (!(err instanceof Error) || (err as NodeJS.ErrnoException).code !== "ENOENT") {
+			_logWarn("isExecutable", `statSync failed for ${filePath}`, err);
+		}
 		return false;
 	}
 }
