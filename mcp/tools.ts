@@ -6,18 +6,20 @@
  */
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { RepoGraph } from "../core/graph.js";
-import { executeOverview } from "../tools/overview.js";
-import { executeImpact, executeCallChain, getFlatReferences, formatFlatReferences } from "../tools/impact.js";
+import { executeOverview, executeOverviewJson } from "../tools/overview.js";
+import { executeImpact, executeImpactJson, executeCallChain, executeCallChainJson, getFlatReferences, formatFlatReferences } from "../tools/impact.js";
 import {
 	executeLookupAsync,
 	executeFileDetailAsync,
+	executeFileDetailJson,
 	executeStateMap,
 	_executeSearch,
 	_formatSearchResults,
 	_looksLikeNaturalLanguage,
 	_findSymbols,
+	_executeSymbolJson,
 } from "../tools/lookup.js";
-import { executeFormat } from "../tools/format.js";
+import { executeFormat, executeFormatJson } from "../tools/format.js";
 import { executeVerifyTextAsync, executeVerifyJsonAsync } from "../tools/verify.js";
 import { executeChanges, executeChangesJson } from "../tools/changes.js";
 import { executeRenameSymbol, formatRenameResult } from "../tools/rename_symbol.js";
@@ -25,7 +27,7 @@ import { hasCallChainChecked, recordCallChain } from "../tools/rename-state.js";
 
 import { join } from "node:path";
 import { getToolDefinition } from "../tools/definitions.js";
-import { validatePathInProject } from "../tools/_factory.js";
+import { validatePathInProject, buildEnvelope } from "../tools/_factory.js";
 import { truncateOutput } from "../core/output.js";
 import { redact } from "../core/redact.js";
 import { AUDIT_LOG_DIR, ts, writeJsonl } from "../core/audit-log.js";
@@ -90,9 +92,11 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			description: overviewDef.description,
 			inputSchema: overviewDef.zodParams,
 		},
-		withLogging("shazam_overview", async ({ filter, maxTokens }) => {
-			let text = executeOverview(getGraph(), projectRoot, filter as string | undefined);
-			if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
+		withLogging("shazam_overview", async ({ filter, maxTokens, json }) => {
+			let text = json
+				? executeOverviewJson(getGraph(), projectRoot, filter as string | undefined)
+				: executeOverview(getGraph(), projectRoot, filter as string | undefined);
+			if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
 			return { content: [{ type: "text", text }] };
 		}),
 	);
@@ -105,7 +109,7 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			description: lookupDef.description,
 			inputSchema: lookupDef.zodParams,
 		},
-		withLogging("shazam_lookup", async ({ name, mode, file, showCallbacks, direction, maxTokens }) => {
+		withLogging("shazam_lookup", async ({ name, mode, file, showCallbacks, direction, maxTokens, json }) => {
 			const nameStr = name as string;
 			if (!nameStr) {
 				return { content: [{ type: "text", text: "Error: name parameter is required" }], isError: true };
@@ -133,28 +137,51 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			}
 			let text: string;
 			if (isFilePath) {
-				text = await executeFileDetailAsync(getGraph(), nameStr);
+				text = json
+					? executeFileDetailJson(getGraph(), nameStr)
+					: await executeFileDetailAsync(getGraph(), nameStr);
 			} else if (mode === "state") {
 				text = executeStateMap(getGraph(), nameStr);
+				if (json) {
+					text = buildEnvelope("shazam_lookup", projectRoot, "ok", { symbol: nameStr, mode: "state", text });
+				}
 			} else if (mode === "search") {
 				const results = _executeSearch(getGraph(), nameStr);
-				text = _formatSearchResults(nameStr, results);
+				if (json) {
+					text = buildEnvelope("shazam_lookup", projectRoot, "ok", {
+						mode: "search",
+						query: nameStr,
+						results,
+					});
+				} else {
+					text = _formatSearchResults(nameStr, results);
+				}
 			} else {
 				const matches = _findSymbols(getGraph(), nameStr, fileParam);
 				if (matches.length === 0 && _looksLikeNaturalLanguage(nameStr)) {
 					const results = _executeSearch(getGraph(), nameStr);
-					text = _formatSearchResults(nameStr, results);
+					if (json) {
+						text = buildEnvelope("shazam_lookup", projectRoot, "ok", {
+							mode: "search",
+							query: nameStr,
+							results,
+						});
+					} else {
+						text = _formatSearchResults(nameStr, results);
+					}
 				} else {
-					text = await executeLookupAsync(
-						getGraph(),
-						nameStr,
-						file as string | undefined,
-						(direction as "both" | "supertypes" | "subtypes") ?? "both",
-						(showCallbacks as boolean) ?? false,
-					);
+					text = json
+						? _executeSymbolJson(getGraph(), nameStr, fileParam)
+						: await executeLookupAsync(
+								getGraph(),
+								nameStr,
+								file as string | undefined,
+								(direction as "both" | "supertypes" | "subtypes") ?? "both",
+								(showCallbacks as boolean) ?? false,
+							);
 				}
 			}
-			if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
+			if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
 			return { content: [{ type: "text", text }] };
 		}),
 	);
@@ -167,7 +194,7 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			description: impactDef.description,
 			inputSchema: impactDef.zodParams,
 		},
-		withLogging("shazam_impact", async ({ files, symbol, withSymbols, compact, depth, flat, direction, maxTokens }) => {
+		withLogging("shazam_impact", async ({ files, symbol, withSymbols, compact, depth, flat, direction, maxTokens, json }) => {
 			const dir = (direction as "incoming" | "outgoing" | "both") ?? "both";
 			const d = Math.min(Math.max((depth as number) ?? 3, 1), 10);
 
@@ -177,12 +204,16 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 				recordCallChain(symbol as string);
 				if (flat) {
 					const refs = getFlatReferences(getGraph(), symbol as string, dir);
-					let text = formatFlatReferences(refs, symbol as string);
-					if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
+					let text = json
+						? buildEnvelope("shazam_impact", projectRoot, "ok", refs)
+						: formatFlatReferences(refs, symbol as string);
+					if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
 					return { content: [{ type: "text", text }] };
 				}
-				let text = executeCallChain(getGraph(), symbol as string, Math.min(d, 10), dir);
-				if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
+				let text = json
+					? executeCallChainJson(getGraph(), symbol as string, Math.min(d, 10), dir)
+					: executeCallChain(getGraph(), symbol as string, Math.min(d, 10), dir);
+				if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
 				return { content: [{ type: "text", text }] };
 			}
 
@@ -210,12 +241,14 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 					};
 				}
 			}
-			let text = executeImpact(getGraph(), filesArr, {
-				withSymbols: (withSymbols as boolean) ?? false,
-				compact: (compact as boolean) ?? false,
-				depth: d,
-			});
-			if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
+			let text = json
+				? executeImpactJson(getGraph(), filesArr, d)
+				: executeImpact(getGraph(), filesArr, {
+						withSymbols: (withSymbols as boolean) ?? false,
+						compact: (compact as boolean) ?? false,
+						depth: d,
+					});
+			if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
 			return { content: [{ type: "text", text }] };
 		}),
 	);
@@ -287,7 +320,7 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			description: formatDef.description,
 			inputSchema: formatDef.zodParams,
 		},
-		withLogging("shazam_format", async ({ dryRun, file, maxTokens }) => {
+		withLogging("shazam_format", async ({ dryRun, file, maxTokens, json }) => {
 			// #465: validate user-supplied file path against project root.
 			// shazam_format was the only file-accepting MCP handler that
 			// skipped validatePathInProject, allowing formatters (--write)
@@ -303,11 +336,16 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 					isError: true,
 				};
 			}
-			let text = await executeFormat(getGraph(), projectRoot, {
-				dryRun: (dryRun as boolean) ?? true,
-				file: file as string | undefined,
-			});
-			if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
+			let text = json
+				? await executeFormatJson(getGraph(), projectRoot, {
+						dryRun: (dryRun as boolean) ?? true,
+						file: file as string | undefined,
+					})
+				: await executeFormat(getGraph(), projectRoot, {
+						dryRun: (dryRun as boolean) ?? true,
+						file: file as string | undefined,
+					});
+			if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
 			return { content: [{ type: "text", text }] };
 		}),
 	);
@@ -320,7 +358,7 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 			description: renameSymbolDef.description,
 			inputSchema: renameSymbolDef.zodParams,
 		},
-		withLogging("shazam_rename_symbol", async ({ symbol, newName, dryRun, maxTokens }) => {
+		withLogging("shazam_rename_symbol", async ({ symbol, newName, dryRun, maxTokens, json }) => {
 			const effectiveDryRun = (dryRun as boolean) ?? true;
 			// Enforce impact-check safety gate: block non-dry-run unless shazam_impact --symbol was run
 			if (!effectiveDryRun && !hasCallChainChecked(symbol as string)) {
@@ -348,8 +386,10 @@ export function registerAllTools(server: McpServer, getGraph: () => RepoGraph, p
 				effectiveDryRun,
 				projectRoot,
 			);
-			let text = formatRenameResult(result, symbol as string, newName as string, effectiveDryRun);
-			if (typeof maxTokens === "number" && maxTokens > 0) text = truncateOutput(text.split("\n"), maxTokens);
+			let text = json
+				? buildEnvelope("shazam_rename_symbol", projectRoot, "ok", result)
+				: formatRenameResult(result, symbol as string, newName as string, effectiveDryRun);
+			if (typeof maxTokens === "number" && maxTokens > 0 && !json) text = truncateOutput(text.split("\n"), maxTokens);
 			return { content: [{ type: "text", text }] };
 		}),
 	);
