@@ -13,7 +13,6 @@
  */
 
 import { stat, rename, unlink, appendFile, mkdir, chmod } from "node:fs/promises";
-import { _logWarn } from "./output.js";
 import { join } from "node:path";
 import { homedir } from "node:os";
 
@@ -54,8 +53,9 @@ export async function rotateAuditLog(logPath: string): Promise<void> {
 				try {
 					await rename(src, dst);
 				} catch (err) {
-					// file may not exist yet
-					_logWarn("rotateAuditLog", `rename ${src} -> ${dst} failed`, err);
+					// file may not exist yet -- log via console.error, NOT _logWarn,
+					// to avoid re-entering writeJsonl via _logWarn -> writeJsonl (#552).
+					console.error(`[pi-shazam] rotateAuditLog: rename ${src} -> ${dst} failed`, err);
 				}
 			}
 			// Move current log to .1
@@ -65,8 +65,9 @@ export async function rotateAuditLog(logPath: string): Promise<void> {
 			await unlink(logPath);
 		}
 	} catch (err) {
-		// File may not exist yet -- first write creates it
-		_logWarn("rotateAuditLog", `stat/unlink failed for ${logPath}`, err);
+		// File may not exist yet -- first write creates it.
+		// Use console.error, NOT _logWarn, to avoid re-entering writeJsonl (#552).
+		console.error(`[pi-shazam] rotateAuditLog: stat/unlink failed for ${logPath}`, err);
 	}
 }
 
@@ -87,9 +88,9 @@ export let _logDirEnsured = false;
 /** Ensure the audit log directory exists with restricted permissions. */
 export async function ensureLogDir(): Promise<void> {
 	if (_logDirEnsured) return;
-	// Wrap mkdir in try/catch and log via console.error -- NOT _logWarn -- so a
-	// persistent failure on the audit dir does not re-enter writeJsonl (which
-	// _logWarn would call) and start an unbounded recursion cycle (#552).
+	// All error logging in this function uses console.error -- NOT _logWarn --
+	// so a persistent failure on the audit dir does not re-enter writeJsonl
+	// (which _logWarn would call) and start an unbounded recursion cycle (#552).
 	// Mark _logDirEnsured regardless of outcome to avoid retry storms.
 	try {
 		await mkdir(AUDIT_LOG_DIR, { recursive: true });
@@ -100,7 +101,7 @@ export async function ensureLogDir(): Promise<void> {
 		await chmod(AUDIT_LOG_DIR, 0o700);
 	} catch (err) {
 		// best-effort: log the cause but do not fail the write
-		_logWarn("ensureLogDir", "chmod 0o700 failed on audit log dir", err);
+		console.error("[pi-shazam] ensureLogDir: chmod 0o700 failed on audit log dir", err);
 	}
 	_logDirEnsured = true;
 }
@@ -120,8 +121,9 @@ export async function writeJsonlEntry(logPath: string, data: Record<string, unkn
 	try {
 		await chmod(logPath, 0o600);
 	} catch (err) {
-		// best-effort: log the cause but do not fail the write
-		_logWarn("writeJsonlEntry", "chmod 0o600 failed on log file", err);
+		// best-effort: log the cause but do not fail the write.
+		// Use console.error, NOT _logWarn, to avoid re-entering writeJsonl (#552).
+		console.error("[pi-shazam] writeJsonlEntry: chmod 0o600 failed on log file", err);
 	}
 }
 

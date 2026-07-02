@@ -32,9 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Simplified
 
+- **Duplicate consolidation (#571)**: Extracted `isTestFile()` SSOT to `core/filter.ts`, `_cleanEdgesForSymbols()` shared edge cleanup in `core/scanner.ts`, `decodeBufferAdaptive()` pure buffer-to-string in `core/encoding.ts`, unified audit logging via `core/audit-log.ts` in `mcp/tools.ts`, shared `PRETTIER_CONFIG_FILES` in `core/formatters.ts` (added missing `.prettierrc.js`), `detectProjectLanguages()` in `core/formatters.ts`, `lsp/manager.ts` derives languages from `graph.fileSymbols` instead of duplicate directory walk, import resolution unified to `core/resolve-import.ts`.
+
 - **Dead code removal (#572)**: Removed delta mode residual code (`options.delta`, `deltaLabel`) from `verify.ts`, `tools/definitions.ts`, `mcp/tools.ts`, and `precommit-verify.ts`. Removed unused `_lspManager` parameter from `registerAllTools`.
 
 - **Hot-path optimizations (#573)**: BFS queue `shift()` replaced with O(1) head-index dequeue in all 4 BFS loops. LRU detail cache uses O(1) Map-based ordering instead of O(n) `indexOf`+`splice`. Single-pass diagnostics counting avoids multiple `filter().length` iterations. Eliminated intermediate `[...Set].filter()` arrays in graph snapshot comparison.
+
+- **Circular dependency fix**: `core/audit-log.ts` no longer imports `_logWarn` from `core/output.ts`, eliminating a runtime circular dependency. Error logging in audit-log uses `console.error` directly, matching the module's own design intent.
 
 ### Documentation
 
