@@ -32,7 +32,7 @@
 	],
 	"pi": {
 		"extensions": [
-			"./dist"
+			"./index.ts"
 		]
 	},
 	"publishConfig": {
